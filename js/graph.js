@@ -202,8 +202,15 @@ export async function loadAssemblyData(assemblyId) {
   // Load saved spacing for this assembly
   loadSavedSpacing();
   
+  // Reset zoom transform so we don't restore a stale view from a different assembly
+  currentTransform = d3.zoomIdentity;
+  
   // Render
+  _fitAfterRender = true;  // Auto-fit after first render of new assembly
   renderGraph();
+  
+  // Also do a smooth fit after a short delay (in case render triggers async layout)
+  setTimeout(() => fitToScreen(), 100);
   
   const lockedCount = state.lockedNodes.size;
   setStatus(`Loaded ${state.nodes.length} nodes (${lockedCount} locked)`, 'success');
