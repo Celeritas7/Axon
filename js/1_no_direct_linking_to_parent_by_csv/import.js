@@ -162,37 +162,8 @@ function parseCSVLine(line) {
 function showImportPreview(parsed) {
   const { nodes, links, rootNodes } = parsed;
   
-  // Build existing nodes dropdown for parent attachment
-  const existingNodes = state.nodes
-    .filter(n => !n.deleted)
-    .sort((a, b) => (a.level || 1) - (b.level || 1));
-  
-  const parentOptions = existingNodes.length > 0
-    ? existingNodes.map(n => 
-        `<option value="${n.id}">L${n.level} - ${escapeHtml(n.name)}</option>`
-      ).join('')
-    : '';
-  
-  const attachSection = existingNodes.length > 0 ? `
-    <div style="margin-bottom: 15px; padding: 12px; background: #fff3cd; border-radius: 6px; border: 1px solid #ffc107;">
-      <strong>🔗 Attach to existing node</strong>
-      <p style="font-size: 12px; color: #666; margin: 6px 0;">
-        The imported root node(s) (<strong>${rootNodes.map(n => n.name).join(', ')}</strong>) will become children of the selected parent.
-      </p>
-      <select id="importAttachParent" class="form-select" style="width: 100%; margin-top: 8px; font-size: 14px; padding: 8px;">
-        <option value="">— Don't attach (import as standalone) —</option>
-        ${parentOptions}
-      </select>
-      <div style="margin-top: 8px;">
-        <label style="font-size: 12px; color: #666;">Fastener for attachment link (optional)</label>
-        <input type="text" id="importAttachFastener" class="form-input" placeholder="e.g. M6x20, CBE8-35" style="width: 100%; margin-top: 4px; font-size: 14px; padding: 8px;">
-      </div>
-    </div>
-  ` : '';
-  
   const content = `
     <div style="max-height: 400px; overflow-y: auto;">
-      ${attachSection}
       <div style="margin-bottom: 15px; padding: 10px; background: #e8f5e9; border-radius: 6px;">
         <strong>📊 Import Summary</strong>
         <ul style="margin: 10px 0 0 20px; padding: 0;">
@@ -263,16 +234,10 @@ function escapeHtml(str) {
 // PERFORM IMPORT
 // ============================================================
 async function performImport(parsed) {
-  // Read input values BEFORE hiding modal (while DOM elements exist)
-  const attachParentEl = document.getElementById('importAttachParent');
-  const attachFastenerEl = document.getElementById('importAttachFastener');
-  const attachParentId = attachParentEl ? attachParentEl.value : '';
-  const attachFastener = attachFastenerEl ? attachFastenerEl.value.trim() : '';
-  
   hideModal();
   showLoading(true);
   
-  const { nodes, links, rootNodes } = parsed;
+  const { nodes, links } = parsed;
   const assemblyId = state.currentAssemblyId;
   
   try {
@@ -280,24 +245,10 @@ async function performImport(parsed) {
     const nodeIdMap = new Map(); // name -> uuid
     const nodesToInsert = [];
     
-    // Check for existing nodes with same name — reuse them to avoid duplicates
-    const existingNameMap = new Map();
-    state.nodes.forEach(n => {
-      existingNameMap.set(n.name.toLowerCase(), n.id);
-    });
-    
     // Calculate auto-layout positions (tree layout)
     const positions = calculateTreeLayout(nodes, links);
     
     nodes.forEach((node, index) => {
-      // Check if node with same name already exists
-      const existingId = existingNameMap.get(node.name.toLowerCase());
-      if (existingId) {
-        // Reuse existing node — don't insert again
-        nodeIdMap.set(node.name, existingId);
-        return;
-      }
-      
       const id = crypto.randomUUID();
       nodeIdMap.set(node.name, id);
       
@@ -315,18 +266,16 @@ async function performImport(parsed) {
       });
     });
     
-    // Insert new nodes
-    if (nodesToInsert.length > 0) {
-      const { error: nodesError } = await db
-        .from('logi_nodes')
-        .insert(nodesToInsert);
-      
-      if (nodesError) {
-        throw new Error(`Failed to insert nodes: ${nodesError.message}`);
-      }
+    // Insert nodes
+    const { error: nodesError } = await db
+      .from('logi_nodes')
+      .insert(nodesToInsert);
+    
+    if (nodesError) {
+      throw new Error(`Failed to insert nodes: ${nodesError.message}`);
     }
     
-    // Generate internal links from CSV
+    // Generate links with UUIDs
     const linksToInsert = links.map(link => ({
       id: crypto.randomUUID(),
       assembly_id: assemblyId,
@@ -340,28 +289,7 @@ async function performImport(parsed) {
       deleted: false
     })).filter(l => l.parent_id && l.child_id);
     
-    // Add attachment links: CSV root nodes → selected parent
-    if (attachParentId) {
-      rootNodes.forEach(rootNode => {
-        const rootId = nodeIdMap.get(rootNode.name);
-        if (rootId) {
-          linksToInsert.push({
-            id: crypto.randomUUID(),
-            assembly_id: assemblyId,
-            parent_id: attachParentId,  // existing parent node
-            child_id: rootId,            // CSV root becomes child
-            fastener: attachFastener || null,
-            qty: 1,
-            loctite: null,
-            torque_value: null,
-            torque_unit: null,
-            deleted: false
-          });
-        }
-      });
-    }
-    
-    // Insert all links
+    // Insert links
     if (linksToInsert.length > 0) {
       const { error: linksError } = await db
         .from('logi_links')
@@ -372,8 +300,7 @@ async function performImport(parsed) {
       }
     }
     
-    const attachMsg = attachParentId ? ` (attached to existing node)` : '';
-    showToast(`Imported ${nodesToInsert.length} nodes and ${linksToInsert.length} links${attachMsg}!`, 'success');
+    showToast(`Imported ${nodesToInsert.length} nodes and ${linksToInsert.length} links!`, 'success');
     
     // Reload the assembly
     await loadAssemblyData(assemblyId);
