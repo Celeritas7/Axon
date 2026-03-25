@@ -93,8 +93,6 @@
     
     <button class="header-btn save-btn admin-only" id="saveBtn" onclick="saveAllPositions()">💾 Save</button>
     
-    <button class="header-btn" style="background:#16a085;" onclick="window.openBOMList()" title="BOM List View">📋 BOM</button>
-    
     <div class="dropdown">
       <button class="header-btn dropdown-btn" onclick="toggleExportDropdown()">📤 Export ▼</button>
       <div class="dropdown-content" id="exportDropdown">
@@ -105,7 +103,7 @@
     </div>
     
     <button class="header-btn admin-only" style="background:#27ae60;" onclick="openImportCSV()">📥 Import CSV</button>
-    <input type="file" id="csvFileInput" accept=".csv" multiple style="display:none;" onchange="handleCSVFile(event)">
+    <input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="handleCSVFile(event)">
   </div>
   
   <span id="statusIndicator" class="status-text"></span>
@@ -248,24 +246,6 @@
   </div>
 
 </div><!-- End treePage -->
-
-<!-- BOM List Panel (Full-screen overlay) -->
-<div class="bom-overlay" id="bomOverlay">
-  <div class="bom-panel">
-    <div class="bom-header">
-      <h3>📋 BOM - <span id="bomAssemblyName"></span></h3>
-      <div class="bom-actions">
-        <button class="bom-btn" onclick="window.bomExpandAll()">Expand All</button>
-        <button class="bom-btn" onclick="window.bomCollapseAll()">Collapse All</button>
-        <button class="bom-btn bom-export" onclick="window.bomExportCSV()">📥 Export CSV</button>
-        <button class="bom-close" onclick="window.closeBOMList()">✕</button>
-      </div>
-    </div>
-    <div class="bom-table-wrap" id="bomTableWrap">
-      <!-- Table rendered dynamically -->
-    </div>
-  </div>
-</div>
 
 <!-- Modal for confirmations -->
 <div class="modal-overlay" id="modalOverlay">

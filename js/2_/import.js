@@ -19,39 +19,27 @@ export function openImportCSV() {
 }
 
 // ============================================================
-// HANDLE CSV FILE(S) — supports multiple selection
+// HANDLE CSV FILE
 // ============================================================
 export function handleCSVFile(event) {
-  const files = Array.from(event.target.files);
-  if (files.length === 0) return;
+  const file = event.target.files[0];
+  if (!file) return;
   
-  const parsedFiles = [];
-  let loaded = 0;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const csvText = e.target.result;
+    const parsed = parseCSV(csvText);
+    
+    if (parsed.error) {
+      showToast(parsed.error, 'error');
+      return;
+    }
+    
+    showImportPreview(parsed);
+  };
+  reader.readAsText(file);
   
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const csvText = e.target.result;
-      const parsed = parseCSV(csvText);
-      
-      if (parsed.error) {
-        showToast(`${file.name}: ${parsed.error}`, 'error');
-      } else {
-        parsed.fileName = file.name;
-        parsedFiles.push(parsed);
-      }
-      
-      loaded++;
-      if (loaded === files.length) {
-        if (parsedFiles.length > 0) {
-          showMultiImportPreview(parsedFiles);
-        }
-      }
-    };
-    reader.readAsText(file);
-  });
-  
-  // Reset input so same files can be selected again
+  // Reset input so same file can be selected again
   event.target.value = '';
 }
 
@@ -171,14 +159,8 @@ function parseCSVLine(line) {
 // ============================================================
 // SHOW IMPORT PREVIEW
 // ============================================================
-// ============================================================
-// SHOW MULTI-FILE IMPORT PREVIEW
-// ============================================================
-function showMultiImportPreview(parsedFiles) {
-  // Aggregate totals
-  const totalNodes = parsedFiles.reduce((sum, p) => sum + p.nodes.length, 0);
-  const totalLinks = parsedFiles.reduce((sum, p) => sum + p.links.length, 0);
-  const allRoots = parsedFiles.flatMap(p => p.rootNodes);
+function showImportPreview(parsed) {
+  const { nodes, links, rootNodes } = parsed;
   
   // Build existing nodes dropdown for parent attachment
   const existingNodes = state.nodes
@@ -195,93 +177,81 @@ function showMultiImportPreview(parsedFiles) {
     <div style="margin-bottom: 15px; padding: 12px; background: #fff3cd; border-radius: 6px; border: 1px solid #ffc107;">
       <strong>🔗 Attach to existing node</strong>
       <p style="font-size: 12px; color: #666; margin: 6px 0;">
-        All root nodes from the imported file(s) will become children of the selected parent.
+        The imported root node(s) (<strong>${rootNodes.map(n => n.name).join(', ')}</strong>) will become children of the selected parent.
       </p>
       <select id="importAttachParent" class="form-select" style="width: 100%; margin-top: 8px; font-size: 14px; padding: 8px;">
         <option value="">— Don't attach (import as standalone) —</option>
         ${parentOptions}
       </select>
       <div style="margin-top: 8px;">
-        <label style="font-size: 12px; color: #666;">Fastener for attachment links (optional)</label>
+        <label style="font-size: 12px; color: #666;">Fastener for attachment link (optional)</label>
         <input type="text" id="importAttachFastener" class="form-input" placeholder="e.g. M6x20, CBE8-35" style="width: 100%; margin-top: 4px; font-size: 14px; padding: 8px;">
       </div>
     </div>
   ` : '';
   
-  // Per-file breakdown
-  const fileBreakdown = parsedFiles.map((p, i) => `
-    <div style="padding: 8px 10px; background: ${i % 2 === 0 ? '#f8f9fa' : 'white'}; border-radius: 4px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        <strong style="font-size: 12px;">📄 ${escapeHtml(p.fileName)}</strong>
-        <span style="font-size: 11px; color: #666; margin-left: 8px;">
-          ${p.nodes.length} nodes, ${p.links.length} links
-        </span>
-      </div>
-      <div style="font-size: 11px; color: #888;">
-        Root: <strong>${p.rootNodes.map(n => n.name).join(', ')}</strong>
-      </div>
-    </div>
-  `).join('');
-  
   const content = `
-    <div style="max-height: 450px; overflow-y: auto;">
+    <div style="max-height: 400px; overflow-y: auto;">
       ${attachSection}
-      
       <div style="margin-bottom: 15px; padding: 10px; background: #e8f5e9; border-radius: 6px;">
-        <strong>📊 Import Summary — ${parsedFiles.length} file${parsedFiles.length > 1 ? 's' : ''}</strong>
+        <strong>📊 Import Summary</strong>
         <ul style="margin: 10px 0 0 20px; padding: 0;">
-          <li><strong>${totalNodes}</strong> total nodes</li>
-          <li><strong>${totalLinks}</strong> total links</li>
-          <li><strong>${allRoots.length}</strong> root node(s): ${allRoots.map(n => n.name).join(', ')}</li>
+          <li><strong>${nodes.length}</strong> nodes</li>
+          <li><strong>${links.length}</strong> links</li>
+          <li><strong>${rootNodes.length}</strong> root node(s): ${rootNodes.map(n => n.name).join(', ')}</li>
         </ul>
       </div>
       
       <div style="margin-bottom: 15px;">
-        <strong>Files:</strong>
-        <div style="margin-top: 8px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden;">
-          ${fileBreakdown}
-        </div>
-      </div>
-      
-      <div style="margin-bottom: 10px;">
-        <strong>Nodes Preview (first file):</strong>
+        <strong>Nodes Preview:</strong>
         <table style="width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px;">
           <thead>
             <tr style="background: #f5f5f5;">
               <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Name</th>
               <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Part Number</th>
-              <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">File</th>
             </tr>
           </thead>
           <tbody>
-            ${parsedFiles.flatMap(p => p.nodes.slice(0, 5).map(n => `
+            ${nodes.slice(0, 10).map(n => `
               <tr>
                 <td style="padding: 6px; border: 1px solid #ddd;">${escapeHtml(n.name)}</td>
                 <td style="padding: 6px; border: 1px solid #ddd;">${n.part_number || '-'}</td>
-                <td style="padding: 6px; border: 1px solid #ddd; font-size: 10px; color: #888;">${escapeHtml(p.fileName)}</td>
               </tr>
-            `)).slice(0, 15).join('')}
-            ${totalNodes > 15 ? `<tr><td colspan="3" style="padding: 6px; border: 1px solid #ddd; color: #666;">... and ${totalNodes - 15} more</td></tr>` : ''}
+            `).join('')}
+            ${nodes.length > 10 ? `<tr><td colspan="2" style="padding: 6px; border: 1px solid #ddd; color: #666;">... and ${nodes.length - 10} more</td></tr>` : ''}
+          </tbody>
+        </table>
+      </div>
+      
+      <div>
+        <strong>Links Preview:</strong>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px;">
+          <thead>
+            <tr style="background: #f5f5f5;">
+              <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Child</th>
+              <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Parent</th>
+              <th style="padding: 6px; border: 1px solid #ddd; text-align: left;">Fastener</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${links.slice(0, 10).map(l => `
+              <tr>
+                <td style="padding: 6px; border: 1px solid #ddd;">${escapeHtml(l.child_name)}</td>
+                <td style="padding: 6px; border: 1px solid #ddd;">${escapeHtml(l.parent_name)}</td>
+                <td style="padding: 6px; border: 1px solid #ddd;">${l.fastener ? `${l.fastener} ×${l.qty}` : '-'}</td>
+              </tr>
+            `).join('')}
+            ${links.length > 10 ? `<tr><td colspan="3" style="padding: 6px; border: 1px solid #ddd; color: #666;">... and ${links.length - 10} more</td></tr>` : ''}
           </tbody>
         </table>
       </div>
     </div>
   `;
   
-  showModal(
-    `Import ${parsedFiles.length} CSV File${parsedFiles.length > 1 ? 's' : ''}`,
-    content,
-    [
-      { label: 'Cancel', class: 'btn-secondary', action: hideModal },
-      { label: `Import All (${parsedFiles.length})`, class: 'btn-primary', action: () => performMultiImport(parsedFiles) }
-    ]
-  );
-}
-
-// Keep single-file preview as alias for backward compat
-function showImportPreview(parsed) {
-  parsed.fileName = parsed.fileName || 'import.csv';
-  showMultiImportPreview([parsed]);
+  showModal('Import CSV Preview', content, [
+    { label: 'Cancel', class: 'btn-secondary', action: hideModal },
+    { label: 'Import', class: 'btn-primary', action: () => performImport(parsed) }
+  ]);
 }
 
 function escapeHtml(str) {
@@ -290,10 +260,10 @@ function escapeHtml(str) {
 }
 
 // ============================================================
-// PERFORM MULTI-FILE IMPORT
+// PERFORM IMPORT
 // ============================================================
-async function performMultiImport(parsedFiles) {
-  // Read input values BEFORE hiding modal
+async function performImport(parsed) {
+  // Read input values BEFORE hiding modal (while DOM elements exist)
   const attachParentEl = document.getElementById('importAttachParent');
   const attachFastenerEl = document.getElementById('importAttachFastener');
   const attachParentId = attachParentEl ? attachParentEl.value : '';
@@ -302,116 +272,108 @@ async function performMultiImport(parsedFiles) {
   hideModal();
   showLoading(true);
   
+  const { nodes, links, rootNodes } = parsed;
   const assemblyId = state.currentAssemblyId;
-  let totalNodesInserted = 0;
-  let totalLinksInserted = 0;
   
   try {
-    // Process each file sequentially
-    for (const parsed of parsedFiles) {
-      const { nodes, links, rootNodes } = parsed;
-      
-      // Generate UUIDs for nodes
-      const nodeIdMap = new Map();
-      const nodesToInsert = [];
-      
-      // Check for existing nodes with same name — reuse them
-      const existingNameMap = new Map();
-      state.nodes.forEach(n => {
-        existingNameMap.set(n.name.toLowerCase(), n.id);
-      });
-      
-      // Calculate auto-layout positions
-      const positions = calculateTreeLayout(nodes, links);
-      
-      nodes.forEach((node, index) => {
-        const existingId = existingNameMap.get(node.name.toLowerCase());
-        if (existingId) {
-          nodeIdMap.set(node.name, existingId);
-          return;
-        }
-        
-        const id = crypto.randomUUID();
-        nodeIdMap.set(node.name, id);
-        
-        const pos = positions.get(node.name) || { x: 200 + (index % 5) * 180, y: 100 + Math.floor(index / 5) * 140 };
-        
-        nodesToInsert.push({
-          id,
-          assembly_id: assemblyId,
-          name: node.name,
-          part_number: node.part_number,
-          x: pos.x,
-          y: pos.y,
-          status: 'NOT_STARTED',
-          deleted: false
-        });
-      });
-      
-      // Insert new nodes
-      if (nodesToInsert.length > 0) {
-        const { error: nodesError } = await db.from('logi_nodes').insert(nodesToInsert);
-        if (nodesError) throw new Error(`${parsed.fileName}: ${nodesError.message}`);
+    // Generate UUIDs for nodes
+    const nodeIdMap = new Map(); // name -> uuid
+    const nodesToInsert = [];
+    
+    // Check for existing nodes with same name — reuse them to avoid duplicates
+    const existingNameMap = new Map();
+    state.nodes.forEach(n => {
+      existingNameMap.set(n.name.toLowerCase(), n.id);
+    });
+    
+    // Calculate auto-layout positions (tree layout)
+    const positions = calculateTreeLayout(nodes, links);
+    
+    nodes.forEach((node, index) => {
+      // Check if node with same name already exists
+      const existingId = existingNameMap.get(node.name.toLowerCase());
+      if (existingId) {
+        // Reuse existing node — don't insert again
+        nodeIdMap.set(node.name, existingId);
+        return;
       }
       
-      // Generate internal links from CSV
-      const linksToInsert = links.map(link => ({
-        id: crypto.randomUUID(),
+      const id = crypto.randomUUID();
+      nodeIdMap.set(node.name, id);
+      
+      const pos = positions.get(node.name) || { x: 200 + (index % 5) * 180, y: 100 + Math.floor(index / 5) * 140 };
+      
+      nodesToInsert.push({
+        id,
         assembly_id: assemblyId,
-        parent_id: nodeIdMap.get(link.parent_name),
-        child_id: nodeIdMap.get(link.child_name),
-        fastener: link.fastener,
-        qty: link.qty,
-        loctite: link.loctite,
-        torque_value: link.torque_value,
-        torque_unit: link.torque_unit,
+        name: node.name,
+        part_number: node.part_number,
+        x: pos.x,
+        y: pos.y,
+        status: 'NOT_STARTED',
         deleted: false
-      })).filter(l => l.parent_id && l.child_id);
+      });
+    });
+    
+    // Insert new nodes
+    if (nodesToInsert.length > 0) {
+      const { error: nodesError } = await db
+        .from('logi_nodes')
+        .insert(nodesToInsert);
       
-      // Add attachment links: CSV root nodes → selected parent
-      if (attachParentId) {
-        rootNodes.forEach(rootNode => {
-          const rootId = nodeIdMap.get(rootNode.name);
-          if (rootId) {
-            linksToInsert.push({
-              id: crypto.randomUUID(),
-              assembly_id: assemblyId,
-              parent_id: attachParentId,
-              child_id: rootId,
-              fastener: attachFastener || null,
-              qty: 1,
-              loctite: null,
-              torque_value: null,
-              torque_unit: null,
-              deleted: false
-            });
-          }
-        });
-      }
-      
-      // Insert all links
-      if (linksToInsert.length > 0) {
-        const { error: linksError } = await db.from('logi_links').insert(linksToInsert);
-        if (linksError) throw new Error(`${parsed.fileName}: ${linksError.message}`);
-      }
-      
-      totalNodesInserted += nodesToInsert.length;
-      totalLinksInserted += linksToInsert.length;
-      
-      // After each file, refresh state so next file's duplicate detection sees new nodes
-      const { data: refreshNodes } = await db.from('logi_nodes')
-        .select('*')
-        .eq('assembly_id', assemblyId)
-        .eq('deleted', false);
-      if (refreshNodes) {
-        // Just update the existingNameMap for next file — full reload happens at end
-        refreshNodes.forEach(n => existingNameMap.set(n.name.toLowerCase(), n.id));
+      if (nodesError) {
+        throw new Error(`Failed to insert nodes: ${nodesError.message}`);
       }
     }
     
-    const fileCount = parsedFiles.length;
-    const attachMsg = attachParentId ? ' (attached to parent)' : '';
-    showToast(`Imported ${totalNodesInserted} nodes, ${totalLinksInserted} links from ${fileCount} file${fileCount > 1 ? 's' : ''}${attachMsg}`, 'success');
+    // Generate internal links from CSV
+    const linksToInsert = links.map(link => ({
+      id: crypto.randomUUID(),
+      assembly_id: assemblyId,
+      parent_id: nodeIdMap.get(link.parent_name),
+      child_id: nodeIdMap.get(link.child_name),
+      fastener: link.fastener,
+      qty: link.qty,
+      loctite: link.loctite,
+      torque_value: link.torque_value,
+      torque_unit: link.torque_unit,
+      deleted: false
+    })).filter(l => l.parent_id && l.child_id);
+    
+    // Add attachment links: CSV root nodes → selected parent
+    if (attachParentId) {
+      rootNodes.forEach(rootNode => {
+        const rootId = nodeIdMap.get(rootNode.name);
+        if (rootId) {
+          linksToInsert.push({
+            id: crypto.randomUUID(),
+            assembly_id: assemblyId,
+            parent_id: attachParentId,  // existing parent node
+            child_id: rootId,            // CSV root becomes child
+            fastener: attachFastener || null,
+            qty: 1,
+            loctite: null,
+            torque_value: null,
+            torque_unit: null,
+            deleted: false
+          });
+        }
+      });
+    }
+    
+    // Insert all links
+    if (linksToInsert.length > 0) {
+      const { error: linksError } = await db
+        .from('logi_links')
+        .insert(linksToInsert);
+      
+      if (linksError) {
+        throw new Error(`Failed to insert links: ${linksError.message}`);
+      }
+    }
+    
+    const attachMsg = attachParentId ? ` (attached to existing node)` : '';
+    showToast(`Imported ${nodesToInsert.length} nodes and ${linksToInsert.length} links${attachMsg}!`, 'success');
     
     // Reload the assembly
     await loadAssemblyData(assemblyId);
@@ -422,12 +384,6 @@ async function performMultiImport(parsedFiles) {
   } finally {
     showLoading(false);
   }
-}
-
-// Keep single-file performImport as alias
-async function performImport(parsed) {
-  parsed.fileName = parsed.fileName || 'import.csv';
-  await performMultiImport([parsed]);
 }
 
 // ============================================================

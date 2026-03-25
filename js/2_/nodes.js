@@ -225,13 +225,10 @@ export async function toggleNodeLock(nodeId) {
   if (!node) return;
   
   try {
-    const treeY = node.treeY ?? node.tree_y ?? node.y;
-    
     const { error } = await db.from('logi_nodes').update({
       is_locked: !isCurrentlyLocked,
       x: node.x,
-      y: node.y,
-      tree_y: treeY
+      y: node.y
     }).eq('id', nodeId);
     
     if (error) throw error;
@@ -242,7 +239,6 @@ export async function toggleNodeLock(nodeId) {
       node.fy = null;
       showToast('Node unlocked', 'success');
     } else {
-      node.tree_y = treeY;
       state.addLockedNode(nodeId);
       node.fx = node.x;
       node.fy = node.y;
@@ -271,19 +267,12 @@ export async function lockAllVisibleNodes() {
   
   try {
     for (const node of visibleNodes) {
-      // Save tree positions (treeY is the actual position in tree mode)
-      const treeY = node.treeY ?? node.tree_y ?? node.y;
-      const treeX = node.treeX ?? node.x;
-      
       await db.from('logi_nodes').update({
         is_locked: true,
         x: node.x,
-        y: node.y,
-        tree_y: treeY
+        y: node.y
       }).eq('id', node.id);
       
-      // Update local state
-      node.tree_y = treeY;
       state.addLockedNode(node.id);
       node.fx = node.x;
       node.fy = node.y;
@@ -371,16 +360,11 @@ export function undoPositions() {
   lastState.nodes.forEach(saved => {
     const node = state.nodes.find(n => n.id === saved.id);
     if (node) {
-      // Restore tree positions
-      if (saved.tree_y != null) {
-        node.tree_y = saved.tree_y;
-        node.treeY = saved.tree_y;
-      }
-      node.x = saved.x ?? node.x;
-      node.y = saved.y ?? node.y;
+      node.x = saved.x;
+      node.y = saved.y;
       if (state.lockedNodes.has(node.id)) {
-        node.fx = node.x;
-        node.fy = node.y;
+        node.fx = saved.x;
+        node.fy = saved.y;
       }
     }
   });
@@ -393,20 +377,18 @@ export function undoPositions() {
 // REFRESH UNLOCKED NODES
 // ============================================================
 export function refreshUnlockedNodes() {
-  if (!state.isAdmin) return;
+  if (!state.isAdmin || !state.simulation) return;
   
-  // In tree mode: clear tree_y for unlocked nodes so layout recomputes them
+  // Reset unlocked nodes to trigger new simulation
   state.nodes.forEach(n => {
     if (!state.lockedNodes.has(n.id)) {
-      n.tree_y = null;
-      n.treeY = null;
       n.fx = null;
       n.fy = null;
     }
   });
   
-  renderGraph();
-  showToast('Layout refreshed (unlocked nodes repositioned)', 'info');
+  state.simulation.alpha(1).restart();
+  showToast('Layout refreshed', 'info');
 }
 
 // ============================================================

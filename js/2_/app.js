@@ -20,7 +20,7 @@ import {
   saveAllPositions, undoPositions, refreshUnlockedNodes
 } from './nodes.js';
 import './links.js'; // Import for side effects (window exports)
-import { downloadPNG, downloadSVG, showExportOptions, openBOMList } from './export.js';
+import { downloadPNG, downloadSVG, showExportOptions } from './export.js';
 import './chatbot.js'; // Import chatbot for side effects (window exports)
 import './import.js'; // CSV import functionality
 

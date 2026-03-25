@@ -615,11 +615,33 @@ function calculateTreeLayout(nodes, links) {
   // Initialize positions
   const treePositions = {};
   
+  // Check if any node has stored tree_y
+  const hasStoredPositions = nodes.some(n => n.tree_y != null);
+  
   // Detect groups based on L2 nodes (main branches)
   const groups = detectGroups(nodes, links, childToParents, parentToChildren);
   
-  // Always run auto-layout, then pin locked nodes afterward
-  {
+  if (hasStoredPositions) {
+    // Use stored Y positions but ALWAYS compute X from per-level gaps
+    levels.forEach((level, colIndex) => {
+      const nodesInLevel = levelGroups[level];
+      const columnX = getColumnX(level);
+      
+      nodesInLevel.forEach((node, rowIndex) => {
+        const nodeX = columnX;
+        const nodeY = node.tree_y != null ? node.tree_y : (topPadding + headerHeight + rowIndex * verticalGap);
+        
+        treePositions[node.id] = {
+          x: nodeX,
+          y: nodeY,
+          treeWidth: nodeWidth - 20,
+          treeHeight: nodeHeight - 10
+        };
+      });
+    });
+  } else {
+    // Improved auto-layout: Position groups separately, then center
+    
     // Step 1: Assign nodes to groups
     const nodeToGroup = {};
     groups.forEach((group, groupIdx) => {
@@ -740,25 +762,12 @@ function calculateTreeLayout(nodes, links) {
       groupStartY = groupMaxY + verticalGap + groupGap;
     });
     
-    // Step 3b: Pin locked nodes to their stored tree_y (override auto-layout)
-    nodes.forEach(node => {
-      if (state.lockedNodes.has(node.id) && node.tree_y != null && treePositions[node.id]) {
-        treePositions[node.id].y = node.tree_y;
-      }
-    });
-    
     // Step 4: Bidirectional centering — alternate parent-centering and child-pushing
-    // Build set of locked node IDs for quick lookup
-    const lockedIds = state.lockedNodes;
-    
     for (let pass = 0; pass < 5; pass++) {
       // Up pass: center each parent among its children (leaves → root)
       [...levels].reverse().forEach(level => {
         const nodesInLevel = levelGroups[level] || [];
         nodesInLevel.forEach(node => {
-          // Skip locked nodes — they stay where they are
-          if (lockedIds.has(node.id)) return;
-          
           const children = parentToChildren[node.id] || [];
           const childYs = children
             .filter(cid => treePositions[cid])
@@ -774,11 +783,6 @@ function calculateTreeLayout(nodes, links) {
         nodesInLevel.sort((a, b) => treePositions[a.id].y - treePositions[b.id].y);
         let lastY = topPadding + headerHeight - verticalGap;
         nodesInLevel.forEach(node => {
-          if (lockedIds.has(node.id)) {
-            // Locked node stays put, but still updates lastY for gap tracking
-            lastY = Math.max(lastY, treePositions[node.id].y);
-            return;
-          }
           if (treePositions[node.id].y < lastY + verticalGap) {
             treePositions[node.id].y = lastY + verticalGap;
           }
@@ -792,17 +796,15 @@ function calculateTreeLayout(nodes, links) {
         nodesInLevel.forEach(node => {
           const children = parentToChildren[node.id] || [];
           const childrenWithPos = children.filter(cid => treePositions[cid]);
-          // Only push UNLOCKED children
-          const movableChildren = childrenWithPos.filter(cid => !lockedIds.has(cid));
           
-          if (movableChildren.length > 0 && childrenWithPos.length > 0) {
+          if (childrenWithPos.length > 0) {
             const childYs = childrenWithPos.map(cid => treePositions[cid].y);
             const childCenter = (Math.min(...childYs) + Math.max(...childYs)) / 2;
             const parentY = treePositions[node.id].y;
             const offset = parentY - childCenter;
             
             if (Math.abs(offset) > 1) {
-              movableChildren.forEach(cid => {
+              childrenWithPos.forEach(cid => {
                 treePositions[cid].y += offset;
               });
             }
@@ -813,10 +815,6 @@ function calculateTreeLayout(nodes, links) {
         nodesInLevel.sort((a, b) => treePositions[a.id].y - treePositions[b.id].y);
         let lastY2 = topPadding + headerHeight - verticalGap;
         nodesInLevel.forEach(node => {
-          if (lockedIds.has(node.id)) {
-            lastY2 = Math.max(lastY2, treePositions[node.id].y);
-            return;
-          }
           if (treePositions[node.id].y < lastY2 + verticalGap) {
             treePositions[node.id].y = lastY2 + verticalGap;
           }
@@ -1537,33 +1535,6 @@ export function renderGraph() {
         .attr('text-anchor', 'start')
         .attr('font-size', isTreeMode ? '14px' : '16px')
         .text(seqDisplay);
-    }
-    
-    // Qty badge — show ×N when qty > 1
-    if (d.qty && d.qty > 1) {
-      const qtyBadgeX = -nodeW/2 + 10;
-      const qtyBadgeY = nodeH/2 - 2;
-      
-      group.append('rect')
-        .attr('class', 'qty-badge-bg')
-        .attr('x', qtyBadgeX - 12)
-        .attr('y', qtyBadgeY - 10)
-        .attr('width', 24)
-        .attr('height', 14)
-        .attr('rx', 7)
-        .attr('fill', '#e74c3c')
-        .attr('stroke', 'white')
-        .attr('stroke-width', 1);
-      
-      group.append('text')
-        .attr('class', 'qty-badge-text')
-        .attr('x', qtyBadgeX)
-        .attr('y', qtyBadgeY)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
-        .attr('font-size', '9px')
-        .attr('font-weight', '700')
-        .text(`×${d.qty}`);
     }
   });
   
