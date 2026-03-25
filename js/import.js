@@ -205,6 +205,15 @@ function showMultiImportPreview(parsedFiles) {
         <label style="font-size: 12px; color: #666;">Fastener for attachment links (optional)</label>
         <input type="text" id="importAttachFastener" class="form-input" placeholder="e.g. M6x20, CBE8-35" style="width: 100%; margin-top: 4px; font-size: 14px; padding: 8px;">
       </div>
+      <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0c56b;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+          <input type="checkbox" id="importMergeNodes">
+          <span><strong>Merge</strong> nodes with same name as existing ones</span>
+        </label>
+        <p style="font-size: 11px; color: #888; margin: 4px 0 0 26px;">
+          OFF = each CSV imports as a standalone sub-tree (recommended). ON = reuses existing nodes with the same name.
+        </p>
+      </div>
     </div>
   ` : '';
   
@@ -296,8 +305,10 @@ async function performMultiImport(parsedFiles) {
   // Read input values BEFORE hiding modal
   const attachParentEl = document.getElementById('importAttachParent');
   const attachFastenerEl = document.getElementById('importAttachFastener');
+  const mergeEl = document.getElementById('importMergeNodes');
   const attachParentId = attachParentEl ? attachParentEl.value : '';
   const attachFastener = attachFastenerEl ? attachFastenerEl.value.trim() : '';
+  const mergeEnabled = mergeEl ? mergeEl.checked : false;
   
   hideModal();
   showLoading(true);
@@ -307,19 +318,30 @@ async function performMultiImport(parsedFiles) {
   let totalLinksInserted = 0;
   
   try {
+    // Build cross-file dedup map only if merge is enabled
+    // This tracks nodes created by PREVIOUS files in this batch
+    const batchNameMap = new Map();
+    
     // Process each file sequentially
     for (const parsed of parsedFiles) {
       const { nodes, links, rootNodes } = parsed;
       
-      // Generate UUIDs for nodes
       const nodeIdMap = new Map();
       const nodesToInsert = [];
       
-      // Check for existing nodes with same name — reuse them
+      // Build dedup map based on merge setting
       const existingNameMap = new Map();
-      state.nodes.forEach(n => {
-        existingNameMap.set(n.name.toLowerCase(), n.id);
-      });
+      
+      if (mergeEnabled) {
+        // Merge ON: match against ALL existing assembly nodes + previous files in batch
+        state.nodes.forEach(n => {
+          existingNameMap.set(n.name.toLowerCase(), n.id);
+        });
+        batchNameMap.forEach((id, name) => {
+          existingNameMap.set(name, id);
+        });
+      }
+      // Merge OFF: no dedup at all — each CSV imports as a fully standalone sub-tree
       
       // Calculate auto-layout positions
       const positions = calculateTreeLayout(nodes, links);
@@ -333,6 +355,11 @@ async function performMultiImport(parsedFiles) {
         
         const id = crypto.randomUUID();
         nodeIdMap.set(node.name, id);
+        
+        // Track in batch map for subsequent files (only relevant with merge ON)
+        if (mergeEnabled) {
+          batchNameMap.set(node.name.toLowerCase(), id);
+        }
         
         const pos = positions.get(node.name) || { x: 200 + (index % 5) * 180, y: 100 + Math.floor(index / 5) * 140 };
         
@@ -397,16 +424,6 @@ async function performMultiImport(parsedFiles) {
       
       totalNodesInserted += nodesToInsert.length;
       totalLinksInserted += linksToInsert.length;
-      
-      // After each file, refresh state so next file's duplicate detection sees new nodes
-      const { data: refreshNodes } = await db.from('logi_nodes')
-        .select('*')
-        .eq('assembly_id', assemblyId)
-        .eq('deleted', false);
-      if (refreshNodes) {
-        // Just update the existingNameMap for next file — full reload happens at end
-        refreshNodes.forEach(n => existingNameMap.set(n.name.toLowerCase(), n.id));
-      }
     }
     
     const fileCount = parsedFiles.length;
