@@ -257,13 +257,10 @@
       <div class="bom-actions">
         <button class="bom-btn" onclick="window.bomExpandAll()">Expand All</button>
         <button class="bom-btn" onclick="window.bomCollapseAll()">Collapse All</button>
-        <button class="bom-btn" style="background:rgba(39,174,96,0.3);border-color:#27ae60;" onclick="document.getElementById('bomCsvInput').click()">📤 Import CSV</button>
         <button class="bom-btn bom-export" onclick="window.bomExportCSV()">📥 Export CSV</button>
-        <button class="bom-btn" style="background:rgba(52,152,219,0.3);border-color:#3498db;" onclick="window.bomPrint()">🖨️ Print</button>
         <button class="bom-close" onclick="window.closeBOMList()">✕</button>
       </div>
     </div>
-    <input type="file" id="bomCsvInput" accept=".csv" style="display:none;" onchange="window.bomHandleCSVImport(event)">
     <div class="bom-table-wrap" id="bomTableWrap">
       <!-- Table rendered dynamically -->
     </div>

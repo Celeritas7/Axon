@@ -1709,9 +1709,6 @@ body.tree-view .chat-fab { bottom: 155px; }
 .bom-depth-3 { background: #fdf9ff; }
 .bom-depth-4 { background: #fff9f9; }
 
-/* Row number column */
-.bom-col-num { width: 35px; text-align: center; color: #999; font-size: 11px; }
-
 /* Column widths */
 .bom-col-tree { min-width: 250px; }
 .bom-col-pn { min-width: 100px; color: #666; font-size: 12px; }
@@ -1776,65 +1773,13 @@ body.tree-view .chat-fab { bottom: 155px; }
   color: #e67e22;
 }
 
-/* Inline editable inputs */
-.bom-edit-input {
-  border: 1px solid transparent;
-  background: transparent;
-  padding: 3px 6px;
-  font-size: 12px;
-  border-radius: 4px;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.3s;
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-}
-.bom-edit-input:hover { border-color: #ddd; background: #fafafa; }
-.bom-edit-input:focus {
-  outline: none;
-  border-color: #3498db;
-  background: white;
-  box-shadow: 0 0 0 2px rgba(52,152,219,0.12);
-}
-
-.bom-edit-name { font-weight: 500; min-width: 120px; }
-.bom-edit-pn { color: #666; }
-.bom-edit-fastener { color: #3498db; }
-.bom-edit-fqty { width: 45px; text-align: center; }
-.bom-edit-lt { color: #9b59b6; }
-.bom-edit-torque { color: #e67e22; }
-
-.bom-edit-select {
-  border: 1px solid transparent;
-  background: transparent;
-  padding: 3px 4px;
-  font-size: 11px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: border-color 0.15s;
-  -webkit-appearance: none;
-  appearance: none;
-}
-.bom-edit-select:hover { border-color: #ddd; background: #fafafa; }
-.bom-edit-select:focus { outline: none; border-color: #3498db; background: white; }
-
-/* Saved flash animation */
-.bom-saved {
-  animation: bomSavedFlash 0.6s ease-out;
-}
-@keyframes bomSavedFlash {
-  0% { box-shadow: 0 0 0 2px rgba(39,174,96,0.5); background: #d4edda; }
-  100% { box-shadow: none; background: transparent; }
-}
-
 @media (max-width: 768px) {
   .bom-panel { margin: 8px; border-radius: 8px; }
   .bom-header { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
   .bom-table { font-size: 12px; }
   .bom-table th, .bom-table td { padding: 6px 8px; }
   .bom-qty-input { width: 44px; font-size: 14px; padding: 6px 4px; }
-  .bom-edit-input { font-size: 14px; padding: 4px 6px; }
-  .bom-edit-select { font-size: 12px; }
-  .bom-col-lt, .bom-col-torque, .bom-col-fqty, .bom-col-num { display: none; }
+  .bom-col-lt, .bom-col-torque, .bom-col-fqty { display: none; }
 }
 
 
