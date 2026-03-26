@@ -94,7 +94,6 @@
     <button class="header-btn save-btn admin-only" id="saveBtn" onclick="saveAllPositions()">💾 Save</button>
     
     <button class="header-btn" style="background:#16a085;" onclick="window.openBOMList()" title="BOM List View">📋 BOM</button>
-    <button class="header-btn" style="background:#e67e22;" onclick="window.openPickup()" title="Pickup Mode">🧺 Pickup</button>
     
     <div class="dropdown">
       <button class="header-btn dropdown-btn" onclick="toggleExportDropdown()">📤 Export ▼</button>
@@ -266,37 +265,6 @@
     </div>
     <input type="file" id="bomCsvInput" accept=".csv" style="display:none;" onchange="window.bomHandleCSVImport(event)">
     <div class="bom-table-wrap" id="bomTableWrap">
-      <!-- Table rendered dynamically -->
-    </div>
-  </div>
-</div>
-
-<!-- Pickup Mode Overlay -->
-<div class="pickup-overlay" id="pickupOverlay">
-  <div class="pickup-panel">
-    <div class="pickup-header">
-      <h3>🧺 Pickup List — <span id="pickupAssemblyName"></span></h3>
-      <div class="pickup-actions">
-        <div class="pickup-units-wrap">
-          <label>Units:</label>
-          <input type="number" id="pickupUnits" class="pickup-units-input" value="1" min="1" max="999" onchange="window.pickupSetUnits(this.value)">
-        </div>
-        <button class="bom-btn" onclick="window.pickupReset()">↺ Reset</button>
-        <button class="bom-btn" style="background:rgba(52,152,219,0.3);border-color:#3498db;" onclick="window.pickupPrint()">🖨️ Print</button>
-        <button class="bom-close" onclick="window.closePickup()">✕</button>
-      </div>
-    </div>
-    <div class="pickup-progress-bar">
-      <div class="pickup-progress-fill" id="pickupProgressFill"></div>
-      <span class="pickup-progress-text" id="pickupProgressText">0 / 0</span>
-    </div>
-    <div class="pickup-filters">
-      <button class="pickup-filter-btn active" data-filter="all" onclick="window.pickupFilter('all')">All</button>
-      <button class="pickup-filter-btn" data-filter="pending" onclick="window.pickupFilter('pending')">⬜ Pending</button>
-      <button class="pickup-filter-btn" data-filter="picked" onclick="window.pickupFilter('picked')">✅ Picked</button>
-      <button class="pickup-filter-btn" data-filter="missing" onclick="window.pickupFilter('missing')">❌ Missing</button>
-    </div>
-    <div class="pickup-table-wrap" id="pickupTableWrap">
       <!-- Table rendered dynamically -->
     </div>
   </div>
