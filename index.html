@@ -275,7 +275,7 @@
 <div class="pickup-overlay" id="pickupOverlay">
   <div class="pickup-panel">
     <div class="pickup-header">
-      <h3>🧺 Pickup List — <span id="pickupAssemblyName"></span></h3>
+      <h3>🧺 Pickup List</h3>
       <div class="pickup-actions">
         <div class="pickup-units-wrap">
           <label>Units:</label>
@@ -285,6 +285,12 @@
         <button class="bom-btn" style="background:rgba(52,152,219,0.3);border-color:#3498db;" onclick="window.pickupPrint()">🖨️ Print</button>
         <button class="bom-close" onclick="window.closePickup()">✕</button>
       </div>
+    </div>
+    <div class="pickup-scope-bar">
+      <label>Build:</label>
+      <select id="pickupScopeSelect" class="pickup-scope-select" onchange="window.pickupSetScope(this.value)">
+        <!-- Populated dynamically -->
+      </select>
     </div>
     <div class="pickup-progress-bar">
       <div class="pickup-progress-fill" id="pickupProgressFill"></div>

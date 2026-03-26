@@ -1901,6 +1901,37 @@ body.tree-view .chat-fab { bottom: 155px; }
 }
 .pickup-units-input:focus { outline: none; background: rgba(255,255,255,0.3); }
 
+/* Scope selector bar */
+.pickup-scope-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  background: #fff8f0;
+  border-bottom: 1px solid #f0e0cc;
+  flex-shrink: 0;
+}
+.pickup-scope-bar label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+}
+.pickup-scope-select {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+}
+.pickup-scope-select:focus {
+  outline: none;
+  border-color: #e67e22;
+  box-shadow: 0 0 0 2px rgba(230,126,34,0.15);
+}
+
 /* Progress bar */
 .pickup-progress-bar {
   height: 28px;

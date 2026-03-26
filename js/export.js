@@ -1012,13 +1012,22 @@ let _pickupUnits = 1;
 let _pickupState = {}; // { partKey: 'picked' | 'missing' | null }
 let _pickupFilter = 'all';
 let _pickupParts = [];
+let _pickupScope = ''; // '' = whole assembly, or nodeId for a sub-assembly
 
 function getPickupStorageKey() {
-  return `axon_pickup_${state.currentAssemblyId}`;
+  const scope = _pickupScope || 'all';
+  return `axon_pickup_${state.currentAssemblyId}_${scope}`;
 }
 
-function loadPickupState() {
+function loadPickupState(skipScopeLoad = false) {
   try {
+    // Load last-used scope first (it affects the storage key) — unless caller already set it
+    if (!skipScopeLoad) {
+      const lastScope = localStorage.getItem(`axon_pickup_scope_${state.currentAssemblyId}`);
+      if (lastScope != null) _pickupScope = lastScope;
+    }
+    
+    // Now load checks using the correct scope-aware key
     const saved = localStorage.getItem(getPickupStorageKey());
     if (saved) {
       const data = JSON.parse(saved);
@@ -1037,12 +1046,11 @@ function savePickupState() {
       checks: _pickupState,
       units: _pickupUnits
     }));
+    localStorage.setItem(`axon_pickup_scope_${state.currentAssemblyId}`, _pickupScope);
   } catch (e) { console.warn('Failed to save pickup state'); }
 }
 
 function buildPickupList() {
-  // Explode the BOM tree into a flat parts list
-  // Parts = leaf nodes (no children). Assemblies with children are not parts to pick.
   const nodeMap = new Map();
   state.nodes.filter(n => !n.deleted).forEach(n => nodeMap.set(n.id, n));
   
@@ -1056,8 +1064,14 @@ function buildPickupList() {
     childToLink[link.child_id] = link;
   });
   
-  const childIds = new Set(state.links.filter(l => !l.deleted).map(l => l.child_id));
-  const roots = state.nodes.filter(n => !n.deleted && !childIds.has(n.id));
+  // Determine start nodes based on scope
+  let startNodes;
+  if (_pickupScope && nodeMap.has(_pickupScope)) {
+    startNodes = [nodeMap.get(_pickupScope)];
+  } else {
+    const childIds = new Set(state.links.filter(l => !l.deleted).map(l => l.child_id));
+    startNodes = state.nodes.filter(n => !n.deleted && !childIds.has(n.id));
+  }
   
   // Walk tree, collect leaf parts with multiplied quantities
   // Also collect assembly-level fasteners as separate "pick items"
@@ -1124,7 +1138,7 @@ function buildPickupList() {
     }
   }
   
-  roots.forEach(r => walk(r.id, 1, r.name));
+  startNodes.forEach(r => walk(r.id, 1, r.name));
   
   // Sort: parts first, then fasteners
   const parts = Array.from(partsMap.values());
@@ -1231,14 +1245,30 @@ function openPickup() {
     showToast('No nodes to show', 'warning');
     return;
   }
-  loadPickupState();
-  _pickupFilter = 'all';
   
-  document.getElementById('pickupAssemblyName').textContent = state.currentAssemblyName || 'Assembly';
+  // Build scope dropdown — assembly nodes (nodes that have children)
+  const parentIds = new Set(state.links.filter(l => !l.deleted).map(l => l.parent_id));
+  const assemblyNodes = state.nodes
+    .filter(n => !n.deleted && parentIds.has(n.id))
+    .sort((a, b) => (a.level || 1) - (b.level || 1));
+  
+  const scopeSelect = document.getElementById('pickupScopeSelect');
+  let opts = `<option value="">🔧 Entire Assembly — ${escapeHtml(state.currentAssemblyName || 'All')}</option>`;
+  assemblyNodes.forEach(n => {
+    const indent = '　'.repeat(Math.max(0, n.level - 1));
+    opts += `<option value="${n.id}">${indent}L${n.level} — ${escapeHtml(n.name)}</option>`;
+  });
+  scopeSelect.innerHTML = opts;
+  
+  // Restore last scope if saved
+  _pickupScope = '';
+  loadPickupState();
+  scopeSelect.value = _pickupScope;
+  
+  _pickupFilter = 'all';
   document.getElementById('pickupUnits').value = _pickupUnits;
   document.getElementById('pickupOverlay').classList.add('show');
   
-  // Reset filter button states
   document.querySelectorAll('.pickup-filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.filter === 'all');
   });
@@ -1248,6 +1278,20 @@ function openPickup() {
 
 function closePickup() {
   document.getElementById('pickupOverlay').classList.remove('show');
+}
+
+function pickupSetScope(nodeId) {
+  // Save current scope's checks, then switch
+  savePickupState();
+  _pickupScope = nodeId;
+  loadPickupState(true); // skip scope load — we just set it
+  savePickupState(); // persist new scope selection
+  document.getElementById('pickupUnits').value = _pickupUnits;
+  _pickupFilter = 'all';
+  document.querySelectorAll('.pickup-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === 'all');
+  });
+  renderPickupTable();
 }
 
 function pickupSetUnits(val) {
@@ -1286,7 +1330,8 @@ function pickupReset() {
 function pickupPrint() {
   const parts = buildPickupList();
   const units = _pickupUnits;
-  const title = state.currentAssemblyName || 'Assembly';
+  const scopeNode = _pickupScope ? state.nodes.find(n => n.id === _pickupScope) : null;
+  const title = scopeNode ? scopeNode.name : (state.currentAssemblyName || 'Assembly');
   const date = new Date().toLocaleDateString();
   const picked = parts.filter(p => _pickupState[p.key] === 'picked').length;
   const missing = parts.filter(p => _pickupState[p.key] === 'missing').length;
@@ -1341,6 +1386,7 @@ th{background:#e67e22;color:white;padding:6px 8px;text-align:left;font-size:11px
 window.openPickup = openPickup;
 window.closePickup = closePickup;
 window.pickupSetUnits = pickupSetUnits;
+window.pickupSetScope = pickupSetScope;
 window.pickupMark = pickupMark;
 window.pickupFilter = pickupFilter;
 window.pickupReset = pickupReset;
