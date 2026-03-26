@@ -286,11 +286,8 @@
         <button class="bom-close" onclick="window.closePickup()">✕</button>
       </div>
     </div>
-    <div class="pickup-scope-bar">
-      <label>Build:</label>
-      <select id="pickupScopeSelect" class="pickup-scope-select" onchange="window.pickupSetScope(this.value)">
-        <!-- Populated dynamically -->
-      </select>
+    <div class="pickup-scope-chips" id="pickupScopeChips">
+      <!-- L2 chips rendered dynamically -->
     </div>
     <div class="pickup-progress-bar">
       <div class="pickup-progress-fill" id="pickupProgressFill"></div>

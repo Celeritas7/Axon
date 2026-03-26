@@ -1005,29 +1005,22 @@ window.bomSaveTorque = bomSaveTorque;
 window.bomHandleCSVImport = bomHandleCSVImport;
 window.bomPrint = bomPrint;
 
+
 // ============================================================
-// PICKUP MODE
+// PICKUP MODE — Chip-based L2 selector, grouped parts
 // ============================================================
 let _pickupUnits = 1;
-let _pickupState = {}; // { partKey: 'picked' | 'missing' | null }
+let _pickupState = {};   // { uniqueRowKey: 'picked' | 'missing' }
 let _pickupFilter = 'all';
-let _pickupParts = [];
-let _pickupScope = ''; // '' = whole assembly, or nodeId for a sub-assembly
+let _pickupScope = '';   // nodeId of selected L2 chip
+let _pickupGroups = [];  // grouped parts for current scope
 
 function getPickupStorageKey() {
-  const scope = _pickupScope || 'all';
-  return `axon_pickup_${state.currentAssemblyId}_${scope}`;
+  return `axon_pickup_${state.currentAssemblyId}_${_pickupScope || 'all'}`;
 }
 
-function loadPickupState(skipScopeLoad = false) {
+function loadPickupState() {
   try {
-    // Load last-used scope first (it affects the storage key) — unless caller already set it
-    if (!skipScopeLoad) {
-      const lastScope = localStorage.getItem(`axon_pickup_scope_${state.currentAssemblyId}`);
-      if (lastScope != null) _pickupScope = lastScope;
-    }
-    
-    // Now load checks using the correct scope-aware key
     const saved = localStorage.getItem(getPickupStorageKey());
     if (saved) {
       const data = JSON.parse(saved);
@@ -1046,189 +1039,219 @@ function savePickupState() {
       checks: _pickupState,
       units: _pickupUnits
     }));
-    localStorage.setItem(`axon_pickup_scope_${state.currentAssemblyId}`, _pickupScope);
-  } catch (e) { console.warn('Failed to save pickup state'); }
+    localStorage.setItem(`axon_pickup_lastscope_${state.currentAssemblyId}`, _pickupScope);
+  } catch (e) {}
 }
 
-function buildPickupList() {
+// Build grouped pickup: parts stay under their parent assembly headers, never merged
+function buildGroupedPickup() {
   const nodeMap = new Map();
   state.nodes.filter(n => !n.deleted).forEach(n => nodeMap.set(n.id, n));
-  
+
   const parentToChildren = {};
   const childToLink = {};
-  
   state.links.forEach(link => {
     if (link.deleted) return;
     if (!parentToChildren[link.parent_id]) parentToChildren[link.parent_id] = [];
     parentToChildren[link.parent_id].push(link.child_id);
     childToLink[link.child_id] = link;
   });
-  
-  // Determine start nodes based on scope
-  let startNodes;
-  if (_pickupScope && nodeMap.has(_pickupScope)) {
-    startNodes = [nodeMap.get(_pickupScope)];
-  } else {
-    const childIds = new Set(state.links.filter(l => !l.deleted).map(l => l.child_id));
-    startNodes = state.nodes.filter(n => !n.deleted && !childIds.has(n.id));
-  }
-  
-  // Walk tree, collect leaf parts with multiplied quantities
-  // Also collect assembly-level fasteners as separate "pick items"
-  const partsMap = new Map(); // key -> { name, partNumber, totalQty, paths, isFastener }
-  
-  function walk(nodeId, qtyMultiplier, path) {
+
+  const groups = [];
+  let rowCounter = 0;
+
+  function walkAssembly(nodeId, qtyMultiplier) {
     const node = nodeMap.get(nodeId);
     if (!node) return;
-    
-    const nodeQty = node.qty || 1;
-    const effectiveQty = qtyMultiplier * nodeQty;
+
     const children = parentToChildren[nodeId] || [];
-    const link = childToLink[nodeId];
-    
-    // If this link has a fastener, add it as a pickable item
-    if (link && link.fastener) {
-      const fKey = `fastener_${link.fastener}_${link.loctite || ''}_${node.id}`;
-      const fQty = (link.qty || 1) * qtyMultiplier;
-      const existing = partsMap.get(fKey);
-      if (existing) {
-        existing.totalQty += fQty;
-        existing.paths.push(path);
-      } else {
-        partsMap.set(fKey, {
-          key: fKey,
+    if (children.length === 0) return;
+
+    const nodeQty = node.qty || 1;
+    const effQty = qtyMultiplier * nodeQty;
+    const parts = [];
+    const fasteners = [];
+
+    // Sort children by sequence
+    const sortedChildren = children
+      .map(cid => nodeMap.get(cid))
+      .filter(Boolean)
+      .sort((a, b) => (a.sequence_num || 9999) - (b.sequence_num || 9999));
+
+    sortedChildren.forEach(child => {
+      const link = childToLink[child.id];
+      const grandChildren = parentToChildren[child.id] || [];
+
+      // Add fastener from the link
+      if (link && link.fastener) {
+        rowCounter++;
+        fasteners.push({
+          key: `f_${link.id}`,
+          rowNum: rowCounter,
           name: link.fastener,
           partNumber: '',
-          totalQty: fQty,
-          paths: [path],
+          qty: (link.qty || 1) * effQty,
           isFastener: true,
           loctite: link.loctite || '',
           torque: link.torque_value ? `${link.torque_value}${link.torque_unit || 'Nm'}` : '',
-          usedAt: node.name
+          usedWith: child.name
         });
       }
-    }
-    
-    if (children.length === 0) {
-      // Leaf node = part to pick
-      const key = `part_${node.name.toLowerCase()}_${node.part_number || ''}`;
-      const existing = partsMap.get(key);
-      if (existing) {
-        existing.totalQty += effectiveQty;
-        existing.paths.push(path);
-      } else {
-        partsMap.set(key, {
-          key,
-          name: node.name,
-          partNumber: node.part_number || '',
-          totalQty: effectiveQty,
-          paths: [path],
+
+      if (grandChildren.length === 0) {
+        // Leaf = part to pick
+        rowCounter++;
+        parts.push({
+          key: `p_${child.id}`,
+          rowNum: rowCounter,
+          name: child.name,
+          partNumber: child.part_number || '',
+          qty: (child.qty || 1) * effQty,
           isFastener: false,
           loctite: '',
           torque: '',
-          usedAt: ''
+          usedWith: ''
         });
+      } else {
+        // Sub-assembly — recurse
+        walkAssembly(child.id, effQty);
       }
-    } else {
-      // Assembly node — recurse into children
-      children.forEach(cid => {
-        const childNode = nodeMap.get(cid);
-        walk(cid, effectiveQty, path + ' → ' + (childNode?.name || ''));
+    });
+
+    if (parts.length > 0 || fasteners.length > 0) {
+      groups.push({
+        assemblyName: node.name,
+        assemblyLevel: node.level || 1,
+        assemblyId: node.id,
+        parts,
+        fasteners
       });
     }
   }
-  
-  startNodes.forEach(r => walk(r.id, 1, r.name));
-  
-  // Sort: parts first, then fasteners
-  const parts = Array.from(partsMap.values());
-  parts.sort((a, b) => {
-    if (a.isFastener !== b.isFastener) return a.isFastener ? 1 : -1;
-    return a.name.localeCompare(b.name);
-  });
-  
-  return parts;
+
+  rowCounter = 0;
+  if (_pickupScope && nodeMap.has(_pickupScope)) {
+    walkAssembly(_pickupScope, 1);
+  } else {
+    const childIds = new Set(state.links.filter(l => !l.deleted).map(l => l.child_id));
+    const roots = state.nodes.filter(n => !n.deleted && !childIds.has(n.id));
+    roots.forEach(r => walkAssembly(r.id, 1));
+  }
+
+  return groups;
 }
 
+function getAllPickupItems() {
+  return _pickupGroups.flatMap(g => [...g.parts, ...g.fasteners]);
+}
+
+// ---- Render ----
 function renderPickupTable() {
-  _pickupParts = buildPickupList();
+  _pickupGroups = buildGroupedPickup();
   const wrap = document.getElementById('pickupTableWrap');
   const units = _pickupUnits;
-  
-  // Filter
-  let filtered = _pickupParts;
-  if (_pickupFilter === 'pending') {
-    filtered = _pickupParts.filter(p => !_pickupState[p.key]);
-  } else if (_pickupFilter === 'picked') {
-    filtered = _pickupParts.filter(p => _pickupState[p.key] === 'picked');
-  } else if (_pickupFilter === 'missing') {
-    filtered = _pickupParts.filter(p => _pickupState[p.key] === 'missing');
+
+  // Filter function
+  let filterFn = () => true;
+  if (_pickupFilter === 'pending') filterFn = (item) => !_pickupState[item.key];
+  else if (_pickupFilter === 'picked') filterFn = (item) => _pickupState[item.key] === 'picked';
+  else if (_pickupFilter === 'missing') filterFn = (item) => _pickupState[item.key] === 'missing';
+
+  let html = '';
+  let globalIdx = 0;
+  const groupColors = ['#e3f2fd', '#fce4ec', '#e8f5e9', '#fff3e0', '#f3e5f5', '#e0f7fa', '#fff8e1'];
+
+  _pickupGroups.forEach((group, gi) => {
+    const allGroupItems = [...group.parts, ...group.fasteners];
+    const filteredParts = group.parts.filter(filterFn);
+    const filteredFasteners = group.fasteners.filter(filterFn);
+    if (filteredParts.length === 0 && filteredFasteners.length === 0 && _pickupFilter !== 'all') return;
+
+    const displayParts = _pickupFilter === 'all' ? group.parts : filteredParts;
+    const displayFasteners = _pickupFilter === 'all' ? group.fasteners : filteredFasteners;
+
+    // Group progress
+    const groupPicked = allGroupItems.filter(it => _pickupState[it.key] === 'picked').length;
+    const groupTotal = allGroupItems.length;
+    const groupPct = groupTotal > 0 ? Math.round((groupPicked / groupTotal) * 100) : 0;
+    const pctColor = groupPct === 100 ? '#27ae60' : groupPicked > 0 ? '#e67e22' : '#3498db';
+    const headerBg = groupColors[gi % groupColors.length];
+
+    html += `<div class="pickup-group">
+      <div class="pickup-group-header" style="background:${headerBg};">
+        <div class="pickup-group-left">
+          <span class="pickup-group-level">L${group.assemblyLevel}</span>
+          <span class="pickup-group-name">${escapeHtml(group.assemblyName)}</span>
+        </div>
+        <div class="pickup-group-right">
+          <span class="pickup-group-count" style="color:${pctColor};">${groupPicked}/${groupTotal}</span>
+          <div class="pickup-mini-bar"><div class="pickup-mini-fill" style="width:${groupPct}%;background:${pctColor};"></div></div>
+        </div>
+      </div>`;
+
+    // Parts sub-section
+    if (displayParts.length > 0) {
+      html += `<div class="pickup-sub-header">📦 Parts</div>`;
+      displayParts.forEach((item, idx) => {
+        globalIdx++;
+        html += renderPickupRow(item, idx, globalIdx, units);
+      });
+    }
+
+    // Fasteners sub-section
+    if (displayFasteners.length > 0) {
+      html += `<div class="pickup-sub-header">🔩 Fasteners</div>`;
+      displayFasteners.forEach((item, idx) => {
+        globalIdx++;
+        html += renderPickupRow(item, idx, globalIdx, units);
+      });
+    }
+
+    html += `</div>`; // close pickup-group
+  });
+
+  if (html === '') {
+    html = `<div style="padding:40px;text-align:center;color:#999;font-size:14px;">No items match the current filter</div>`;
   }
-  
-  // Separate parts and fasteners
-  const parts = filtered.filter(p => !p.isFastener);
-  const fasteners = filtered.filter(p => p.isFastener);
-  
-  function renderRows(items, startNum) {
-    return items.map((item, i) => {
-      const totalQty = item.totalQty * units;
-      const checkState = _pickupState[item.key] || '';
-      const rowClass = checkState === 'picked' ? 'pickup-picked' : checkState === 'missing' ? 'pickup-missing' : '';
-      
-      return `<tr class="pickup-row ${rowClass}" data-key="${item.key}">
-        <td class="pickup-col-num">${startNum + i}</td>
-        <td class="pickup-col-check">
-          <button class="pickup-check-btn ${checkState === 'picked' ? 'checked' : ''}" 
-            onclick="window.pickupMark('${item.key}','picked')" title="Picked">✅</button>
-          <button class="pickup-miss-btn ${checkState === 'missing' ? 'checked' : ''}" 
-            onclick="window.pickupMark('${item.key}','missing')" title="Missing">❌</button>
-        </td>
-        <td class="pickup-col-name">
-          ${item.isFastener ? '<span class="pickup-fastener-badge">🔩</span>' : ''}
-          <span class="${checkState === 'picked' ? 'pickup-strikethrough' : ''}">${escapeHtml(item.name)}</span>
-          ${item.usedAt ? `<span class="pickup-used-at">→ ${escapeHtml(item.usedAt)}</span>` : ''}
-        </td>
-        <td class="pickup-col-pn">${escapeHtml(item.partNumber)}</td>
-        <td class="pickup-col-qty"><strong>${totalQty}</strong></td>
-        <td class="pickup-col-extra">
-          ${item.loctite ? `<span class="pickup-lt">LT-${escapeHtml(item.loctite)}</span>` : ''}
-          ${item.torque ? `<span class="pickup-torque">${escapeHtml(item.torque)}</span>` : ''}
-        </td>
-      </tr>`;
-    }).join('');
-  }
-  
-  let html = `<table class="pickup-table"><thead><tr>
-    <th class="pickup-col-num">#</th>
-    <th class="pickup-col-check">Pick</th>
-    <th class="pickup-col-name">Item</th>
-    <th class="pickup-col-pn">Part Number</th>
-    <th class="pickup-col-qty">Qty ×${units}</th>
-    <th class="pickup-col-extra">Info</th>
-  </tr></thead><tbody>`;
-  
-  if (parts.length > 0) {
-    html += `<tr class="pickup-section-header"><td colspan="6">📦 Parts (${parts.length})</td></tr>`;
-    html += renderRows(parts, 1);
-  }
-  
-  if (fasteners.length > 0) {
-    html += `<tr class="pickup-section-header"><td colspan="6">🔩 Fasteners (${fasteners.length})</td></tr>`;
-    html += renderRows(fasteners, parts.length + 1);
-  }
-  
-  html += `</tbody></table>`;
+
   wrap.innerHTML = html;
-  
   updatePickupProgress();
 }
 
+function renderPickupRow(item, idx, globalIdx, units) {
+  const totalQty = item.qty * units;
+  const cs = _pickupState[item.key] || '';
+  const rowState = cs === 'picked' ? 'pickup-picked' : cs === 'missing' ? 'pickup-missing' : '';
+  const stripe = idx % 2 === 0 ? 'pickup-even' : 'pickup-odd';
+
+  return `<div class="pickup-row ${rowState} ${stripe}">
+    <div class="pickup-row-num">${globalIdx}</div>
+    <div class="pickup-row-checks">
+      <button class="pk-ck ${cs === 'picked' ? 'pk-ck-on' : ''}" onclick="window.pickupMark('${item.key}','picked')">✓</button>
+      <button class="pk-ms ${cs === 'missing' ? 'pk-ms-on' : ''}" onclick="window.pickupMark('${item.key}','missing')">✗</button>
+    </div>
+    <div class="pickup-row-body">
+      <div class="pickup-row-name ${cs === 'picked' ? 'pk-done' : ''}">
+        ${item.isFastener ? '<span class="pk-tag">FASTENER</span>' : ''}${escapeHtml(item.name)}
+      </div>
+      ${item.partNumber ? `<div class="pickup-row-pn">${escapeHtml(item.partNumber)}</div>` : ''}
+      ${item.usedWith ? `<div class="pickup-row-used">→ ${escapeHtml(item.usedWith)}</div>` : ''}
+    </div>
+    <div class="pickup-row-qty">${totalQty}</div>
+    <div class="pickup-row-info">
+      ${item.loctite ? `<span class="pk-lt">LT-${escapeHtml(item.loctite)}</span>` : ''}
+      ${item.torque ? `<span class="pk-tq">${escapeHtml(item.torque)}</span>` : ''}
+    </div>
+  </div>`;
+}
+
 function updatePickupProgress() {
-  const total = _pickupParts.length;
-  const picked = _pickupParts.filter(p => _pickupState[p.key] === 'picked').length;
-  const missing = _pickupParts.filter(p => _pickupState[p.key] === 'missing').length;
+  const allItems = getAllPickupItems();
+  const total = allItems.length;
+  const picked = allItems.filter(p => _pickupState[p.key] === 'picked').length;
+  const missing = allItems.filter(p => _pickupState[p.key] === 'missing').length;
   const pct = total > 0 ? Math.round((picked / total) * 100) : 0;
-  
+
   const fill = document.getElementById('pickupProgressFill');
   const text = document.getElementById('pickupProgressText');
   if (fill) {
@@ -1240,39 +1263,33 @@ function updatePickupProgress() {
   }
 }
 
+// ---- Open / Close / Chips ----
 function openPickup() {
-  if (state.nodes.length === 0) {
-    showToast('No nodes to show', 'warning');
-    return;
-  }
-  
-  // Build scope dropdown — assembly nodes (nodes that have children)
-  const parentIds = new Set(state.links.filter(l => !l.deleted).map(l => l.parent_id));
-  const assemblyNodes = state.nodes
-    .filter(n => !n.deleted && parentIds.has(n.id))
-    .sort((a, b) => (a.level || 1) - (b.level || 1));
-  
-  const scopeSelect = document.getElementById('pickupScopeSelect');
-  let opts = `<option value="">🔧 Entire Assembly — ${escapeHtml(state.currentAssemblyName || 'All')}</option>`;
-  assemblyNodes.forEach(n => {
-    const indent = '　'.repeat(Math.max(0, n.level - 1));
-    opts += `<option value="${n.id}">${indent}L${n.level} — ${escapeHtml(n.name)}</option>`;
-  });
-  scopeSelect.innerHTML = opts;
-  
-  // Restore last scope if saved
-  _pickupScope = '';
+  if (state.nodes.length === 0) { showToast('No nodes to show', 'warning'); return; }
+
+  // Restore last scope
+  _pickupScope = localStorage.getItem(`axon_pickup_lastscope_${state.currentAssemblyId}`) || '';
   loadPickupState();
-  scopeSelect.value = _pickupScope;
-  
+
+  // Build L2 chips
+  const l2Nodes = state.nodes
+    .filter(n => !n.deleted && n.level === 2)
+    .sort((a, b) => (a.sequence_num || 9999) - (b.sequence_num || 9999));
+
+  const chipsEl = document.getElementById('pickupScopeChips');
+  let chipsHtml = `<button class="pickup-chip ${!_pickupScope ? 'chip-active' : ''}" onclick="window.pickupSetScope('')">🔧 All</button>`;
+  l2Nodes.forEach(n => {
+    const active = _pickupScope === n.id ? 'chip-active' : '';
+    chipsHtml += `<button class="pickup-chip ${active}" onclick="window.pickupSetScope('${n.id}')">${escapeHtml(n.name)}</button>`;
+  });
+  chipsEl.innerHTML = chipsHtml;
+
   _pickupFilter = 'all';
   document.getElementById('pickupUnits').value = _pickupUnits;
   document.getElementById('pickupOverlay').classList.add('show');
-  
   document.querySelectorAll('.pickup-filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.filter === 'all');
   });
-  
   renderPickupTable();
 }
 
@@ -1281,15 +1298,19 @@ function closePickup() {
 }
 
 function pickupSetScope(nodeId) {
-  // Save current scope's checks, then switch
   savePickupState();
   _pickupScope = nodeId;
-  loadPickupState(true); // skip scope load — we just set it
-  savePickupState(); // persist new scope selection
+  loadPickupState();
+  savePickupState();
   document.getElementById('pickupUnits').value = _pickupUnits;
   _pickupFilter = 'all';
   document.querySelectorAll('.pickup-filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.filter === 'all');
+  });
+  // Update chip active state
+  document.querySelectorAll('.pickup-chip').forEach(btn => {
+    const chipScope = btn.getAttribute('onclick')?.match(/'([^']*)'/)?.[1] ?? '';
+    btn.classList.toggle('chip-active', chipScope === nodeId);
   });
   renderPickupTable();
 }
@@ -1301,12 +1322,8 @@ function pickupSetUnits(val) {
 }
 
 function pickupMark(key, markType) {
-  // Toggle: if already this mark, clear it. Otherwise set it.
-  if (_pickupState[key] === markType) {
-    delete _pickupState[key];
-  } else {
-    _pickupState[key] = markType;
-  }
+  if (_pickupState[key] === markType) delete _pickupState[key];
+  else _pickupState[key] = markType;
   savePickupState();
   renderPickupTable();
 }
@@ -1320,63 +1337,67 @@ function pickupFilter(filter) {
 }
 
 function pickupReset() {
-  if (!confirm('Reset all pickup checkmarks?')) return;
+  if (!confirm('Reset all pickup checkmarks for this scope?')) return;
   _pickupState = {};
   savePickupState();
   renderPickupTable();
   showToast('Pickup list reset', 'info');
 }
 
+// ---- Print ----
 function pickupPrint() {
-  const parts = buildPickupList();
+  const groups = buildGroupedPickup();
   const units = _pickupUnits;
   const scopeNode = _pickupScope ? state.nodes.find(n => n.id === _pickupScope) : null;
   const title = scopeNode ? scopeNode.name : (state.currentAssemblyName || 'Assembly');
   const date = new Date().toLocaleDateString();
-  const picked = parts.filter(p => _pickupState[p.key] === 'picked').length;
-  const missing = parts.filter(p => _pickupState[p.key] === 'missing').length;
-  
-  const partItems = parts.filter(p => !p.isFastener);
-  const fastenerItems = parts.filter(p => p.isFastener);
-  
-  function printRows(items, startNum) {
-    return items.map((item, i) => {
-      const totalQty = item.totalQty * units;
-      const cs = _pickupState[item.key] || '';
-      const bg = cs === 'picked' ? '#d4edda' : cs === 'missing' ? '#f8d7da' : '#fff';
-      const mark = cs === 'picked' ? '✅' : cs === 'missing' ? '❌' : '⬜';
-      return `<tr style="background:${bg}">
-        <td style="padding:5px 8px;border:1px solid #ccc;text-align:center;font-size:11px;color:#888;">${startNum + i}</td>
-        <td style="padding:5px 8px;border:1px solid #ccc;text-align:center;font-size:16px;">${mark}</td>
-        <td style="padding:5px 8px;border:1px solid #ccc;${cs === 'picked' ? 'text-decoration:line-through;color:#888;' : ''}">${item.isFastener ? '🔩 ' : ''}${escapeHtml(item.name)}${item.usedAt ? ' <span style="color:#888;font-size:10px;">→ ' + escapeHtml(item.usedAt) + '</span>' : ''}</td>
-        <td style="padding:5px 8px;border:1px solid #ccc;font-size:11px;color:#555;">${escapeHtml(item.partNumber)}</td>
-        <td style="padding:5px 8px;border:1px solid #ccc;text-align:center;font-weight:bold;">${totalQty}</td>
-        <td style="padding:5px 8px;border:1px solid #ccc;font-size:10px;">${item.loctite ? 'LT-' + item.loctite : ''} ${item.torque || ''}</td>
-      </tr>`;
-    }).join('');
-  }
-  
+  const allItems = groups.flatMap(g => [...g.parts, ...g.fasteners]);
+  const picked = allItems.filter(p => _pickupState[p.key] === 'picked').length;
+  const missing = allItems.filter(p => _pickupState[p.key] === 'missing').length;
+
   let tbody = '';
-  if (partItems.length > 0) {
-    tbody += `<tr><td colspan="6" style="padding:8px;background:#e3f2fd;font-weight:bold;border:1px solid #ccc;">📦 Parts (${partItems.length})</td></tr>`;
-    tbody += printRows(partItems, 1);
-  }
-  if (fastenerItems.length > 0) {
-    tbody += `<tr><td colspan="6" style="padding:8px;background:#fff3e0;font-weight:bold;border:1px solid #ccc;">🔩 Fasteners (${fastenerItems.length})</td></tr>`;
-    tbody += printRows(fastenerItems, partItems.length + 1);
-  }
-  
+  groups.forEach(group => {
+    const all = [...group.parts, ...group.fasteners];
+    const gPicked = all.filter(it => _pickupState[it.key] === 'picked').length;
+    tbody += `<tr style="background:#fff3e0;"><td colspan="6" style="padding:8px 10px;font-weight:700;border:1px solid #ddd;font-size:13px;">
+      <span style="background:#e67e22;color:white;padding:1px 6px;border-radius:3px;font-size:10px;margin-right:6px;">L${group.assemblyLevel}</span>
+      ${escapeHtml(group.assemblyName)} <span style="float:right;color:#888;font-size:11px;">${gPicked}/${all.length}</span></td></tr>`;
+
+    function printItems(items, label) {
+      if (items.length === 0) return;
+      tbody += `<tr><td colspan="6" style="padding:4px 10px 4px 24px;background:#f5f5f5;font-size:11px;font-weight:600;color:#666;border:1px solid #ddd;">${label}</td></tr>`;
+      items.forEach((item, i) => {
+        const totalQty = item.qty * units;
+        const cs = _pickupState[item.key] || '';
+        const bg = cs === 'picked' ? '#d5f5d5' : cs === 'missing' ? '#fdd' : (i % 2 === 0 ? '#fff' : '#f9f9f9');
+        const mark = cs === 'picked' ? '✅' : cs === 'missing' ? '❌' : '⬜';
+        tbody += `<tr style="background:${bg};">
+          <td style="padding:4px 8px;border:1px solid #ddd;text-align:center;font-size:14px;">${mark}</td>
+          <td style="padding:4px 8px;border:1px solid #ddd;${cs === 'picked' ? 'text-decoration:line-through;color:#999;' : ''}">
+            ${item.isFastener ? '<span style="background:#e67e22;color:white;font-size:8px;padding:1px 4px;border-radius:2px;margin-right:4px;">F</span>' : ''}
+            ${escapeHtml(item.name)}${item.usedWith ? ' <span style="color:#aaa;font-size:10px;">→ ' + escapeHtml(item.usedWith) + '</span>' : ''}</td>
+          <td style="padding:4px 8px;border:1px solid #ddd;font-size:11px;color:#555;">${escapeHtml(item.partNumber)}</td>
+          <td style="padding:4px 8px;border:1px solid #ddd;text-align:center;font-weight:bold;">${totalQty}</td>
+          <td style="padding:4px 8px;border:1px solid #ddd;font-size:10px;">${item.loctite ? 'LT-' + item.loctite : ''}</td>
+          <td style="padding:4px 8px;border:1px solid #ddd;font-size:10px;">${item.torque || ''}</td>
+        </tr>`;
+      });
+    }
+    printItems(group.parts, '📦 Parts');
+    printItems(group.fasteners, '🔩 Fasteners');
+  });
+
   const printHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Pickup - ${escapeHtml(title)}</title>
 <style>body{font-family:'Segoe UI',sans-serif;margin:20px;color:#333;}h1{font-size:18px;margin-bottom:4px;}
 .meta{font-size:12px;color:#666;margin-bottom:16px;}table{width:100%;border-collapse:collapse;font-size:12px;}
-th{background:#e67e22;color:white;padding:6px 8px;text-align:left;font-size:11px;text-transform:uppercase;}
+th{background:#d35400;color:white;padding:6px 8px;text-align:left;font-size:11px;text-transform:uppercase;}
 @media print{body{margin:10px;}}</style></head><body>
-<h1>🧺 Pickup List — ${escapeHtml(title)}</h1>
-<div class="meta">📅 ${date} &nbsp;|&nbsp; ${units} unit(s) &nbsp;|&nbsp; ${parts.length} items &nbsp;|&nbsp; ${picked} picked &nbsp;|&nbsp; ${missing} missing</div>
-<table><thead><tr><th style="width:30px;">#</th><th style="width:30px;">✓</th><th>Item</th><th>Part Number</th><th style="width:50px;">Qty</th><th>Info</th></tr></thead>
+<h1>🧺 Pickup — ${escapeHtml(title)}</h1>
+<div class="meta">📅 ${date} &nbsp;|&nbsp; ×${units} unit(s) &nbsp;|&nbsp; ${allItems.length} items &nbsp;|&nbsp; ${picked} picked &nbsp;|&nbsp; ${missing} missing</div>
+<table><thead><tr><th style="width:30px;">✓</th><th>Item</th><th>Part Number</th><th style="width:50px;">Qty</th><th>Loctite</th><th>Torque</th></tr></thead>
 <tbody>${tbody}</tbody></table>
 <script>window.print();<\/script></body></html>`;
-  
+
   const win = window.open('', '_blank', 'width=900,height=700');
   win.document.write(printHTML);
   win.document.close();
