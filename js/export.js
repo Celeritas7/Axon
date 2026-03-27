@@ -590,6 +590,7 @@ function renderBOMTable() {
     <table class="bom-table" id="bomTable">
       <thead>
         <tr>
+          ${isAdmin ? '<th class="bom-col-sel"><input type="checkbox" id="bomSelectAll" onchange="window.bomSelectAll(this.checked)" title="Select All"></th>' : ''}
           <th class="bom-col-num">#</th>
           <th class="bom-col-tree">Component</th>
           <th class="bom-col-pn">Part Number</th>
@@ -615,6 +616,7 @@ function renderBOMTable() {
     if (isAdmin) {
       html += `
         <tr class="bom-row bom-depth-${Math.min(row.depth, 5)}" data-id="${row.id}" data-link-id="${row.linkId || ''}">
+          <td class="bom-col-sel"><input type="checkbox" class="bom-sel-cb" data-id="${row.id}" onchange="window.bomUpdateSelection()"></td>
           <td class="bom-col-num">${row.rowNum}</td>
           <td class="bom-col-tree">
             <span style="display:inline-block;width:${indent}px;"></span>
@@ -1081,6 +1083,103 @@ window.bomSaveLink = bomSaveLink;
 window.bomSaveTorque = bomSaveTorque;
 window.bomHandleCSVImport = bomHandleCSVImport;
 window.bomPrint = bomPrint;
+
+// ============================================================
+// BOM BULK SELECT & DELETE
+// ============================================================
+function bomUpdateSelection() {
+  const checked = document.querySelectorAll('.bom-sel-cb:checked');
+  const btn = document.getElementById('bomDeleteBtn');
+  const count = document.getElementById('bomDeleteCount');
+  
+  if (checked.length > 0) {
+    btn.style.display = '';
+    count.textContent = `(${checked.length})`;
+  } else {
+    btn.style.display = 'none';
+  }
+  
+  // Update select-all checkbox state
+  const all = document.querySelectorAll('.bom-sel-cb');
+  const selectAllCb = document.getElementById('bomSelectAll');
+  if (selectAllCb) {
+    selectAllCb.checked = all.length > 0 && checked.length === all.length;
+    selectAllCb.indeterminate = checked.length > 0 && checked.length < all.length;
+  }
+  
+  // Highlight selected rows
+  document.querySelectorAll('.bom-row').forEach(tr => {
+    const cb = tr.querySelector('.bom-sel-cb');
+    tr.classList.toggle('bom-row-selected', cb?.checked || false);
+  });
+}
+
+function bomSelectAll(checked) {
+  document.querySelectorAll('.bom-sel-cb').forEach(cb => { cb.checked = checked; });
+  bomUpdateSelection();
+}
+
+async function bomDeleteSelected() {
+  const checked = document.querySelectorAll('.bom-sel-cb:checked');
+  const nodeIds = Array.from(checked).map(cb => cb.dataset.id);
+  
+  if (nodeIds.length === 0) return;
+  
+  const confirmMsg = `Delete ${nodeIds.length} node${nodeIds.length > 1 ? 's' : ''} and all their links?\n\nThis cannot be undone.`;
+  if (!confirm(confirmMsg)) return;
+  
+  try {
+    // Collect all descendants of selected nodes too
+    const allIdsToDelete = new Set(nodeIds);
+    const parentToChildren = {};
+    state.links.forEach(l => {
+      if (l.deleted) return;
+      if (!parentToChildren[l.parent_id]) parentToChildren[l.parent_id] = [];
+      parentToChildren[l.parent_id].push(l.child_id);
+    });
+    
+    // BFS to find all descendants
+    const queue = [...nodeIds];
+    while (queue.length > 0) {
+      const id = queue.shift();
+      const children = parentToChildren[id] || [];
+      children.forEach(cid => {
+        if (!allIdsToDelete.has(cid)) {
+          allIdsToDelete.add(cid);
+          queue.push(cid);
+        }
+      });
+    }
+    
+    // Soft-delete nodes
+    for (const id of allIdsToDelete) {
+      await db.from('logi_nodes').update({ deleted: true }).eq('id', id);
+    }
+    
+    // Soft-delete related links
+    for (const id of allIdsToDelete) {
+      await db.from('logi_links').update({ deleted: true }).match({ child_id: id });
+      await db.from('logi_links').update({ deleted: true }).match({ parent_id: id });
+    }
+    
+    showToast(`Deleted ${allIdsToDelete.size} node${allIdsToDelete.size > 1 ? 's' : ''}`, 'success');
+    
+    // Reload assembly
+    const { loadAssemblyData } = await import('./graph.js');
+    await loadAssemblyData(state.currentAssemblyId);
+    renderBOMTable();
+    
+    // Hide delete button
+    document.getElementById('bomDeleteBtn').style.display = 'none';
+  } catch (e) {
+    console.error('Bulk delete error:', e);
+    showToast('Delete failed: ' + e.message, 'error');
+  }
+}
+
+window.bomUpdateSelection = bomUpdateSelection;
+window.bomSelectAll = bomSelectAll;
+window.bomDeleteSelected = bomDeleteSelected;
 
 
 // ============================================================

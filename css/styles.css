@@ -1712,6 +1712,20 @@ body.tree-view .chat-fab { bottom: 155px; }
 /* Row number column */
 .bom-col-num { width: 35px; text-align: center; color: #999; font-size: 11px; }
 
+/* Selection column */
+.bom-col-sel { width: 32px; text-align: center; padding: 4px !important; }
+.bom-col-sel input[type="checkbox"] {
+  width: 16px; height: 16px; cursor: pointer;
+  accent-color: #e74c3c;
+}
+.bom-row-selected { background: #fdecea !important; }
+.bom-row-selected:hover { background: #fbd5d0 !important; }
+.bom-delete-btn { font-weight: 700; animation: bomDeletePulse 1s ease infinite; }
+@keyframes bomDeletePulse {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: 0 0 8px rgba(231,76,60,0.4); }
+}
+
 /* Column widths */
 .bom-col-tree { min-width: 250px; }
 .bom-col-pn { min-width: 100px; color: #666; font-size: 12px; }

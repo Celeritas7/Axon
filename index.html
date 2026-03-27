@@ -258,6 +258,7 @@
       <div class="bom-actions">
         <button class="bom-btn" onclick="window.bomExpandAll()">Expand All</button>
         <button class="bom-btn" onclick="window.bomCollapseAll()">Collapse All</button>
+        <button class="bom-btn bom-delete-btn" id="bomDeleteBtn" style="display:none;background:rgba(231,76,60,0.3);border-color:#e74c3c;" onclick="window.bomDeleteSelected()">🗑️ Delete <span id="bomDeleteCount"></span></button>
         <button class="bom-btn" style="background:rgba(39,174,96,0.3);border-color:#27ae60;" onclick="document.getElementById('bomCsvInput').click()">📤 Import CSV</button>
         <button class="bom-btn bom-export" onclick="window.bomExportCSV()">📥 Export CSV</button>
         <button class="bom-btn" style="background:rgba(52,152,219,0.3);border-color:#3498db;" onclick="window.bomPrint()">🖨️ Print</button>
