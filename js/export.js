@@ -517,7 +517,7 @@ function buildBOMTree() {
   const rows = [];
   let rowNum = 0;
   
-  function walk(nodeId, depth) {
+  function walk(nodeId, depth, parentName) {
     const node = nodeMap.get(nodeId);
     if (!node) return;
     
@@ -533,6 +533,7 @@ function buildBOMTree() {
       linkId: link?.id || null,
       depth,
       name: node.name,
+      parentName: parentName || '',
       partNumber: node.part_number || '',
       qty: node.qty || 1,
       status: node.status || 'NOT_STARTED',
@@ -552,12 +553,12 @@ function buildBOMTree() {
         .map(cid => nodeMap.get(cid))
         .filter(Boolean)
         .sort((a, b) => (a.sequence_num || 9999) - (b.sequence_num || 9999));
-      sorted.forEach(child => walk(child.id, depth + 1));
+      sorted.forEach(child => walk(child.id, depth + 1, node.name));
     }
   }
   
   roots.sort((a, b) => (a.sequence_num || 0) - (b.sequence_num || 0));
-  roots.forEach(r => walk(r.id, 0));
+  roots.forEach(r => walk(r.id, 0, ''));
   
   return rows;
 }
@@ -836,6 +837,7 @@ async function bomHandleCSVImport(event) {
   // Find column indices
   const ci = (names) => hdr.findIndex(h => names.includes(h));
   const nameIdx = ci(['component', 'child', 'child_name', 'name']);
+  const parentIdx = ci(['parent', 'parent_name']);
   const pnIdx = ci(['part_number', 'child_pn', 'pn', 'part number']);
   const qtyIdx = ci(['qty', 'quantity']);
   const statusIdx = ci(['status']);
@@ -846,59 +848,136 @@ async function bomHandleCSVImport(event) {
   
   if (nameIdx === -1) { showToast('CSV must have a "component" or "child" column', 'error'); return; }
   
-  // Build lookup maps
+  const assemblyId = state.currentAssemblyId;
+  
+  // Build lookup maps (case-insensitive)
   const nodeByName = new Map();
   state.nodes.forEach(n => nodeByName.set(n.name.toLowerCase(), n));
   
   const linkByChildId = new Map();
   state.links.forEach(l => { if (!l.deleted) linkByChildId.set(l.child_id, l); });
   
-  let updated = 0;
-  let skipped = 0;
+  // Track new nodes created during this import (name→id)
+  const newNodeIds = new Map();
   
+  let updated = 0;
+  let created = 0;
+  
+  // Parse all rows first
+  const rows = [];
   for (let i = 1; i < lines.length; i++) {
     const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
     const name = vals[nameIdx]?.trim();
     if (!name) continue;
     
-    const node = nodeByName.get(name.toLowerCase());
-    if (!node) { skipped++; continue; }
-    
-    // Update node fields
-    const nodeUpdates = {};
-    if (pnIdx !== -1 && vals[pnIdx]) { nodeUpdates.part_number = vals[pnIdx]; node.part_number = vals[pnIdx]; }
-    if (qtyIdx !== -1 && vals[qtyIdx]) { nodeUpdates.qty = parseInt(vals[qtyIdx]) || 1; node.qty = nodeUpdates.qty; }
-    if (statusIdx !== -1 && vals[statusIdx]) { nodeUpdates.status = vals[statusIdx].toUpperCase(); node.status = nodeUpdates.status; }
-    
-    if (Object.keys(nodeUpdates).length > 0) {
-      nodeUpdates.updated_at = new Date().toISOString();
-      await db.from('logi_nodes').update(nodeUpdates).eq('id', node.id);
-    }
-    
-    // Update link fields
-    const link = linkByChildId.get(node.id);
-    if (link) {
-      const linkUpdates = {};
-      if (fastenerIdx !== -1 && vals[fastenerIdx]) { linkUpdates.fastener = vals[fastenerIdx]; link.fastener = vals[fastenerIdx]; }
-      if (fqtyIdx !== -1 && vals[fqtyIdx]) { linkUpdates.qty = parseInt(vals[fqtyIdx]) || 1; link.qty = linkUpdates.qty; }
-      if (loctiteIdx !== -1 && vals[loctiteIdx]) {
-        const lt = vals[loctiteIdx].replace(/^LT-/i, '');
-        linkUpdates.loctite = lt; link.loctite = lt;
-      }
-      if (torqueIdx !== -1 && vals[torqueIdx]) {
-        const tm = vals[torqueIdx].match(/^([\d.]+)\s*(.*)$/);
-        if (tm) { linkUpdates.torque_value = parseFloat(tm[1]); linkUpdates.torque_unit = tm[2] || 'Nm'; link.torque_value = linkUpdates.torque_value; link.torque_unit = linkUpdates.torque_unit; }
-      }
-      
-      if (Object.keys(linkUpdates).length > 0) {
-        await db.from('logi_links').update(linkUpdates).eq('id', link.id);
-      }
-    }
-    
-    updated++;
+    rows.push({
+      name,
+      parent: parentIdx !== -1 ? vals[parentIdx]?.trim() : '',
+      partNumber: pnIdx !== -1 ? vals[pnIdx]?.trim() : '',
+      qty: qtyIdx !== -1 ? (parseInt(vals[qtyIdx]) || 1) : 1,
+      status: statusIdx !== -1 ? vals[statusIdx]?.trim().toUpperCase() : '',
+      fastener: fastenerIdx !== -1 ? vals[fastenerIdx]?.trim() : '',
+      fqty: fqtyIdx !== -1 ? (parseInt(vals[fqtyIdx]) || 1) : 1,
+      loctite: loctiteIdx !== -1 ? vals[loctiteIdx]?.trim().replace(/^LT-/i, '') : '',
+      torque: torqueIdx !== -1 ? vals[torqueIdx]?.trim() : ''
+    });
   }
   
-  showToast(`Updated ${updated} rows${skipped > 0 ? `, ${skipped} not found` : ''}`, 'success');
+  // Process each row: update if exists, create if not
+  for (const row of rows) {
+    let node = nodeByName.get(row.name.toLowerCase());
+    
+    if (node) {
+      // ---- UPDATE existing node ----
+      const nodeUpdates = {};
+      if (row.partNumber) { nodeUpdates.part_number = row.partNumber; node.part_number = row.partNumber; }
+      if (row.qty > 1 || (qtyIdx !== -1)) { nodeUpdates.qty = row.qty; node.qty = row.qty; }
+      if (row.status) { nodeUpdates.status = row.status; node.status = row.status; }
+      
+      if (Object.keys(nodeUpdates).length > 0) {
+        nodeUpdates.updated_at = new Date().toISOString();
+        await db.from('logi_nodes').update(nodeUpdates).eq('id', node.id);
+      }
+      
+      // Update link fields if link exists
+      const link = linkByChildId.get(node.id);
+      if (link) {
+        const linkUpdates = {};
+        if (row.fastener) { linkUpdates.fastener = row.fastener; link.fastener = row.fastener; }
+        if (row.fqty > 1 || row.fastener) { linkUpdates.qty = row.fqty; link.qty = row.fqty; }
+        if (row.loctite) { linkUpdates.loctite = row.loctite; link.loctite = row.loctite; }
+        if (row.torque) {
+          const tm = row.torque.match(/^([\d.]+)\s*(.*)$/);
+          if (tm) { linkUpdates.torque_value = parseFloat(tm[1]); linkUpdates.torque_unit = tm[2] || 'Nm'; }
+        }
+        if (Object.keys(linkUpdates).length > 0) {
+          await db.from('logi_links').update(linkUpdates).eq('id', link.id);
+        }
+      }
+      
+      updated++;
+    } else {
+      // ---- CREATE new node ----
+      const newId = crypto.randomUUID();
+      
+      const { error: nodeErr } = await db.from('logi_nodes').insert({
+        id: newId,
+        assembly_id: assemblyId,
+        name: row.name,
+        part_number: row.partNumber || null,
+        qty: row.qty,
+        status: row.status || 'NOT_STARTED',
+        x: 400,
+        y: 300,
+        deleted: false
+      });
+      
+      if (nodeErr) { console.error('BOM create node error:', nodeErr); continue; }
+      
+      // Track for parent resolution
+      newNodeIds.set(row.name.toLowerCase(), newId);
+      nodeByName.set(row.name.toLowerCase(), { id: newId, name: row.name });
+      
+      // Create link to parent if parent specified
+      if (row.parent) {
+        const parentNode = nodeByName.get(row.parent.toLowerCase());
+        if (parentNode) {
+          const linkData = {
+            id: crypto.randomUUID(),
+            assembly_id: assemblyId,
+            parent_id: parentNode.id,
+            child_id: newId,
+            fastener: row.fastener || null,
+            qty: row.fqty || 1,
+            loctite: row.loctite || null,
+            torque_value: null,
+            torque_unit: null,
+            deleted: false
+          };
+          
+          if (row.torque) {
+            const tm = row.torque.match(/^([\d.]+)\s*(.*)$/);
+            if (tm) { linkData.torque_value = parseFloat(tm[1]); linkData.torque_unit = tm[2] || 'Nm'; }
+          }
+          
+          await db.from('logi_links').insert(linkData);
+        }
+      }
+      
+      created++;
+    }
+  }
+  
+  // Reload full assembly data so tree + BOM reflect new nodes
+  if (created > 0) {
+    const { loadAssemblyData } = await import('./graph.js');
+    await loadAssemblyData(assemblyId);
+  }
+  
+  const msg = [];
+  if (updated > 0) msg.push(`${updated} updated`);
+  if (created > 0) msg.push(`${created} created`);
+  showToast(msg.join(', ') || 'No changes', 'success');
   renderBOMTable();
 }
 
@@ -907,15 +986,13 @@ async function bomHandleCSVImport(event) {
 // ============================================================
 function bomExportCSV() {
   const rows = buildBOMTree();
-  const headers = ['#', 'Level', 'Component', 'Part Number', 'Qty', 'Status', 'Fastener', 'F.Qty', 'Loctite', 'Torque'];
+  const headers = ['child', 'parent', 'child_pn', 'qty', 'status', 'fastener', 'f.qty', 'loctite', 'torque'];
   const csvRows = [headers.join(',')];
   
   rows.forEach(row => {
-    const indent = '  '.repeat(row.depth);
     csvRows.push([
-      row.rowNum,
-      `L${row.level}`,
-      escapeCSV(indent + row.name),
+      escapeCSV(row.name),
+      escapeCSV(row.parentName),
       escapeCSV(row.partNumber),
       row.qty,
       row.status,
