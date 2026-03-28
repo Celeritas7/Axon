@@ -536,6 +536,7 @@ function buildBOMTree() {
       parentName: parentName || '',
       partNumber: node.part_number || '',
       qty: node.qty || 1,
+      seq: node.sequence_num || 0,
       status: node.status || 'NOT_STARTED',
       level: node.level || 1,
       fastener: link?.fastener || '',
@@ -592,6 +593,7 @@ function renderBOMTable() {
         <tr>
           ${isAdmin ? '<th class="bom-col-sel"><input type="checkbox" id="bomSelectAll" onchange="window.bomSelectAll(this.checked)" title="Select All"></th>' : ''}
           <th class="bom-col-num">#</th>
+          <th class="bom-col-seq">Seq</th>
           <th class="bom-col-tree">Component</th>
           <th class="bom-col-pn">Part Number</th>
           <th class="bom-col-qty">Qty</th>
@@ -618,6 +620,10 @@ function renderBOMTable() {
         <tr class="bom-row bom-depth-${Math.min(row.depth, 5)}" data-id="${row.id}" data-link-id="${row.linkId || ''}">
           <td class="bom-col-sel"><input type="checkbox" class="bom-sel-cb" data-id="${row.id}" onchange="window.bomUpdateSelection()"></td>
           <td class="bom-col-num">${row.rowNum}</td>
+          <td class="bom-col-seq">
+            <input type="number" class="bom-edit-input bom-edit-seq" value="${row.seq || ''}" min="0"
+              placeholder="—" data-field="sequence_num" data-id="${row.id}" onchange="window.bomSaveSeq('${row.id}',this)">
+          </td>
           <td class="bom-col-tree">
             <span style="display:inline-block;width:${indent}px;"></span>
             ${toggle}
@@ -664,6 +670,7 @@ function renderBOMTable() {
       html += `
         <tr class="bom-row bom-depth-${Math.min(row.depth, 5)}" data-id="${row.id}">
           <td class="bom-col-num">${row.rowNum}</td>
+          <td class="bom-col-seq">${row.seq || ''}</td>
           <td class="bom-col-tree">
             <span style="display:inline-block;width:${indent}px;"></span>
             ${toggle}
@@ -1049,11 +1056,12 @@ async function bomHandleCSVImport(event) {
 // ============================================================
 function bomExportCSV() {
   const rows = buildBOMTree();
-  const headers = ['level', 'component', 'parent', 'part_number', 'qty', 'status', 'fastener', 'f.qty', 'loctite', 'torque'];
+  const headers = ['seq', 'level', 'component', 'parent', 'part_number', 'qty', 'status', 'fastener', 'f.qty', 'loctite', 'torque'];
   const csvRows = [headers.join(',')];
   
   rows.forEach(row => {
     csvRows.push([
+      row.seq || '',
       `L${row.level}`,
       escapeCSV(row.name),
       escapeCSV(row.parentName),
@@ -1143,6 +1151,32 @@ window.bomExportCSV = bomExportCSV;
 window.bomSaveNode = bomSaveNode;
 window.bomSaveLink = bomSaveLink;
 window.bomSaveTorque = bomSaveTorque;
+
+// Save sequence — updates both sequence_num and sequence_tag, then re-renders (order may change)
+async function bomSaveSeq(nodeId, el) {
+  const seq = parseInt(el.value) || 0;
+  try {
+    await db.from('logi_nodes').update({
+      sequence_num: seq,
+      sequence_tag: seq > 0 ? String(seq) : null,
+      updated_at: new Date().toISOString()
+    }).eq('id', nodeId);
+    
+    const node = state.nodes.find(n => n.id === nodeId);
+    if (node) {
+      node.sequence_num = seq;
+      node.sequence_tag = seq > 0 ? String(seq) : null;
+    }
+    
+    el.classList.add('bom-saved');
+    setTimeout(() => { el.classList.remove('bom-saved'); renderBOMTable(); }, 400);
+  } catch (e) {
+    console.error('BOM save seq error:', e);
+    showToast('Save failed', 'error');
+  }
+}
+
+window.bomSaveSeq = bomSaveSeq;
 window.bomHandleCSVImport = bomHandleCSVImport;
 window.bomPrint = bomPrint;
 
