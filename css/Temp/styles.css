@@ -12,9 +12,6 @@ body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: #f0f4f8;
   min-height: 100vh;
-  overflow: auto;
-}
-body.tree-view {
   overflow: hidden;
 }
 
@@ -1575,30 +1572,12 @@ body.tree-view .chat-fab { bottom: 155px; }
    ============================================ */
 @media (max-width: 768px) {
   .header {
-    padding: 6px 8px;
-    gap: 4px;
+    padding: 8px 10px;
+    gap: 6px;
   }
-  .header h1 { font-size: 13px; }
-  .header select { font-size: 11px; min-width: 80px; padding: 3px 6px; }
-  .header-btn { padding: 3px 6px; font-size: 9px; }
-  
-  /* Tree controls: horizontal scroll, single row */
-  #treeControls {
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    gap: 4px;
-    padding-bottom: 2px;
-  }
-  
-  /* Hide legend on mobile */
-  .legend { display: none !important; }
-  
-  /* Adjust tree container for mobile header */
-  .main-container {
-    height: calc(100vh - 60px) !important;
-  }
+  .header h1 { font-size: 14px; }
+  .header select { font-size: 11px; min-width: 90px; padding: 4px 8px; }
+  .header-btn { padding: 4px 8px; font-size: 10px; }
   
   /* Bigger tap targets for nodes */
   .node { cursor: pointer; }
@@ -1609,21 +1588,13 @@ body.tree-view .chat-fab { bottom: 155px; }
     padding: 10px !important;
   }
   
-  /* Side panel full width overlay on mobile */
+  /* Side panel full width on mobile */
   .side-panel {
-    position: fixed !important;
-    top: 0;
-    right: 0;
     width: 100vw !important;
-    height: 100vh !important;
-    max-height: 100vh !important;
-    z-index: 300;
-    transform: translateX(100%);
-    transition: transform 0.3s ease;
+    right: -100vw !important;
   }
   .side-panel.open {
-    transform: translateX(0);
-    width: 100vw !important;
+    right: 0 !important;
   }
   
   /* Node action bar slightly bigger */
@@ -1636,11 +1607,6 @@ body.tree-view .chat-fab { bottom: 155px; }
   /* FABs bigger on mobile */
   .add-node-fab { width: 56px; height: 56px; font-size: 24px; }
   .chat-fab { width: 56px; height: 56px; }
-  
-  /* Bottom padding so FABs don't cover content */
-  .home-page, .assemblies-page { padding-bottom: 100px; }
-  .home-page { padding: 15px 15px 100px; }
-  .home-header h2 { font-size: 22px; }
 }
 
 /* ============================================
