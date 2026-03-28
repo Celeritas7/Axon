@@ -258,9 +258,15 @@ function showMultiImportPreview(parsedFiles) {
         <option value="">— Don't attach (import as standalone) —</option>
         ${parentOptions}
       </select>
-      <div style="margin-top: 8px;">
-        <label style="font-size: 12px; color: #666;">Fastener for attachment links (optional)</label>
-        <input type="text" id="importAttachFastener" class="form-input" placeholder="e.g. M6x20, CBE8-35" style="width: 100%; margin-top: 4px; font-size: 14px; padding: 8px;">
+      <div style="margin-top: 8px; display: flex; gap: 10px;">
+        <div style="flex: 1;">
+          <label style="font-size: 12px; color: #666;">Fastener for attachment (optional)</label>
+          <input type="text" id="importAttachFastener" class="form-input" placeholder="e.g. M6x20, CBE8-35" style="width: 100%; margin-top: 4px; font-size: 14px; padding: 8px;">
+        </div>
+        <div style="width: 80px;">
+          <label style="font-size: 12px; color: #666;">Seq #</label>
+          <input type="number" id="importAttachSeq" class="form-input" placeholder="#" min="0" style="width: 100%; margin-top: 4px; font-size: 14px; padding: 8px; text-align: center;">
+        </div>
       </div>
       <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0c56b;">
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
@@ -362,9 +368,11 @@ async function performMultiImport(parsedFiles) {
   // Read input values BEFORE hiding modal
   const attachParentEl = document.getElementById('importAttachParent');
   const attachFastenerEl = document.getElementById('importAttachFastener');
+  const attachSeqEl = document.getElementById('importAttachSeq');
   const mergeEl = document.getElementById('importMergeNodes');
   const attachParentId = attachParentEl ? attachParentEl.value : '';
   const attachFastener = attachFastenerEl ? attachFastenerEl.value.trim() : '';
+  const attachSeq = attachSeqEl ? (parseInt(attachSeqEl.value) || 0) : 0;
   const mergeEnabled = mergeEl ? mergeEl.checked : false;
   
   hideModal();
@@ -481,6 +489,20 @@ async function performMultiImport(parsedFiles) {
       if (linksToInsert.length > 0) {
         const { error: linksError } = await db.from('logi_links').insert(linksToInsert);
         if (linksError) throw new Error(`${parsed.fileName}: ${linksError.message}`);
+      }
+      
+      // Apply sequence number to root nodes if specified
+      if (attachSeq > 0) {
+        for (const rootNode of rootNodes) {
+          const rootKey = rootNode._key || rootNode.name;
+          const rootId = nodeIdMap.get(rootKey);
+          if (rootId) {
+            await db.from('logi_nodes').update({
+              sequence_num: attachSeq,
+              sequence_tag: String(attachSeq)
+            }).eq('id', rootId);
+          }
+        }
       }
       
       totalNodesInserted += nodesToInsert.length;
