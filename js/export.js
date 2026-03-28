@@ -943,6 +943,30 @@ async function bomHandleCSVImport(event) {
         }
       }
       
+      // If row has a parent and no link to that parent exists yet, create one
+      // (handles duplicate names under different parents)
+      if (row.parent) {
+        const parentNode = nodeByName.get(row.parent.toLowerCase());
+        if (parentNode && (!link || link.parent_id !== parentNode.id)) {
+          const { error: dupLinkErr } = await db.from('logi_links').insert({
+            id: crypto.randomUUID(),
+            assembly_id: assemblyId,
+            parent_id: parentNode.id,
+            child_id: node.id,
+            fastener: row.fastener || null,
+            qty: row.fqty || 1,
+            loctite: row.loctite || null,
+            torque_value: null,
+            torque_unit: null,
+            deleted: false
+          });
+          // Ignore duplicate constraint errors (23505)
+          if (dupLinkErr && dupLinkErr.code !== '23505') {
+            console.warn('Link insert warning:', dupLinkErr.message);
+          }
+        }
+      }
+      
       updated++;
     } else {
       // ---- CREATE new node ----
@@ -987,7 +1011,11 @@ async function bomHandleCSVImport(event) {
             if (tm) { linkData.torque_value = parseFloat(tm[1]); linkData.torque_unit = tm[2] || 'Nm'; }
           }
           
-          await db.from('logi_links').insert(linkData);
+          // Insert link — skip if duplicate constraint
+          const { error: linkErr } = await db.from('logi_links').insert(linkData);
+          if (linkErr && linkErr.code !== '23505') {
+            console.warn('Link create warning:', linkErr.message);
+          }
         }
       }
       
@@ -1177,15 +1205,14 @@ async function bomDeleteSelected() {
       });
     }
     
-    // Soft-delete nodes
+    // Hard delete related links first
     for (const id of allIdsToDelete) {
-      await db.from('logi_nodes').update({ deleted: true }).eq('id', id);
+      await db.from('logi_links').delete().or(`child_id.eq.${id},parent_id.eq.${id}`);
     }
     
-    // Soft-delete related links
+    // Hard delete nodes
     for (const id of allIdsToDelete) {
-      await db.from('logi_links').update({ deleted: true }).match({ child_id: id });
-      await db.from('logi_links').update({ deleted: true }).match({ parent_id: id });
+      await db.from('logi_nodes').delete().eq('id', id);
     }
     
     showToast(`Deleted ${allIdsToDelete.size} node${allIdsToDelete.size > 1 ? 's' : ''}`, 'success');

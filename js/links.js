@@ -147,7 +147,7 @@ export function confirmDeleteLink(linkId) {
 
 async function deleteLink(linkId) {
   try {
-    const { error } = await db.from('logi_links').update({ deleted: true }).eq('id', linkId);
+    const { error } = await db.from('logi_links').delete().eq('id', linkId);
     if (error) throw error;
     
     hideModal();

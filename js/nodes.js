@@ -195,11 +195,11 @@ export function confirmDeleteNode(nodeId) {
 
 async function deleteNode(nodeId) {
   try {
-    // Delete links
+    // Hard delete links
     await db.from('logi_links').delete().or(`parent_id.eq.${nodeId},child_id.eq.${nodeId}`);
     
-    // Delete node (soft delete)
-    const { error } = await db.from('logi_nodes').update({ deleted: true }).eq('id', nodeId);
+    // Hard delete node
+    const { error } = await db.from('logi_nodes').delete().eq('id', nodeId);
     if (error) throw error;
     
     hideModal();
