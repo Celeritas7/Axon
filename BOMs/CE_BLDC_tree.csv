@@ -1,0 +1,5 @@
+child,parent,child_pn,fastener,qty,loctite,torque
+CE BLDC,,NXMA-0700073-0-0,,1,,
+CE BLDC Panel,CE BLDC,NXMP-0700157-0-0,,1,,
+BLDC Controller,CE BLDC Panel,DC48V1500W,SCB6-10,2,243,
+Cable Clamp,CE BLDC Panel,LWS-Z2182,,1,,

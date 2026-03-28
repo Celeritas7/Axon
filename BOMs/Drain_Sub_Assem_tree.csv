@@ -1,0 +1,6 @@
+child,parent,child_pn,fastener,qty,loctite,torque
+Drain Sub Assem,,NXMA-0700075-0-0,,1,,
+Auto Drain,Drain Sub Assem,DT3010-10-W-BW,,1,,
+Auto Drain Bracket,Auto Drain,B320,,1,,
+R3/8 to 10mm Elbow,Auto Drain,PL10-03,,1,,
+10mm Air Tube PU,R3/8 to 10mm Elbow,TU1065BU-20,,1,,

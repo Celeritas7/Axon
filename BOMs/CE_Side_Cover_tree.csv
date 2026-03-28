@@ -1,0 +1,6 @@
+child,parent,child_pn,fastener,qty,loctite,torque
+CE Side Cover,,NXMA-0700080-0-0,,1,,
+CE Side Panel Assembly,CE Side Cover,NXMP-0700030-0-0,,1,,
+CE Side Panel W/ Hinge,CE Side Panel Assembly,NXMP-0700054-0-0,CBSTBR4-8,1,No,
+M4 Lock Nut,CE Side Panel W/ Hinge,UNUTSZ4,,1,,
+Magnet Catch,CE Side Cover,MGCM2,HFBCM3-6,2,No,

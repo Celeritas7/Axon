@@ -102,14 +102,6 @@ export function addChildNode(parentId) {
   const parent = state.nodes.find(n => n.id === parentId);
   if (!parent) return;
   
-  // Calculate next sequence number for siblings
-  const siblingSeqs = state.links
-    .filter(l => l.parent_id === parentId)
-    .map(l => state.nodes.find(n => n.id === l.child_id))
-    .filter(Boolean)
-    .map(n => n.sequence_num || 0);
-  const nextSeq = siblingSeqs.length > 0 ? Math.max(...siblingSeqs) + 1 : 1;
-  
   showModal(
     'Add Child Node',
     `<div class="form-group">
@@ -120,19 +112,9 @@ export function addChildNode(parentId) {
       <label class="form-label">Part Number (optional)</label>
       <input type="text" class="form-input" id="newChildNodePN" placeholder="Enter part number">
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Fastener (optional)</label>
-        <input type="text" class="form-input" id="newChildFastener" placeholder="e.g., M6x20">
-      </div>
-      <div class="form-group" style="max-width:80px;">
-        <label class="form-label">Seq #</label>
-        <input type="number" class="form-input" id="newChildSeq" value="${nextSeq}" min="0" placeholder="#">
-      </div>
-    </div>
     <div class="form-group">
-      <label class="form-label">Notes (optional)</label>
-      <input type="text" class="form-input" id="newChildNotes" placeholder="Assembly notes...">
+      <label class="form-label">Fastener (optional)</label>
+      <input type="text" class="form-input" id="newChildFastener" placeholder="e.g., M6x20, CBE10">
     </div>`,
     [
       { label: 'Cancel', class: 'btn-secondary', action: hideModal },
@@ -147,9 +129,6 @@ async function saveChildNode(parentId) {
   const name = document.getElementById('newChildNodeName').value.trim();
   const partNumber = document.getElementById('newChildNodePN').value.trim();
   const fastener = document.getElementById('newChildFastener').value.trim();
-  const seqNum = parseInt(document.getElementById('newChildSeq').value) || 0;
-  const seqTag = seqNum > 0 ? String(seqNum) : null;
-  const notes = document.getElementById('newChildNotes').value.trim();
   
   if (!name) {
     showToast('Name is required', 'error');
@@ -165,9 +144,6 @@ async function saveChildNode(parentId) {
       assembly_id: state.currentAssemblyId,
       name: name,
       part_number: partNumber || null,
-      sequence_num: seqNum,
-      sequence_tag: seqTag,
-      notes: notes || null,
       x: (parent.x || 400) - 150,
       y: (parent.y || 300) + 100,
       status: 'NOT_STARTED',

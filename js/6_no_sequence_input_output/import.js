@@ -82,11 +82,10 @@ function parseCSV(csvText) {
   const qtyIdx = header.findIndex(h => h === 'qty' || h === 'quantity');
   const loctiteIdx = header.findIndex(h => h === 'loctite' || h === 'lt');
   const torqueIdx = header.findIndex(h => h === 'torque' || h === 'torque_value');
-  const seqIdx = header.findIndex(h => h === 'seq' || h === 'sequence' || h === 'seq_num' || h === 'sequence_num' || h === '#');
   
   // Parse rows
   const rows = [];
-  const nodeMap = new Map(); // uniqueKey -> { name, part_number }
+  const nodeMap = new Map(); // name -> { name, part_number }
   const links = [];
   
   // First pass: collect all rows with levels
@@ -110,87 +109,60 @@ function parseCSV(csvText) {
     const loctite = loctiteIdx !== -1 ? values[loctiteIdx]?.trim().replace(/^LT-/i, '') : '';
     const torque = torqueIdx !== -1 ? parseFloat(values[torqueIdx]) || null : null;
     
-    parsedRows.push({ child, parent, level, partNumber, fastener, qty, loctite, torque, rowIdx: parsedRows.length, seq: seqIdx !== -1 ? (parseInt(values[seqIdx]) || 0) : 0 });
+    parsedRows.push({ child, parent, level, partNumber, fastener, qty, loctite, torque });
   }
   
-  // Detect import mode
+  // If we have levels but no parent column, infer parents from hierarchy
   const hasLevels = levelIdx !== -1 && parsedRows.some(r => r.level > 0);
   const hasParents = parentIdx !== -1 && parsedRows.some(r => r.parent);
   
   if (hasLevels && !hasParents) {
-    // Level-based import: each row is a unique node, use row index as key
-    // This handles duplicate names like "CE BLDC Panel" appearing under different parents
-    const levelStack = {}; // level → uniqueKey of most recent node at that level
-    
+    const levelStack = {};
     parsedRows.forEach(row => {
-      // Create unique key for this row (name + row index)
-      const uniqueKey = `${row.child}__row${row.rowIdx}`;
-      row._uniqueKey = uniqueKey;
-      
-      // Resolve parent from level stack
       if (row.level > 1) {
-        row._parentKey = levelStack[row.level - 1] || '';
-        // Also set parent name for display (extract name from key)
-        const parentRow = parsedRows.find(r => r._uniqueKey === row._parentKey);
-        row.parent = parentRow ? parentRow.child : '';
+        row.parent = levelStack[row.level - 1] || '';
       }
-      
-      levelStack[row.level] = uniqueKey;
-      
-      // Add to nodeMap with unique key
-      nodeMap.set(uniqueKey, { name: row.child, part_number: row.partNumber || null, seq: row.seq || 0 });
-      
-      // Add link using unique keys
-      if (row._parentKey) {
-        links.push({
-          parent_name: row._parentKey,
-          child_name: uniqueKey,
-          fastener: row.fastener || null,
-          qty: row.qty,
-          loctite: row.loctite || null,
-          torque_value: row.torque,
-          torque_unit: row.torque ? 'Nm' : null
-        });
-      }
-      
-      rows.push(row);
+      levelStack[row.level] = row.child;
     });
-  } else {
-    // Parent-column based import: use names as keys (original behavior)
-    for (const row of parsedRows) {
-      const { child, parent, partNumber, fastener, qty, loctite, torque, seq } = row;
-      
-      if (!nodeMap.has(child)) {
-        nodeMap.set(child, { name: child, part_number: partNumber || null, seq: seq || 0 });
-      } else if (partNumber && !nodeMap.get(child).part_number) {
-        nodeMap.get(child).part_number = partNumber;
-      }
-      
-      if (parent && !nodeMap.has(parent)) {
-        nodeMap.set(parent, { name: parent, part_number: null, seq: 0 });
-      }
-      
-      if (parent) {
-        links.push({
-          parent_name: parent,
-          child_name: child,
-          fastener: fastener || null,
-          qty: qty,
-          loctite: loctite || null,
-          torque_value: torque,
-          torque_unit: torque ? 'Nm' : null
-        });
-      }
-      
-      rows.push(row);
-    }
   }
   
-  const nodes = Array.from(nodeMap.entries()).map(([key, val]) => ({ ...val, _key: key }));
+  // Build nodes and links from parsed rows
+  for (const row of parsedRows) {
+    const { child, parent, partNumber, fastener, qty, loctite, torque } = row;
+    
+    // Add child to nodes
+    if (!nodeMap.has(child)) {
+      nodeMap.set(child, { name: child, part_number: partNumber || null });
+    } else if (partNumber && !nodeMap.get(child).part_number) {
+      nodeMap.get(child).part_number = partNumber;
+    }
+    
+    // Add parent to nodes if exists
+    if (parent && !nodeMap.has(parent)) {
+      nodeMap.set(parent, { name: parent, part_number: null });
+    }
+    
+    // Add link if parent exists
+    if (parent) {
+      links.push({
+        parent_name: parent,
+        child_name: child,
+        fastener: fastener || null,
+        qty: qty,
+        loctite: loctite || null,
+        torque_value: torque,
+        torque_unit: torque ? 'Nm' : null
+      });
+    }
+    
+    rows.push(row);
+  }
+  
+  const nodes = Array.from(nodeMap.values());
   
   // Find root nodes (nodes that are parents but never children)
-  const childKeys = new Set(links.map(l => l.child_name));
-  const rootNodes = nodes.filter(n => !childKeys.has(n._key));
+  const childNames = new Set(links.map(l => l.child_name));
+  const rootNodes = nodes.filter(n => !childNames.has(n.name));
   
   return {
     nodes,
@@ -404,15 +376,14 @@ async function performMultiImport(parsedFiles) {
       const positions = calculateTreeLayout(nodes, links);
       
       nodes.forEach((node, index) => {
-        const mapKey = node._key || node.name;
-        const existingId = mergeEnabled ? existingNameMap.get(node.name.toLowerCase()) : null;
+        const existingId = existingNameMap.get(node.name.toLowerCase());
         if (existingId) {
-          nodeIdMap.set(mapKey, existingId);
+          nodeIdMap.set(node.name, existingId);
           return;
         }
         
         const id = crypto.randomUUID();
-        nodeIdMap.set(mapKey, id);
+        nodeIdMap.set(node.name, id);
         
         // Track in batch map for subsequent files (only relevant with merge ON)
         if (mergeEnabled) {
@@ -426,8 +397,6 @@ async function performMultiImport(parsedFiles) {
           assembly_id: assemblyId,
           name: node.name,
           part_number: node.part_number,
-          sequence_num: node.seq || 0,
-          sequence_tag: node.seq > 0 ? String(node.seq) : null,
           x: pos.x,
           y: pos.y,
           status: 'NOT_STARTED',
@@ -458,8 +427,7 @@ async function performMultiImport(parsedFiles) {
       // Add attachment links: CSV root nodes → selected parent
       if (attachParentId) {
         rootNodes.forEach(rootNode => {
-          const rootKey = rootNode._key || rootNode.name;
-          const rootId = nodeIdMap.get(rootKey);
+          const rootId = nodeIdMap.get(rootNode.name);
           if (rootId) {
             linksToInsert.push({
               id: crypto.randomUUID(),

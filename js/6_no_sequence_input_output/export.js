@@ -848,7 +848,6 @@ async function bomHandleCSVImport(event) {
   const fqtyIdx = ci(['f.qty', 'fqty', 'fastener_qty', 'f_qty']);
   const loctiteIdx = ci(['loctite', 'lt']);
   const torqueIdx = ci(['torque', 'torque_value']);
-  const seqIdx = ci(['seq', 'sequence', 'seq_num', '#']);
   
   if (nameIdx === -1) { showToast('CSV must have a "component" or "child" column', 'error'); return; }
   
@@ -881,8 +880,7 @@ async function bomHandleCSVImport(event) {
       fastener: fastenerIdx !== -1 ? vals[fastenerIdx]?.trim() : '',
       fqty: fqtyIdx !== -1 ? (parseInt(vals[fqtyIdx]) || 1) : 1,
       loctite: loctiteIdx !== -1 ? vals[loctiteIdx]?.trim().replace(/^LT-/i, '') : '',
-      torque: torqueIdx !== -1 ? vals[torqueIdx]?.trim() : '',
-      seq: seqIdx !== -1 ? (parseInt(vals[seqIdx]) || 0) : 0
+      torque: torqueIdx !== -1 ? vals[torqueIdx]?.trim() : ''
     });
   }
   
@@ -903,9 +901,9 @@ async function bomHandleCSVImport(event) {
     });
   }
   
-  // Build lookup maps — only match against nodes already in DB (not created during this import)
-  const existingByName = new Map();
-  state.nodes.forEach(n => existingByName.set(n.name.toLowerCase(), n));
+  // Build lookup maps (case-insensitive)
+  const nodeByName = new Map();
+  state.nodes.forEach(n => nodeByName.set(n.name.toLowerCase(), n));
   
   const linkByChildId = new Map();
   state.links.forEach(l => { if (!l.deleted) linkByChildId.set(l.child_id, l); });
@@ -913,53 +911,24 @@ async function bomHandleCSVImport(event) {
   let updated = 0;
   let created = 0;
   
-  // For level-based import: track node IDs by row position, not name
-  // This handles duplicate names (e.g. "CE BLDC Panel" appearing twice under different parents)
-  const levelNodeStack = {}; // level → most recent node ID at that level
-  
-  // For parent-column import: track by name (original behavior)
-  const createdByName = new Map();
-  
+  // Process each row: update if exists, create if not
   for (const row of rawRows) {
-    // Determine parent node ID
-    let parentNodeId = null;
-    if (row.parent) {
-      // Check level stack first (for level-based), then created map, then existing DB nodes
-      const parentFromCreated = createdByName.get(row.parent.toLowerCase());
-      const parentFromDB = existingByName.get(row.parent.toLowerCase());
-      parentNodeId = parentFromCreated || parentFromDB?.id || null;
-    }
+    let node = nodeByName.get(row.name.toLowerCase());
     
-    // For level-based imports, use the level stack for parent resolution
-    if (hasLevels && !hasParents && row.level > 1) {
-      parentNodeId = levelNodeStack[row.level - 1] || null;
-    }
-    
-    // Check if this EXACT node already exists in DB (first occurrence only, skip if level-based with dupes)
-    let existingNode = existingByName.get(row.name.toLowerCase());
-    
-    // If level-based: only match existing DB node for the FIRST occurrence
-    // For subsequent rows with same name, always create new node
-    if (hasLevels && existingNode && existingNode._bomImportUsed) {
-      existingNode = null; // force create
-    }
-    
-    if (existingNode && !existingNode._bomImportUsed) {
+    if (node) {
       // ---- UPDATE existing node ----
-      existingNode._bomImportUsed = true; // mark so second occurrence creates new
-      
       const nodeUpdates = {};
-      if (row.partNumber) { nodeUpdates.part_number = row.partNumber; existingNode.part_number = row.partNumber; }
-      if (row.qty > 1 || (qtyIdx !== -1)) { nodeUpdates.qty = row.qty; existingNode.qty = row.qty; }
-      if (row.status) { nodeUpdates.status = row.status; existingNode.status = row.status; }
+      if (row.partNumber) { nodeUpdates.part_number = row.partNumber; node.part_number = row.partNumber; }
+      if (row.qty > 1 || (qtyIdx !== -1)) { nodeUpdates.qty = row.qty; node.qty = row.qty; }
+      if (row.status) { nodeUpdates.status = row.status; node.status = row.status; }
       
       if (Object.keys(nodeUpdates).length > 0) {
         nodeUpdates.updated_at = new Date().toISOString();
-        await db.from('logi_nodes').update(nodeUpdates).eq('id', existingNode.id);
+        await db.from('logi_nodes').update(nodeUpdates).eq('id', node.id);
       }
       
       // Update link fields if link exists
-      const link = linkByChildId.get(existingNode.id);
+      const link = linkByChildId.get(node.id);
       if (link) {
         const linkUpdates = {};
         if (row.fastener) { linkUpdates.fastener = row.fastener; link.fastener = row.fastener; }
@@ -974,9 +943,29 @@ async function bomHandleCSVImport(event) {
         }
       }
       
-      // Track in level stack
-      if (hasLevels) levelNodeStack[row.level] = existingNode.id;
-      createdByName.set(row.name.toLowerCase(), existingNode.id);
+      // If row has a parent and no link to that parent exists yet, create one
+      // (handles duplicate names under different parents)
+      if (row.parent) {
+        const parentNode = nodeByName.get(row.parent.toLowerCase());
+        if (parentNode && (!link || link.parent_id !== parentNode.id)) {
+          const { error: dupLinkErr } = await db.from('logi_links').insert({
+            id: crypto.randomUUID(),
+            assembly_id: assemblyId,
+            parent_id: parentNode.id,
+            child_id: node.id,
+            fastener: row.fastener || null,
+            qty: row.fqty || 1,
+            loctite: row.loctite || null,
+            torque_value: null,
+            torque_unit: null,
+            deleted: false
+          });
+          // Ignore duplicate constraint errors (23505)
+          if (dupLinkErr && dupLinkErr.code !== '23505') {
+            console.warn('Link insert warning:', dupLinkErr.message);
+          }
+        }
+      }
       
       updated++;
     } else {
@@ -989,8 +978,6 @@ async function bomHandleCSVImport(event) {
         name: row.name,
         part_number: row.partNumber || null,
         qty: row.qty,
-        sequence_num: row.seq || 0,
-        sequence_tag: row.seq > 0 ? String(row.seq) : null,
         status: row.status || 'NOT_STARTED',
         x: 400,
         y: 300,
@@ -999,32 +986,37 @@ async function bomHandleCSVImport(event) {
       
       if (nodeErr) { console.error('BOM create node error:', nodeErr); continue; }
       
-      // Track in level stack and name map
-      if (hasLevels) levelNodeStack[row.level] = newId;
-      createdByName.set(row.name.toLowerCase(), newId);
+      // Track for parent resolution
+      nodeByName.set(row.name.toLowerCase(), { id: newId, name: row.name });
       
-      // Create link to parent
-      if (parentNodeId) {
-        const linkData = {
-          id: crypto.randomUUID(),
-          assembly_id: assemblyId,
-          parent_id: parentNodeId,
-          child_id: newId,
-          fastener: row.fastener || null,
-          qty: row.fqty || 1,
-          loctite: row.loctite || null,
-          torque_value: null,
-          torque_unit: null,
-          deleted: false
-        };
-        
-        if (row.torque) {
-          const tm = row.torque.match(/^([\d.]+)\s*(.*)$/);
-          if (tm) { linkData.torque_value = parseFloat(tm[1]); linkData.torque_unit = tm[2] || 'Nm'; }
+      // Create link to parent if parent specified
+      if (row.parent) {
+        const parentNode = nodeByName.get(row.parent.toLowerCase());
+        if (parentNode) {
+          const linkData = {
+            id: crypto.randomUUID(),
+            assembly_id: assemblyId,
+            parent_id: parentNode.id,
+            child_id: newId,
+            fastener: row.fastener || null,
+            qty: row.fqty || 1,
+            loctite: row.loctite || null,
+            torque_value: null,
+            torque_unit: null,
+            deleted: false
+          };
+          
+          if (row.torque) {
+            const tm = row.torque.match(/^([\d.]+)\s*(.*)$/);
+            if (tm) { linkData.torque_value = parseFloat(tm[1]); linkData.torque_unit = tm[2] || 'Nm'; }
+          }
+          
+          // Insert link — skip if duplicate constraint
+          const { error: linkErr } = await db.from('logi_links').insert(linkData);
+          if (linkErr && linkErr.code !== '23505') {
+            console.warn('Link create warning:', linkErr.message);
+          }
         }
-        
-        const { error: linkErr } = await db.from('logi_links').insert(linkData);
-        if (linkErr) console.warn('Link create warning:', linkErr.message);
       }
       
       created++;
