@@ -840,7 +840,6 @@ async function bomHandleCSVImport(event) {
   const ci = (names) => hdr.findIndex(h => names.includes(h));
   const nameIdx = ci(['component', 'child', 'child_name', 'name']);
   const parentIdx = ci(['parent', 'parent_name']);
-  const levelIdx = ci(['level']);
   const pnIdx = ci(['part_number', 'child_pn', 'pn', 'part number']);
   const qtyIdx = ci(['qty', 'quantity']);
   const statusIdx = ci(['status']);
@@ -853,26 +852,28 @@ async function bomHandleCSVImport(event) {
   
   const assemblyId = state.currentAssemblyId;
   
-  // Parse all rows
-  const rawRows = [];
+  // Build lookup maps (case-insensitive)
+  const nodeByName = new Map();
+  state.nodes.forEach(n => nodeByName.set(n.name.toLowerCase(), n));
+  
+  const linkByChildId = new Map();
+  state.links.forEach(l => { if (!l.deleted) linkByChildId.set(l.child_id, l); });
+  
+  // Track new nodes created during this import (name→id)
+  const newNodeIds = new Map();
+  
+  let updated = 0;
+  let created = 0;
+  
+  // Parse all rows first
+  const rows = [];
   for (let i = 1; i < lines.length; i++) {
     const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-    const rawName = vals[nameIdx];
-    if (!rawName) continue;
-    
-    // Strip leading whitespace/indentation from component name
-    const name = rawName.trim();
+    const name = vals[nameIdx]?.trim();
     if (!name) continue;
     
-    // Parse level: from "L2" or "L3" column, or from indentation
-    let level = 0;
-    if (levelIdx !== -1 && vals[levelIdx]) {
-      level = parseInt(vals[levelIdx].replace(/^L/i, '')) || 0;
-    }
-    
-    rawRows.push({
+    rows.push({
       name,
-      level,
       parent: parentIdx !== -1 ? vals[parentIdx]?.trim() : '',
       partNumber: pnIdx !== -1 ? vals[pnIdx]?.trim() : '',
       qty: qtyIdx !== -1 ? (parseInt(vals[qtyIdx]) || 1) : 1,
@@ -884,35 +885,8 @@ async function bomHandleCSVImport(event) {
     });
   }
   
-  // If we have levels but no parent column, infer parents from level hierarchy
-  const hasLevels = levelIdx !== -1 && rawRows.some(r => r.level > 0);
-  const hasParents = parentIdx !== -1 && rawRows.some(r => r.parent);
-  
-  if (hasLevels && !hasParents) {
-    // Stack tracks the most recent node at each level
-    // Parent of an Ln node = most recent node at L(n-1)
-    const levelStack = {}; // level → name
-    
-    rawRows.forEach(row => {
-      if (row.level > 1) {
-        row.parent = levelStack[row.level - 1] || '';
-      }
-      levelStack[row.level] = row.name;
-    });
-  }
-  
-  // Build lookup maps (case-insensitive)
-  const nodeByName = new Map();
-  state.nodes.forEach(n => nodeByName.set(n.name.toLowerCase(), n));
-  
-  const linkByChildId = new Map();
-  state.links.forEach(l => { if (!l.deleted) linkByChildId.set(l.child_id, l); });
-  
-  let updated = 0;
-  let created = 0;
-  
   // Process each row: update if exists, create if not
-  for (const row of rawRows) {
+  for (const row of rows) {
     let node = nodeByName.get(row.name.toLowerCase());
     
     if (node) {
@@ -963,6 +937,7 @@ async function bomHandleCSVImport(event) {
       if (nodeErr) { console.error('BOM create node error:', nodeErr); continue; }
       
       // Track for parent resolution
+      newNodeIds.set(row.name.toLowerCase(), newId);
       nodeByName.set(row.name.toLowerCase(), { id: newId, name: row.name });
       
       // Create link to parent if parent specified
@@ -1013,12 +988,11 @@ async function bomHandleCSVImport(event) {
 // ============================================================
 function bomExportCSV() {
   const rows = buildBOMTree();
-  const headers = ['level', 'component', 'parent', 'part_number', 'qty', 'status', 'fastener', 'f.qty', 'loctite', 'torque'];
+  const headers = ['child', 'parent', 'child_pn', 'qty', 'status', 'fastener', 'f.qty', 'loctite', 'torque'];
   const csvRows = [headers.join(',')];
   
   rows.forEach(row => {
     csvRows.push([
-      `L${row.level}`,
       escapeCSV(row.name),
       escapeCSV(row.parentName),
       escapeCSV(row.partNumber),

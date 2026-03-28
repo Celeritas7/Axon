@@ -68,16 +68,15 @@ function parseCSV(csvText) {
   const header = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
   
   // Required columns
-  const childIdx = header.findIndex(h => h === 'child' || h === 'child_name' || h === 'component' || h === 'name');
+  const childIdx = header.findIndex(h => h === 'child' || h === 'child_name');
   const parentIdx = header.findIndex(h => h === 'parent' || h === 'parent_name');
-  const levelIdx = header.findIndex(h => h === 'level');
   
   if (childIdx === -1) {
     return { error: 'CSV must have "child" column' };
   }
   
   // Optional columns
-  const pnIdx = header.findIndex(h => h === 'child_pn' || h === 'part_number' || h === 'part number' || h === 'pn');
+  const pnIdx = header.findIndex(h => h === 'child_pn' || h === 'part_number' || h === 'pn');
   const fastenerIdx = header.findIndex(h => h === 'fastener');
   const qtyIdx = header.findIndex(h => h === 'qty' || h === 'quantity');
   const loctiteIdx = header.findIndex(h => h === 'loctite' || h === 'lt');
@@ -88,47 +87,19 @@ function parseCSV(csvText) {
   const nodeMap = new Map(); // name -> { name, part_number }
   const links = [];
   
-  // First pass: collect all rows with levels
-  const parsedRows = [];
   for (let i = 1; i < lines.length; i++) {
     const values = parseCSVLine(lines[i]);
     if (values.length === 0 || values.every(v => !v.trim())) continue;
     
     const child = values[childIdx]?.trim();
-    if (!child) continue;
-    
-    let parent = parentIdx !== -1 ? values[parentIdx]?.trim() : '';
-    let level = 0;
-    if (levelIdx !== -1 && values[levelIdx]) {
-      level = parseInt(values[levelIdx].replace(/^L/i, '')) || 0;
-    }
-    
+    const parent = parentIdx !== -1 ? values[parentIdx]?.trim() : '';
     const partNumber = pnIdx !== -1 ? values[pnIdx]?.trim() : '';
     const fastener = fastenerIdx !== -1 ? values[fastenerIdx]?.trim() : '';
     const qty = qtyIdx !== -1 ? parseInt(values[qtyIdx]) || 1 : 1;
-    const loctite = loctiteIdx !== -1 ? values[loctiteIdx]?.trim().replace(/^LT-/i, '') : '';
+    const loctite = loctiteIdx !== -1 ? values[loctiteIdx]?.trim() : '';
     const torque = torqueIdx !== -1 ? parseFloat(values[torqueIdx]) || null : null;
     
-    parsedRows.push({ child, parent, level, partNumber, fastener, qty, loctite, torque });
-  }
-  
-  // If we have levels but no parent column, infer parents from hierarchy
-  const hasLevels = levelIdx !== -1 && parsedRows.some(r => r.level > 0);
-  const hasParents = parentIdx !== -1 && parsedRows.some(r => r.parent);
-  
-  if (hasLevels && !hasParents) {
-    const levelStack = {};
-    parsedRows.forEach(row => {
-      if (row.level > 1) {
-        row.parent = levelStack[row.level - 1] || '';
-      }
-      levelStack[row.level] = row.child;
-    });
-  }
-  
-  // Build nodes and links from parsed rows
-  for (const row of parsedRows) {
-    const { child, parent, partNumber, fastener, qty, loctite, torque } = row;
+    if (!child) continue;
     
     // Add child to nodes
     if (!nodeMap.has(child)) {
@@ -155,7 +126,7 @@ function parseCSV(csvText) {
       });
     }
     
-    rows.push(row);
+    rows.push({ child, parent, partNumber, fastener, qty, loctite, torque });
   }
   
   const nodes = Array.from(nodeMap.values());
