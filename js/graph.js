@@ -18,6 +18,12 @@ import {
   setSidePanelContent, updateUndoButton, escapeHtml
 } from './ui.js';
 
+// Helper: escape string for HTML attribute values
+function escapeAttr(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 // ============================================================
 // ZOOM STATE & CONTROLS
 // ============================================================
@@ -1728,8 +1734,8 @@ function showNodeActionBar(node, event) {
   });
   replaceNabButton('nabLink', () => {
     hideNodeActionBar();
-    const outLinks = state.links.filter(l => l.child_id === node.id);
-    if (outLinks.length > 0) {
+    const hasAnyLinks = state.links.some(l => !l.deleted && (l.child_id === node.id || l.parent_id === node.id));
+    if (hasAnyLinks) {
       window.showNodeLinksPanel(node.id);
     } else {
       window.showConnectNodeMenu(node.id);
@@ -2240,48 +2246,124 @@ function showNodeLinksPanel(nodeId) {
   const node = state.nodes.find(n => n.id === nodeId);
   if (!node) return;
   
-  // Get all outgoing links (this node → parents)
-  const outgoingLinks = state.links.filter(l => l.child_id === nodeId);
+  // Links where this node is the child (→ parent)
+  const parentLinks = state.links.filter(l => !l.deleted && l.child_id === nodeId);
+  // Links where this node is the parent (children → this)
+  const childLinks = state.links.filter(l => !l.deleted && l.parent_id === nodeId);
   
-  if (outgoingLinks.length === 0) {
-    showToast('No outgoing links', 'info');
+  if (parentLinks.length === 0 && childLinks.length === 0) {
+    showToast('No links found', 'info');
     return;
   }
   
-  let linksHtml = outgoingLinks.map(link => {
-    const parent = state.nodes.find(n => n.id === link.parent_id);
+  function linkRow(link, labelNode, direction) {
+    const arrow = direction === 'parent' ? '↑' : '↓';
+    const labelName = labelNode ? escapeHtml(labelNode.name) : 'Unknown';
     return `
-      <div class="link-item" style="padding:12px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px;cursor:pointer;transition:all 0.2s;"
-           onclick="window.editLinkFastener('${link.id}')"
-           onmouseover="this.style.background='#f5f5f5';this.style.borderColor='#3498db';"
-           onmouseout="this.style.background='white';this.style.borderColor='#e0e0e0';">
-        <div style="font-weight:600;margin-bottom:5px;">→ ${escapeHtml(parent?.name || 'Unknown')}</div>
-        <div style="font-size:12px;color:#666;">
-          ${link.fastener ? `<span style="color:#3498db;">🔩 ${escapeHtml(link.fastener)}${link.qty > 1 ? ' ×' + link.qty : ''}</span>` : '<span style="color:#999;">No fastener</span>'}
-          ${link.loctite ? `<br><span style="color:#9b59b6;">🧴 LT-${link.loctite}</span>` : ''}
-          ${link.torque_value ? `<br><span style="color:#e67e22;">🔧 ${link.torque_value}${link.torque_unit || 'Nm'}</span>` : ''}
+      <div style="padding:12px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px;background:#fafafa;">
+        <div style="font-weight:600;margin-bottom:8px;font-size:13px;color:#555;">
+          ${arrow} ${labelName}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 60px;gap:6px;margin-bottom:6px;">
+          <div>
+            <label style="font-size:10px;color:#999;text-transform:uppercase;">Fastener</label>
+            <input type="text" class="form-input link-edit-field" data-link-id="${link.id}" data-field="fastener"
+              value="${escapeAttr(link.fastener || '')}" placeholder="e.g. M6x20"
+              style="font-size:14px;padding:8px;">
+          </div>
+          <div>
+            <label style="font-size:10px;color:#999;text-transform:uppercase;">Qty</label>
+            <input type="number" class="form-input link-edit-field" data-link-id="${link.id}" data-field="qty"
+              value="${link.qty || 1}" min="1"
+              style="font-size:14px;padding:8px;text-align:center;">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <div>
+            <label style="font-size:10px;color:#999;text-transform:uppercase;">Loctite</label>
+            <input type="text" class="form-input link-edit-field" data-link-id="${link.id}" data-field="loctite"
+              value="${escapeAttr(link.loctite || '')}" placeholder="e.g. 243"
+              style="font-size:14px;padding:8px;">
+          </div>
+          <div>
+            <label style="font-size:10px;color:#999;text-transform:uppercase;">Torque</label>
+            <input type="text" class="form-input link-edit-field" data-link-id="${link.id}" data-field="torque"
+              value="${link.torque_value ? link.torque_value + (link.torque_unit || 'Nm') : ''}" placeholder="e.g. 5Nm"
+              style="font-size:14px;padding:8px;">
+          </div>
         </div>
       </div>
     `;
-  }).join('');
+  }
   
-  const content = `
-    <p style="margin-bottom:15px;color:#666;font-size:13px;">
-      Links from <strong>${escapeHtml(node.name)}</strong> to parent nodes:
-    </p>
-    <div class="links-list">
-      ${linksHtml}
-    </div>
-    <p style="margin-top:15px;font-size:11px;color:#888;">
-      💡 Click on a link to edit its properties
-    </p>
-  `;
+  let html = '';
   
-  setSidePanelContent(`Links (${outgoingLinks.length})`, content, [
-    { label: 'Close', class: 'btn-secondary', action: closeSidePanel }
-  ]);
+  if (parentLinks.length > 0) {
+    html += `<div style="font-size:11px;color:#888;text-transform:uppercase;margin-bottom:6px;font-weight:700;">Attached to parent</div>`;
+    parentLinks.forEach(link => {
+      const parent = state.nodes.find(n => n.id === link.parent_id);
+      html += linkRow(link, parent, 'parent');
+    });
+  }
   
-  openSidePanel();
+  if (childLinks.length > 0) {
+    html += `<div style="font-size:11px;color:#888;text-transform:uppercase;margin-bottom:6px;margin-top:10px;font-weight:700;">Children fasteners</div>`;
+    childLinks.forEach(link => {
+      const child = state.nodes.find(n => n.id === link.child_id);
+      html += linkRow(link, child, 'child');
+    });
+  }
+  
+  showModal(
+    `🔩 Links — ${escapeHtml(node.name)}`,
+    `<div style="max-height:60vh;overflow-y:auto;">${html}</div>`,
+    [
+      { label: 'Cancel', class: 'btn-secondary', action: hideModal },
+      { label: 'Save', class: 'btn-primary', action: () => saveAllLinkEdits(nodeId) }
+    ]
+  );
+}
+
+async function saveAllLinkEdits(nodeId) {
+  const fields = document.querySelectorAll('.link-edit-field');
+  const updates = {}; // linkId → { field: value }
+  
+  fields.forEach(el => {
+    const linkId = el.dataset.linkId;
+    const field = el.dataset.field;
+    if (!updates[linkId]) updates[linkId] = {};
+    
+    if (field === 'qty') {
+      updates[linkId][field] = parseInt(el.value) || 1;
+    } else if (field === 'torque') {
+      const tm = el.value.trim().match(/^([\d.]+)\s*(.*)$/);
+      if (tm) {
+        updates[linkId].torque_value = parseFloat(tm[1]);
+        updates[linkId].torque_unit = tm[2] || 'Nm';
+      } else {
+        updates[linkId].torque_value = null;
+        updates[linkId].torque_unit = null;
+      }
+    } else {
+      updates[linkId][field] = el.value.trim() || null;
+    }
+  });
+  
+  try {
+    for (const [linkId, data] of Object.entries(updates)) {
+      await db.from('logi_links').update(data).eq('id', linkId);
+      // Update local state
+      const link = state.links.find(l => l.id === linkId);
+      if (link) Object.assign(link, data);
+    }
+    
+    hideModal();
+    showToast('Links updated', 'success');
+    await loadAssemblyData(state.currentAssemblyId);
+  } catch (e) {
+    console.error('Link save error:', e);
+    showToast('Save failed: ' + e.message, 'error');
+  }
 }
 
 window.showNodeLinksPanel = showNodeLinksPanel;
