@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Axon - Tree Builder</title>
+  
+  <!-- External Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <!-- Google GSI removed - now using Supabase Auth with Google provider -->
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ============================================ -->
+<!-- HEADER -->
+<!-- ============================================ -->
+<div class="header">
+  <h1>⚡ Axon</h1>
+  
+  <!-- Back button -->
+  <button class="header-btn back-btn" id="backBtn" style="display:none;" onclick="navigateBack()">← Back</button>
+  
+  <!-- Breadcrumb -->
+  <div id="breadcrumb" class="control-group" style="display:none;">
+    <span id="breadcrumbText" style="font-size:12px;color:#8892b0;"></span>
+  </div>
+  
+  <!-- Tree controls wrapper -->
+  <div id="treeControlsWrapper" style="display:none;">
+    <div class="control-group">
+      <label>Assembly:</label>
+      <select id="assemblySelect">
+        <option value="">Loading...</option>
+      </select>
+      <button class="header-btn admin-only" style="padding:4px 8px;margin-left:4px;" onclick="createNewAssemblyInTree()" title="New Assembly">➕</button>
+      <button class="header-btn admin-only" style="padding:4px 8px;background:#f39c12;" onclick="renameAssembly()" title="Rename">✏️</button>
+      <button class="header-btn admin-only" style="padding:4px 8px;background:#9b59b6;" onclick="duplicateAssembly()" title="Duplicate">📋</button>
+      <button class="header-btn admin-only" style="padding:4px 8px;background:#e74c3c;" onclick="confirmDeleteAssembly()" title="Delete">🗑️</button>
+    </div>
+  </div>
+  
+  <!-- Tree-specific controls -->
+  <div id="treeControls" style="display:none;">
+    <div class="control-group">
+      <label>Level:</label>
+      <select id="levelFilter">
+        <option value="all">All</option>
+        <option value="1">≤L1</option>
+        <option value="2">≤L2</option>
+        <option value="3">≤L3</option>
+        <option value="4">≤L4</option>
+        <option value="5">≤L5</option>
+        <option value="6">≤L6</option>
+        <option value="7">≤L7</option>
+        <option value="8">≤L8</option>
+      </select>
+    </div>
+    
+    <div class="control-group">
+      <label>Color:</label>
+      <select id="colorMode">
+        <option value="level">Level</option>
+        <option value="group">Group</option>
+        <option value="status">Status</option>
+      </select>
+    </div>
+    
+    <!-- Layout mode is always tree -->
+    
+    <button class="header-btn admin-only" id="refreshBtn" onclick="refreshUnlockedNodes()">🔄</button>
+    <button class="header-btn" id="expandBtn" onclick="expandAll()">➕</button>
+    <button class="header-btn" id="collapseBtn" onclick="collapseAll()">➖</button>
+    
+    <!-- Tree layout is always active -->
+    
+    <button class="header-btn" id="seqToggleBtn" onclick="toggleSequenceNumbers()" title="Toggle Sequence Numbers">🔢 Seq</button>
+    <button class="header-btn" id="levelToggleBtn" onclick="toggleLevelHeaders()" title="Toggle Level Headers">📊 Levels</button>
+    <button class="header-btn admin-only" id="spacingBtn" onclick="openSpacingSettings()" title="Adjust Level Spacing" style="background:#2980b9;">↔️ Spacing</button>
+    <button class="header-btn" id="separatorToggleBtn" onclick="toggleSeparatorLines()" title="Toggle Group Separators" style="background:#95a5a6;">─ Sep</button>
+    
+    <button class="header-btn" style="background:#16a085;" onclick="window.openBOMList()" title="BOM List View">📋 BOM</button>
+    <button class="header-btn" style="background:#e67e22;" onclick="window.openPickup()" title="Pickup Mode">🧺 Pickup</button>
+    
+    <div class="dropdown">
+      <button class="header-btn dropdown-btn" onclick="toggleExportDropdown()">📤 Export ▼</button>
+      <div class="dropdown-content" id="exportDropdown">
+        <a href="#" onclick="downloadCSV(); return false;">📋 Download CSV</a>
+        <a href="#" onclick="downloadPNG(); return false;">📷 Download PNG</a>
+        <a href="#" onclick="downloadSVG(); return false;">📐 Download SVG</a>
+      </div>
+    </div>
+    
+    <button class="header-btn admin-only" style="background:#27ae60;" onclick="openImportCSV()">📥 Import CSV</button>
+    <input type="file" id="csvFileInput" accept=".csv" multiple style="display:none;" onchange="handleCSVFile(event)">
+  </div>
+  
+  <span id="statusIndicator" class="status-text"></span>
+  
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+    <div id="dbIndicator" class="db-indicator">
+      <span class="db-dot"></span>
+      <span>Supabase</span>
+    </div>
+    
+    <!-- Login/User area -->
+    <div id="loginArea">
+      <button class="header-btn login-btn" id="loginBtn" onclick="handleLogin()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:14px;height:14px;"> Sign In
+      </button>
+    </div>
+    <div id="userBadge" class="user-badge" style="display:none;">
+      <span id="userName"></span>
+      <button class="header-btn" style="padding:2px 6px;font-size:9px;" onclick="handleLogout()">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- HOME PAGE - PROJECTS -->
+<!-- ============================================ -->
+<div class="home-page show" id="homePage">
+  <div class="home-header">
+    <h2>📁 My Projects</h2>
+    <p>Select a project to view its assemblies</p>
+  </div>
+  <div class="projects-grid" id="projectsGrid">
+    <!-- Project cards will be rendered here -->
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- ASSEMBLIES PAGE -->
+<!-- ============================================ -->
+<div class="assemblies-page" id="assembliesPage">
+  <div class="assemblies-header" id="assembliesHeader">
+    <span class="project-icon" id="currentProjectIcon">📁</span>
+    <div class="assemblies-header-info">
+      <h2 id="currentProjectName">Project Name</h2>
+      <p id="currentProjectDesc">Project description</p>
+    </div>
+  </div>
+  <div class="assemblies-grid" id="assembliesGrid">
+    <!-- Assembly cards will be rendered here -->
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- TREE VIEW PAGE -->
+<!-- ============================================ -->
+<div id="treePage" style="display:none;">
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-section">
+      <span class="legend-title">Levels:</span>
+      <div class="legend-item"><div class="legend-color" style="background:#a5d6a7;"></div>L1</div>
+      <div class="legend-item"><div class="legend-color" style="background:#e1bee7;"></div>L2</div>
+      <div class="legend-item"><div class="legend-color" style="background:#b3e5fc;"></div>L3</div>
+      <div class="legend-item"><div class="legend-color" style="background:#c8e6c9;"></div>L4</div>
+      <div class="legend-item"><div class="legend-color" style="background:#fff9c4;"></div>L5</div>
+      <div class="legend-item"><div class="legend-color" style="background:#ffe0b2;"></div>L6</div>
+      <div class="legend-item"><div class="legend-color" style="background:#ffcdd2;"></div>L7</div>
+      <div class="legend-item"><div class="legend-color" style="background:#e8e8e8;"></div>L8+</div>
+    </div>
+    
+    <div class="legend-divider"></div>
+    
+    <div class="legend-section">
+      <span class="legend-title">Status:</span>
+      <div class="legend-item"><div class="legend-color" style="background:#27ae60;"></div>Done</div>
+      <div class="legend-item"><div class="legend-color" style="background:#f1c40f;"></div>WIP</div>
+      <div class="legend-item"><div class="legend-color" style="background:#e74c3c;"></div>Blocked</div>
+      <div class="legend-item"><div class="legend-color" style="background:#9b59b6; border-style:dashed;"></div>Orphan</div>
+    </div>
+    
+    <div class="legend-divider"></div>
+    
+    <div class="legend-section admin-only" id="legendTips">
+      <span style="color:#666; font-size:9px;">💡 Shift+Drag = move with children | Drag orphan = reconnect | 🔒 = locked position</span>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="main-container">
+    <div class="tree-container" id="treeContainer">
+      <svg id="treeSvg"></svg>
+      
+      <!-- Zoom/Fit Controls -->
+      <div class="zoom-controls">
+        <button onclick="zoomIn()" title="Zoom In">+</button>
+        <button onclick="zoomOut()" title="Zoom Out">−</button>
+        <button onclick="fitToScreen()" title="Fit to Screen">⊡</button>
+        <button onclick="resetView()" title="Reset View">↺</button>
+      </div>
+      
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+      </div>
+    </div>
+    
+    <!-- Side Panel for editing -->
+    <div class="side-panel" id="sidePanel">
+      <div class="side-panel-header">
+        <span class="side-panel-title" id="panelTitle">Edit Node</span>
+        <button class="side-panel-close" onclick="closeSidePanel()">×</button>
+      </div>
+      <div class="side-panel-content" id="panelContent">
+        <!-- Dynamic content -->
+      </div>
+      <div class="side-panel-footer" id="panelFooter">
+        <!-- Dynamic buttons -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Menu -->
+  <div class="context-menu" id="contextMenu">
+    <!-- Dynamic content -->
+  </div>
+
+  <!-- Spacing Settings Panel (floating right) -->
+  <div class="spacing-panel" id="spacingPanel">
+    <div class="spacing-panel-header">
+      <span>↔️ Level Spacing</span>
+      <button class="spacing-panel-close" onclick="closeSpacingPanel()">×</button>
+    </div>
+    <div class="spacing-panel-body" id="spacingPanelBody">
+      <!-- Dynamic sliders -->
+    </div>
+    <div class="spacing-panel-footer">
+      <button class="spacing-btn" onclick="window._resetSpacingDefaults()">↺ Reset</button>
+      <button class="spacing-btn" onclick="window._equalizeSpacing()">= Equal</button>
+    </div>
+  </div>
+
+</div><!-- End treePage -->
+
+<!-- BOM List Panel (Full-screen overlay) -->
+<div class="bom-overlay" id="bomOverlay">
+  <div class="bom-panel">
+    <div class="bom-header">
+      <h3>📋 BOM - <span id="bomAssemblyName"></span></h3>
+      <div class="bom-actions">
+        <button class="bom-btn" onclick="window.bomExpandAll()">Expand All</button>
+        <button class="bom-btn" onclick="window.bomCollapseAll()">Collapse All</button>
+        <label class="bom-btn" style="cursor:pointer;display:flex;align-items:center;gap:4px;" title="Select All">
+          <input type="checkbox" id="bomSelectAll" onchange="window.bomSelectAll(this.checked)"> All
+        </label>
+        <button class="bom-btn bom-delete-btn" id="bomDeleteBtn" style="display:none;background:rgba(231,76,60,0.3);border-color:#e74c3c;" onclick="window.bomDeleteSelected()">🗑️ Delete <span id="bomDeleteCount"></span></button>
+        <button class="bom-btn" style="background:rgba(39,174,96,0.3);border-color:#27ae60;" onclick="document.getElementById('bomCsvInput').click()">📤 Import CSV</button>
+        <button class="bom-btn bom-export" onclick="window.bomExportCSV()">📥 Export CSV</button>
+        <button class="bom-btn" style="background:rgba(52,152,219,0.3);border-color:#3498db;" onclick="window.bomPrint()">🖨️ Print</button>
+        <button class="bom-close" onclick="window.closeBOMList()">✕</button>
+      </div>
+    </div>
+    <input type="file" id="bomCsvInput" accept=".csv" style="display:none;" onchange="window.bomHandleCSVImport(event)">
+    <div class="bom-table-wrap" id="bomTableWrap">
+      <!-- Table rendered dynamically -->
+    </div>
+  </div>
+</div>
+
+<!-- Pickup Mode Overlay -->
+<div class="pickup-overlay" id="pickupOverlay">
+  <div class="pickup-panel">
+    <div class="pickup-header">
+      <h3>🧺 Pickup List</h3>
+      <div class="pickup-actions">
+        <div class="pickup-units-wrap">
+          <label>Units:</label>
+          <input type="number" id="pickupUnits" class="pickup-units-input" value="1" min="1" max="999" onchange="window.pickupSetUnits(this.value)">
+        </div>
+        <button class="bom-btn" onclick="window.pickupReset()">↺ Reset</button>
+        <button class="bom-btn" style="background:rgba(52,152,219,0.3);border-color:#3498db;" onclick="window.pickupPrint()">🖨️ Print</button>
+        <button class="bom-close" onclick="window.closePickup()">✕</button>
+      </div>
+    </div>
+    <div class="pickup-scope-chips" id="pickupScopeChips">
+      <!-- L2 chips rendered dynamically -->
+    </div>
+    <div class="pickup-progress-bar">
+      <div class="pickup-progress-fill" id="pickupProgressFill"></div>
+      <span class="pickup-progress-text" id="pickupProgressText">0 / 0</span>
+    </div>
+    <div class="pickup-filters">
+      <button class="pickup-filter-btn active" data-filter="all" onclick="window.pickupFilter('all')">All</button>
+      <button class="pickup-filter-btn" data-filter="pending" onclick="window.pickupFilter('pending')">⬜ Pending</button>
+      <button class="pickup-filter-btn" data-filter="picked" onclick="window.pickupFilter('picked')">✅ Picked</button>
+      <button class="pickup-filter-btn" data-filter="missing" onclick="window.pickupFilter('missing')">❌ Missing</button>
+    </div>
+    <div class="pickup-table-wrap" id="pickupTableWrap">
+      <!-- Table rendered dynamically -->
+    </div>
+  </div>
+</div>
+
+<!-- Modal for confirmations -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Confirm</div>
+    </div>
+    <div class="modal-body" id="modalBody">
+      <!-- Dynamic content -->
+    </div>
+    <div class="modal-footer" id="modalFooter">
+      <!-- Dynamic buttons -->
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Node Action Toolbar (appears on tap) -->
+<div class="node-action-bar" id="nodeActionBar">
+  <button class="nab-btn nab-add" id="nabAdd" title="Add Child">➕</button>
+  <button class="nab-btn nab-edit" id="nabEdit" title="Edit">✏️</button>
+  <button class="nab-btn nab-link" id="nabLink" title="Edit Links">🔩</button>
+  <button class="nab-btn nab-delete" id="nabDelete" title="Delete">🗑️</button>
+</div>
+
+<!-- Add Node FAB (bottom-left, visible when admin) -->
+<button class="add-node-fab admin-only" id="addNodeFab" onclick="window.fabAddNode()" title="Add Node">
+  ➕
+</button>
+
+<!-- Chatbot FAB Button -->
+<button class="chat-fab" onclick="toggleChatPanel()" title="Assembly Assistant">
+  🤖
+</button>
+
+<!-- Chatbot Panel -->
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-header">
+    <h3>🤖 Assembly Assistant</h3>
+    <button class="chat-close" onclick="closeChatPanel()">×</button>
+  </div>
+  
+  <div class="chat-quick-actions">
+    <button class="quick-btn" onclick="quickStatus()">📊 Status</button>
+    <button class="quick-btn" onclick="quickBlocked()">🚫 Blocked</button>
+    <button class="quick-btn" onclick="quickParallel()">🚀 Parallel Work</button>
+    <button class="quick-btn" onclick="quickProgress()">📈 Progress</button>
+  </div>
+  
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-message assistant">
+      <div class="chat-bubble assistant">
+        👋 Hi! I'm your Assembly Assistant. I can help you with:
+        <br><br>
+        • Assembly status & progress
+        <br>• Finding blocked items
+        <br>• Suggesting parallel work
+        <br>• Critical path analysis
+        <br><br>
+        Try the quick buttons above or ask me anything!
+      </div>
+    </div>
+  </div>
+  
+  <div class="chat-input-area">
+    <input type="text" id="chatInput" placeholder="Ask about your assembly..." 
+           onkeypress="if(event.key==='Enter') sendMessage()">
+    <button class="chat-send" onclick="sendMessage()">➤</button>
+  </div>
+</div>
+
+<!-- Main Application Module -->
+<script type="module" src="js/app.js"></script>
+
+</body>
+</html>
