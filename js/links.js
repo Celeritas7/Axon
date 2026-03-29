@@ -181,22 +181,92 @@ export function showConnectNodeMenu(childId) {
     return;
   }
   
-  // Sort by level (lower level = closer to root = more likely parent)
-  potentialParents.sort((a, b) => a.level - b.level);
+  // Smart sort: prioritize nodes in the same branch
+  // 1. Find ancestors of this node
+  const ancestors = new Set();
+  function findAncestors(nodeId) {
+    const node = state.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    node.goesInto.forEach(pid => {
+      if (!ancestors.has(pid)) {
+        ancestors.add(pid);
+        findAncestors(pid);
+      }
+    });
+  }
+  findAncestors(childId);
   
-  const options = potentialParents.map(n => 
-    `<option value="${n.id}">${escapeHtml(n.name)} (L${n.level})</option>`
-  ).join('');
+  // 2. Find siblings (other children of same parents)
+  const siblings = new Set();
+  childNode.goesInto.forEach(pid => {
+    const parent = state.nodes.find(n => n.id === pid);
+    if (parent) {
+      parent.receivesFrom.forEach(cid => siblings.add(cid));
+    }
+  });
+  
+  // 3. Find nodes in the same sub-tree (children of ancestors)
+  const sameSubtree = new Set();
+  function collectDescendants(nodeId, depth) {
+    if (depth > 5) return;
+    const node = state.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    node.receivesFrom.forEach(cid => {
+      sameSubtree.add(cid);
+      collectDescendants(cid, depth + 1);
+    });
+  }
+  ancestors.forEach(aid => {
+    sameSubtree.add(aid);
+    collectDescendants(aid, 0);
+  });
+  
+  // Score each potential parent for priority
+  potentialParents.forEach(n => {
+    let score = 100; // default
+    if (ancestors.has(n.id)) score = 10;           // direct ancestor = highest
+    else if (siblings.has(n.id)) score = 20;       // sibling
+    else if (sameSubtree.has(n.id)) score = 30;    // same sub-tree
+    else score = 50 + n.level;                     // everything else by level
+    n._connectScore = score;
+  });
+  
+  potentialParents.sort((a, b) => {
+    if (a._connectScore !== b._connectScore) return a._connectScore - b._connectScore;
+    return a.level - b.level || a.name.localeCompare(b.name);
+  });
+  
+  // Build options with group headers
+  const buildOptions = (filter) => {
+    let filtered = potentialParents;
+    if (filter) {
+      const q = filter.toLowerCase();
+      filtered = potentialParents.filter(n => 
+        n.name.toLowerCase().includes(q) || 
+        (n.part_number && n.part_number.toLowerCase().includes(q))
+      );
+    }
+    return filtered.map(n => {
+      const tag = ancestors.has(n.id) ? '⬆' : siblings.has(n.id) ? '↔' : sameSubtree.has(n.id) ? '📂' : '';
+      return `<option value="${n.id}">${tag} ${escapeHtml(n.name)} (L${n.level})</option>`;
+    }).join('');
+  };
   
   showModal(
     'Connect to Parent',
-    `<p style="margin-bottom:15px;color:#666;font-size:13px;">
+    `<p style="margin-bottom:10px;color:#666;font-size:13px;">
       Connect "<strong>${escapeHtml(childNode.name)}</strong>" (L${childNode.level}) to a parent:
     </p>
     <div class="form-group">
-      <label class="form-label">Select Parent Node</label>
-      <select class="form-select" id="connectParentId" style="max-height:200px;">${options}</select>
+      <label class="form-label">Search</label>
+      <input type="text" class="form-input" id="connectParentSearch" placeholder="Type to filter nodes..." 
+        oninput="window._filterConnectParents(this.value)" style="margin-bottom:6px;">
     </div>
+    <div class="form-group">
+      <label class="form-label">Select Parent Node</label>
+      <select class="form-select" id="connectParentId" size="8" style="height:auto;">${buildOptions('')}</select>
+    </div>
+    <p style="font-size:10px;color:#aaa;margin:-8px 0 10px;">⬆ ancestor &nbsp; ↔ sibling &nbsp; 📂 same branch</p>
     
     <div class="form-row" style="display:flex;gap:10px;">
       <div class="form-group" style="flex:2;">
@@ -230,15 +300,21 @@ export function showConnectNodeMenu(childId) {
           <option value="in-lb">in-lb</option>
         </select>
       </div>
-    </div>
-    
-    <p style="margin-top:10px;color:#888;font-size:11px;">
-      💡 Tip: Parent should be a lower level (closer to L1) than this node.
-    </p>`,
+    </div>`,
     [
       { label: 'Cancel', class: 'btn-secondary', action: hideModal },
       { label: 'Connect', class: 'btn-primary', action: () => createConnection(childId) }
     ]
+  );
+  
+  // Store filter function globally for inline event handler
+  window._filterConnectParents = (query) => {
+    const sel = document.getElementById('connectParentId');
+    if (sel) sel.innerHTML = buildOptions(query);
+  };
+  
+  setTimeout(() => document.getElementById('connectParentSearch')?.focus(), 100);
+}
   );
 }
 
