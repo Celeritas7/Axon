@@ -587,119 +587,156 @@ function renderBOMTable() {
     `<option value="${s.value}">${s.label}</option>`
   ).join('');
   
-  // Color palette — strong header colors for assemblies
+  // Color palette for assembly groups
   const groupColors = [
-    { bg: '#2e7d32', light: '#e8f5e9', tint: '#f1f8f2' },  // green
-    { bg: '#1565c0', light: '#e3f2fd', tint: '#f0f7fd' },  // blue
-    { bg: '#c62828', light: '#fce4ec', tint: '#fdf0f3' },  // red
-    { bg: '#6a1b9a', light: '#f3e5f5', tint: '#f8f0fa' },  // purple
-    { bg: '#e65100', light: '#fff3e0', tint: '#fef8f0' },  // orange
-    { bg: '#00838f', light: '#e0f7fa', tint: '#f0fbfc' },  // teal
-    { bg: '#f57f17', light: '#fff8e1', tint: '#fffcf0' },  // yellow
-    { bg: '#4e342e', light: '#efebe9', tint: '#f7f5f4' },  // brown
-    { bg: '#283593', light: '#e8eaf6', tint: '#f0f1fa' },  // indigo
-    { bg: '#bf360c', light: '#fbe9e7', tint: '#fdf3f1' },  // deep orange
+    { bg: '#e8f5e9', header: '#2e7d32', tint: '#f1f8f2' },  // green
+    { bg: '#e3f2fd', header: '#1565c0', tint: '#f0f7fd' },  // blue
+    { bg: '#fce4ec', header: '#c62828', tint: '#fdf0f3' },  // red
+    { bg: '#f3e5f5', header: '#6a1b9a', tint: '#f8f0fa' },  // purple
+    { bg: '#fff3e0', header: '#e65100', tint: '#fef8f0' },  // orange
+    { bg: '#e0f7fa', header: '#00838f', tint: '#f0fbfc' },  // teal
+    { bg: '#fff8e1', header: '#f9a825', tint: '#fffcf0' },  // yellow
+    { bg: '#efebe9', header: '#4e342e', tint: '#f7f5f4' },  // brown
+    { bg: '#e8eaf6', header: '#283593', tint: '#f0f1fa' },  // indigo
+    { bg: '#fbe9e7', header: '#bf360c', tint: '#fdf3f1' },  // deep orange
   ];
   
-  // Assign colors to L2 nodes, propagate to children
-  const nodeColor = {};
+  // Track which L2 group each node belongs to for coloring
+  const nodeGroupColor = {};
   let colorIdx = 0;
   rows.forEach(row => {
     if (row.level === 1) {
-      nodeColor[row.id] = { bg: '#1b5e20', light: '#c8e6c9', tint: '#e8f5e9' };
+      nodeGroupColor[row.id] = { bg: '#c8e6c9', header: '#1b5e20', tint: '#e8f5e9' };
     } else if (row.level === 2) {
-      nodeColor[row.id] = groupColors[colorIdx % groupColors.length];
+      nodeGroupColor[row.id] = groupColors[colorIdx % groupColors.length];
       colorIdx++;
     }
   });
-  function getColor(row) {
-    if (nodeColor[row.id]) return nodeColor[row.id];
+  
+  // Propagate parent color to children
+  function getRowColor(row) {
+    if (nodeGroupColor[row.id]) return nodeGroupColor[row.id];
+    // Walk up ancestry to find colored parent
     const parentLink = state.links.find(l => l.child_id === row.id);
     if (parentLink) {
       const parentRow = rows.find(r => r.id === parentLink.parent_id);
-      if (parentRow) { const c = getColor(parentRow); nodeColor[row.id] = c; return c; }
+      if (parentRow) {
+        const parentColor = getRowColor(parentRow);
+        nodeGroupColor[row.id] = parentColor;
+        return parentColor;
+      }
     }
-    return { bg: '#555', light: '#eee', tint: '#f9f9f9' };
+    return { bg: '#f5f5f5', header: '#666', tint: '#fafafa' };
   }
-  rows.forEach(row => getColor(row));
+  rows.forEach(row => getRowColor(row));
   
-  let html = '';
+  let html = `
+    <table class="bom-table" id="bomTable">
+      <thead>
+        <tr>
+          ${isAdmin ? '<th class="bom-col-sel"><input type="checkbox" id="bomSelectAll" onchange="window.bomSelectAll(this.checked)" title="Select All"></th>' : ''}
+          <th class="bom-col-num">#</th>
+          <th class="bom-col-seq">Seq</th>
+          <th class="bom-col-tree">Component</th>
+          <th class="bom-col-pn">Part Number</th>
+          <th class="bom-col-qty">Qty</th>
+          <th class="bom-col-status">Status</th>
+          <th class="bom-col-fastener">Fastener</th>
+          <th class="bom-col-fqty">F.Qty</th>
+          <th class="bom-col-lt">Loctite</th>
+          <th class="bom-col-torque">Torque</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
   
-  rows.forEach((row, idx) => {
-    const color = nodeColor[row.id];
-    const isAssembly = row.hasChildren;
+  rows.forEach(row => {
+    const indent = row.depth * 16;
     const toggle = row.hasChildren 
-      ? `<span class="bom2-toggle" onclick="window.bomToggle('${row.id}')">${row.isCollapsed ? '▶' : '▼'}</span>` 
-      : '';
-    const indent = Math.max(0, row.depth - 1) * 20;
+      ? `<span class="bom-toggle" onclick="window.bomToggle('${row.id}')">${row.isCollapsed ? '▶' : '▼'}</span>` 
+      : `<span class="bom-toggle-spacer"></span>`;
+    const qtyHighlight = row.qty > 1 ? 'bom-qty-highlight' : '';
+    const color = nodeGroupColor[row.id] || { bg: '#f5f5f5', header: '#666', tint: '#fafafa' };
+    const isAssembly = row.hasChildren;
+    const rowBg = isAssembly ? color.bg : color.tint;
+    const rowStyle = isAssembly 
+      ? `style="background:${rowBg};border-left:3px solid ${color.header};"` 
+      : `style="background:${rowBg};"`;
+    const nameClass = isAssembly ? 'bom-assembly-name' : '';
     
-    if (isAssembly) {
-      // ---- ASSEMBLY HEADER ROW ----
-      const isL1 = row.level === 1;
-      const headerClass = isL1 ? 'bom2-header-l1' : 'bom2-header';
-      
-      html += `<div class="${headerClass}" style="background:${color.bg};" data-id="${row.id}">
-        <div class="bom2-header-left">
-          ${isAdmin ? `<input type="checkbox" class="bom-sel-cb bom2-header-cb" data-id="${row.id}" onchange="window.bomUpdateSelection()">` : ''}
-          <span style="display:inline-block;width:${indent}px;"></span>
-          ${toggle}
-          <span class="bom2-header-name">${escapeHtml(row.name)}</span>
-          ${row.partNumber ? `<span class="bom2-header-pn">${escapeHtml(row.partNumber)}</span>` : ''}
-        </div>
-        <div class="bom2-header-right">
-          ${row.fastener ? `<span class="bom2-pill bom2-pill-fastener">${escapeHtml(row.fastener)}${row.fastenerQty > 1 ? ' ×' + row.fastenerQty : ''}</span>` : ''}
-          ${row.loctite ? `<span class="bom2-pill bom2-pill-loctite">LT-${escapeHtml(row.loctite)}</span>` : ''}
-          ${isAdmin ? `<input type="number" class="bom2-seq-input" value="${row.seq || ''}" placeholder="#" 
-            onchange="window.bomSaveSeq('${row.id}',this)" onclick="event.stopPropagation();" title="Seq">` : 
-            (row.seq ? `<span class="bom2-seq-badge">${row.seq}</span>` : '')}
-        </div>
-      </div>`;
-      
+    if (isAdmin) {
+      html += `
+        <tr class="bom-row" data-id="${row.id}" data-link-id="${row.linkId || ''}" ${rowStyle}>
+          <td class="bom-col-sel"><input type="checkbox" class="bom-sel-cb" data-id="${row.id}" onchange="window.bomUpdateSelection()"></td>
+          <td class="bom-col-num">${row.rowNum}</td>
+          <td class="bom-col-seq">
+            <input type="number" class="bom-edit-input bom-edit-seq" value="${row.seq || ''}" min="0"
+              placeholder="—" data-field="sequence_num" data-id="${row.id}" onchange="window.bomSaveSeq('${row.id}',this)">
+          </td>
+          <td class="bom-col-tree">
+            <span style="display:inline-block;width:${indent}px;"></span>
+            ${toggle}
+            <input type="text" class="bom-edit-input bom-edit-name ${nameClass}" value="${escapeAttr(row.name)}" 
+              data-field="name" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)"
+              ${isAssembly ? `style="font-weight:700;color:${color.header};"` : ''}>
+          </td>
+          <td class="bom-col-pn">
+            <input type="text" class="bom-edit-input bom-edit-pn" value="${escapeAttr(row.partNumber)}" 
+              placeholder="—" data-field="part_number" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)">
+          </td>
+          <td class="bom-col-qty ${qtyHighlight}">
+            <input type="number" class="bom-qty-input" value="${row.qty}" min="1" 
+              data-field="qty" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)">
+          </td>
+          <td class="bom-col-status">
+            <select class="bom-edit-select" data-field="status" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)">
+              ${STATUS_OPTIONS.map(s => `<option value="${s.value}" ${row.status === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
+            </select>
+          </td>
+          <td class="bom-col-fastener">
+            <input type="text" class="bom-edit-input bom-edit-fastener" value="${escapeAttr(row.fastener)}" 
+              placeholder="—" data-field="fastener" data-link-id="${row.linkId || ''}" onchange="window.bomSaveLink('${row.linkId}',this)">
+          </td>
+          <td class="bom-col-fqty">
+            <input type="number" class="bom-edit-input bom-edit-fqty" value="${row.fastener ? row.fastenerQty : ''}" min="1"
+              placeholder="—" data-field="qty" data-link-id="${row.linkId || ''}" onchange="window.bomSaveLink('${row.linkId}',this)"
+              ${!row.linkId ? 'disabled' : ''}>
+          </td>
+          <td class="bom-col-lt">
+            <input type="text" class="bom-edit-input bom-edit-lt" value="${escapeAttr(row.loctite)}" 
+              placeholder="—" data-field="loctite" data-link-id="${row.linkId || ''}" onchange="window.bomSaveLink('${row.linkId}',this)"
+              ${!row.linkId ? 'disabled' : ''}>
+          </td>
+          <td class="bom-col-torque">
+            <input type="text" class="bom-edit-input bom-edit-torque" value="${row.torque ? row.torque + row.torqueUnit : ''}" 
+              placeholder="—" data-field="torque_value" data-link-id="${row.linkId || ''}" onchange="window.bomSaveTorque('${row.linkId}',this)"
+              ${!row.linkId ? 'disabled' : ''}>
+          </td>
+        </tr>
+      `;
     } else {
-      // ---- PART ROW ----
-      const stripe = idx % 2 === 0 ? color.tint : color.light;
-      
-      html += `<div class="bom2-part" style="background:${stripe};border-left:3px solid ${color.bg};" data-id="${row.id}" data-link-id="${row.linkId || ''}">
-        ${isAdmin ? `<input type="checkbox" class="bom-sel-cb bom2-part-cb" data-id="${row.id}" onchange="window.bomUpdateSelection()">` : ''}
-        <span class="bom2-part-num">${row.rowNum}</span>
-        <div class="bom2-part-body">
-          <div class="bom2-part-row1">
-            ${isAdmin ? 
-              `<input type="text" class="bom2-part-name-input" value="${escapeAttr(row.name)}" 
-                data-field="name" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)">` :
-              `<span class="bom2-part-name">${escapeHtml(row.name)}</span>`
-            }
-            ${row.partNumber ? 
-              (isAdmin ? 
-                `<input type="text" class="bom2-part-pn-input" value="${escapeAttr(row.partNumber)}" 
-                  data-field="part_number" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)">` :
-                `<span class="bom2-part-pn">${escapeHtml(row.partNumber)}</span>`) : 
-              (isAdmin ? `<input type="text" class="bom2-part-pn-input" value="" placeholder="P/N" 
-                data-field="part_number" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)">` : '')
-            }
-          </div>
-          <div class="bom2-part-row2">
-            ${row.fastener ? `<span class="bom2-pill bom2-pill-fastener">${escapeHtml(row.fastener)}${row.fastenerQty > 1 ? ' ×' + row.fastenerQty : ''}</span>` : 
-              (isAdmin ? `<input type="text" class="bom2-fastener-input" value="" placeholder="Fastener" 
-                data-field="fastener" data-link-id="${row.linkId || ''}" onchange="window.bomSaveLink('${row.linkId}',this)" ${!row.linkId ? 'disabled' : ''}>` : '')}
-            ${row.loctite ? `<span class="bom2-pill bom2-pill-loctite">LT-${escapeHtml(row.loctite)}</span>` : ''}
-            ${row.torque ? `<span class="bom2-pill bom2-pill-torque">${row.torque}${row.torqueUnit}</span>` : ''}
-          </div>
-        </div>
-        <div class="bom2-part-qty ${row.qty > 1 ? 'bom2-qty-high' : ''}">${row.qty}</div>
-        ${isAdmin ? `
-          <select class="bom2-status-select" data-field="status" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)">
-            ${STATUS_OPTIONS.map(s => `<option value="${s.value}" ${row.status === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
-          </select>` : 
-          `<span class="bom2-status">${STATUS_ICONS[row.status] || '⚪'}</span>`}
-      </div>`;
+      html += `
+        <tr class="bom-row" data-id="${row.id}" ${rowStyle}>
+          <td class="bom-col-num">${row.rowNum}</td>
+          <td class="bom-col-seq">${row.seq || ''}</td>
+          <td class="bom-col-tree">
+            <span style="display:inline-block;width:${indent}px;"></span>
+            ${toggle}
+            <span class="bom-name ${nameClass}" ${isAssembly ? `style="font-weight:700;color:${color.header};"` : ''}>${escapeHtml(row.name)}</span>
+          </td>
+          <td class="bom-col-pn">${escapeHtml(row.partNumber)}</td>
+          <td class="bom-col-qty">${row.qty}</td>
+          <td class="bom-col-status">${STATUS_ICONS[row.status] || '⚪'}</td>
+          <td class="bom-col-fastener">${escapeHtml(row.fastener)}</td>
+          <td class="bom-col-fqty">${row.fastener ? row.fastenerQty : ''}</td>
+          <td class="bom-col-lt">${row.loctite ? 'LT-' + escapeHtml(row.loctite) : ''}</td>
+          <td class="bom-col-torque">${row.torque ? row.torque + row.torqueUnit : ''}</td>
+        </tr>
+      `;
     }
   });
   
-  if (html === '') {
-    html = `<div style="padding:40px;text-align:center;color:#999;">No items</div>`;
-  }
-  
+  html += `</tbody></table>`;
   wrap.innerHTML = html;
 }
 
@@ -1104,71 +1141,84 @@ function bomPrint() {
   const totalParts = rows.length;
   
   const groupColors = [
-    { bg: '#2e7d32', light: '#e8f5e9', tint: '#f1f8f2' },
-    { bg: '#1565c0', light: '#e3f2fd', tint: '#f0f7fd' },
-    { bg: '#c62828', light: '#fce4ec', tint: '#fdf0f3' },
-    { bg: '#6a1b9a', light: '#f3e5f5', tint: '#f8f0fa' },
-    { bg: '#e65100', light: '#fff3e0', tint: '#fef8f0' },
-    { bg: '#00838f', light: '#e0f7fa', tint: '#f0fbfc' },
-    { bg: '#f57f17', light: '#fff8e1', tint: '#fffcf0' },
-    { bg: '#4e342e', light: '#efebe9', tint: '#f7f5f4' },
-    { bg: '#283593', light: '#e8eaf6', tint: '#f0f1fa' },
-    { bg: '#bf360c', light: '#fbe9e7', tint: '#fdf3f1' },
+    { bg: '#e8f5e9', header: '#2e7d32', tint: '#f1f8f2' },
+    { bg: '#e3f2fd', header: '#1565c0', tint: '#f0f7fd' },
+    { bg: '#fce4ec', header: '#c62828', tint: '#fdf0f3' },
+    { bg: '#f3e5f5', header: '#6a1b9a', tint: '#f8f0fa' },
+    { bg: '#fff3e0', header: '#e65100', tint: '#fef8f0' },
+    { bg: '#e0f7fa', header: '#00838f', tint: '#f0fbfc' },
+    { bg: '#fff8e1', header: '#f9a825', tint: '#fffcf0' },
+    { bg: '#efebe9', header: '#4e342e', tint: '#f7f5f4' },
+    { bg: '#e8eaf6', header: '#283593', tint: '#f0f1fa' },
+    { bg: '#fbe9e7', header: '#bf360c', tint: '#fdf3f1' },
   ];
   
-  const nodeColor = {};
+  // Assign colors same as BOM table
+  const nodeGroupColor = {};
   let colorIdx = 0;
   rows.forEach(row => {
-    if (row.level === 1) nodeColor[row.id] = { bg: '#1b5e20', light: '#c8e6c9', tint: '#e8f5e9' };
-    else if (row.level === 2) { nodeColor[row.id] = groupColors[colorIdx % groupColors.length]; colorIdx++; }
-  });
-  function getC(row) {
-    if (nodeColor[row.id]) return nodeColor[row.id];
-    const pl = state.links.find(l => l.child_id === row.id);
-    if (pl) { const pr = rows.find(r => r.id === pl.parent_id); if (pr) { const c = getC(pr); nodeColor[row.id] = c; return c; } }
-    return { bg: '#555', light: '#eee', tint: '#f9f9f9' };
-  }
-  rows.forEach(row => getC(row));
-  
-  let body = '';
-  rows.forEach((row, idx) => {
-    const color = nodeColor[row.id];
-    const isAsm = row.hasChildren;
-    const indent = Math.max(0, row.depth - 1) * 18;
-    
-    if (isAsm) {
-      const fs = row.level === 1 ? '15px' : '13px';
-      const pad = row.level === 1 ? '10px 14px' : '8px 14px';
-      body += `<div style="background:${color.bg};color:white;padding:${pad};border-radius:4px;margin:${row.level===1?'10':'5'}px 0 2px;font-weight:700;font-size:${fs};display:flex;justify-content:space-between;align-items:center;">
-        <div><span style="display:inline-block;width:${indent}px;"></span>${escapeHtml(row.name)}${row.partNumber ? ` <span style="opacity:0.6;font-size:10px;font-weight:400;">${escapeHtml(row.partNumber)}</span>` : ''}</div>
-        <div style="font-size:10px;opacity:0.8;">${row.fastener ? escapeHtml(row.fastener) + (row.fastenerQty > 1 ? ' x' + row.fastenerQty : '') : ''}${row.loctite ? ' LT-' + escapeHtml(row.loctite) : ''}</div>
-      </div>`;
-    } else {
-      const stripe = idx % 2 === 0 ? color.tint : color.light;
-      const pills = [
-        row.fastener ? `<span style="background:#e3f2fd;color:#1565c0;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;">${escapeHtml(row.fastener)}${row.fastenerQty > 1 ? ' x' + row.fastenerQty : ''}</span>` : '',
-        row.loctite ? `<span style="background:#f3e5f5;color:#6a1b9a;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;">LT-${escapeHtml(row.loctite)}</span>` : '',
-        row.torque ? `<span style="background:#fff3e0;color:#e65100;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;">${row.torque}${row.torqueUnit}</span>` : ''
-      ].filter(Boolean).join(' ');
-      
-      body += `<div style="background:${stripe};border-left:3px solid ${color.bg};padding:5px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(0,0,0,0.04);">
-        <span style="width:24px;color:#bbb;font-size:10px;text-align:center;flex-shrink:0;">${row.rowNum}</span>
-        <div style="flex:1;min-width:0;">
-          <span style="font-size:12px;font-weight:500;color:#333;">${escapeHtml(row.name)}</span>
-          ${row.partNumber ? `<span style="font-size:10px;color:#999;margin-left:8px;">${escapeHtml(row.partNumber)}</span>` : ''}
-          ${pills ? `<div style="margin-top:2px;">${pills}</div>` : ''}
-        </div>
-        <span style="font-size:13px;font-weight:${row.qty > 1 ? '800;color:#e74c3c' : '500;color:#666'};flex-shrink:0;">${row.qty}</span>
-      </div>`;
+    if (row.level === 1) {
+      nodeGroupColor[row.id] = { bg: '#c8e6c9', header: '#1b5e20', tint: '#e8f5e9' };
+    } else if (row.level === 2) {
+      nodeGroupColor[row.id] = groupColors[colorIdx % groupColors.length];
+      colorIdx++;
     }
+  });
+  function getColor(row) {
+    if (nodeGroupColor[row.id]) return nodeGroupColor[row.id];
+    const parentLink = state.links.find(l => l.child_id === row.id);
+    if (parentLink) {
+      const parentRow = rows.find(r => r.id === parentLink.parent_id);
+      if (parentRow) { const c = getColor(parentRow); nodeGroupColor[row.id] = c; return c; }
+    }
+    return { bg: '#f5f5f5', header: '#666', tint: '#fafafa' };
+  }
+  rows.forEach(row => getColor(row));
+  
+  let tableRows = '';
+  rows.forEach(row => {
+    const indent = row.depth * 16;
+    const color = nodeGroupColor[row.id];
+    const isAsm = row.hasChildren;
+    const bg = isAsm ? color.bg : color.tint;
+    const borderLeft = isAsm ? `border-left:3px solid ${color.header};` : '';
+    const fw = isAsm ? '700' : '400';
+    const nameColor = isAsm ? `color:${color.header};` : '';
+    const fastenerInfo = [
+      row.fastener ? `${escapeHtml(row.fastener)}${row.fastenerQty > 1 ? ' ×' + row.fastenerQty : ''}` : '',
+      row.loctite ? `LT-${escapeHtml(row.loctite)}` : '',
+      row.torque ? `${row.torque}${row.torqueUnit}` : ''
+    ].filter(Boolean).join(' · ');
+    
+    tableRows += `<tr style="background:${bg};${borderLeft}">
+      <td style="padding:5px 8px;border:1px solid #e0e0e0;text-align:center;color:#aaa;font-size:10px;">${row.rowNum}</td>
+      <td style="padding:5px 8px;border:1px solid #e0e0e0;font-weight:${fw};${nameColor}">
+        <span style="display:inline-block;width:${indent}px;"></span>${escapeHtml(row.name)}
+      </td>
+      <td style="padding:5px 8px;border:1px solid #e0e0e0;font-size:11px;color:#666;">${escapeHtml(row.partNumber)}</td>
+      <td style="padding:5px 8px;border:1px solid #e0e0e0;text-align:center;${row.qty > 1 ? 'font-weight:700;color:#e74c3c;' : ''}">${row.qty}</td>
+      <td style="padding:5px 8px;border:1px solid #e0e0e0;font-size:11px;color:#3498db;">${fastenerInfo}</td>
+    </tr>`;
   });
   
   const printHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BOM - ${escapeHtml(title)}</title>
-<style>body{font-family:'Segoe UI',sans-serif;margin:20px;color:#333;}h1{font-size:18px;margin-bottom:4px;}.meta{font-size:12px;color:#666;margin-bottom:16px;}@media print{body{margin:10px;}}</style>
-</head><body>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; margin: 20px; color: #333; }
+  h1 { font-size: 18px; margin-bottom: 4px; }
+  .meta { font-size: 12px; color: #666; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #1a1a2e; color: white; padding: 7px 8px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  @media print { body { margin: 10px; } h1 { font-size: 16px; } }
+</style></head><body>
 <h1>📋 BOM — ${escapeHtml(title)}</h1>
-<div class="meta">📅 ${date} &nbsp;|&nbsp; ${totalParts} items</div>
-${body}
+<div class="meta">📅 ${date} &nbsp; | &nbsp; ${totalParts} items</div>
+<table>
+  <thead><tr>
+    <th style="width:30px;">#</th><th>Component</th><th>Part Number</th>
+    <th style="width:40px;">Qty</th><th>Fastener / Loctite / Torque</th>
+  </tr></thead>
+  <tbody>${tableRows}</tbody>
+</table>
 <script>window.print();<\/script>
 </body></html>`;
   
@@ -1176,7 +1226,6 @@ ${body}
   win.document.write(printHTML);
   win.document.close();
 }
-
 
 // Window exports
 window.openBOMList = openBOMList;

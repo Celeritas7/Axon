@@ -247,9 +247,6 @@
       <div class="bom-actions">
         <button class="bom-btn" onclick="window.bomExpandAll()">Expand All</button>
         <button class="bom-btn" onclick="window.bomCollapseAll()">Collapse All</button>
-        <label class="bom-btn" style="cursor:pointer;display:flex;align-items:center;gap:4px;" title="Select All">
-          <input type="checkbox" id="bomSelectAll" onchange="window.bomSelectAll(this.checked)"> All
-        </label>
         <button class="bom-btn bom-delete-btn" id="bomDeleteBtn" style="display:none;background:rgba(231,76,60,0.3);border-color:#e74c3c;" onclick="window.bomDeleteSelected()">🗑️ Delete <span id="bomDeleteCount"></span></button>
         <button class="bom-btn" style="background:rgba(39,174,96,0.3);border-color:#27ae60;" onclick="document.getElementById('bomCsvInput').click()">📤 Import CSV</button>
         <button class="bom-btn bom-export" onclick="window.bomExportCSV()">📥 Export CSV</button>
