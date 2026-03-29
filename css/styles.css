@@ -579,6 +579,36 @@ svg { display: block; }
 .context-menu-item.danger { color: #e74c3c; }
 .context-menu-item.danger:hover { background: #fef0f0; }
 
+.ctx-seq-row {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  cursor: default !important;
+}
+.ctx-seq-row:hover { background: #f9f9f9 !important; }
+.ctx-seq-input {
+  width: 50px;
+  padding: 3px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+  font-weight: 600;
+  color: #e67e22;
+}
+.ctx-seq-input:focus { border-color: #e67e22; outline: none; }
+.ctx-seq-btn {
+  padding: 3px 8px;
+  border: none;
+  background: #27ae60;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+.ctx-seq-btn:hover { background: #219a52; }
+
 .context-menu-divider {
   height: 1px;
   background: #eee;

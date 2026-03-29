@@ -2290,6 +2290,14 @@ function showNodeContextMenu(x, y, node) {
     </div>
     ` : ''}
     <div class="context-menu-divider"></div>
+    <div class="context-menu-item ctx-seq-row" onclick="event.stopPropagation();">
+      <span class="context-menu-icon">🔢</span> Seq:
+      <input type="number" class="ctx-seq-input" id="ctxSeqInput" value="${node.sequence_num || ''}" min="0" placeholder="#"
+        onkeydown="if(event.key==='Enter'){window.quickSetSeq('${node.id}',this.value);}"
+        onclick="event.stopPropagation();">
+      <button class="ctx-seq-btn" onclick="event.stopPropagation();window.quickSetSeq('${node.id}',document.getElementById('ctxSeqInput').value);">✓</button>
+    </div>
+    <div class="context-menu-divider"></div>
     <div class="context-menu-item danger" onclick="window.confirmDeleteNode('${node.id}')">
       <span class="context-menu-icon">🗑️</span> Delete Node
     </div>
@@ -2428,6 +2436,29 @@ async function saveAllLinkEdits(nodeId) {
 }
 
 window.showNodeLinksPanel = showNodeLinksPanel;
+
+async function quickSetSeq(nodeId, val) {
+  const seq = parseInt(val) || 0;
+  hideContextMenu();
+  try {
+    await db.from('logi_nodes').update({
+      sequence_num: seq,
+      sequence_tag: seq > 0 ? String(seq) : null
+    }).eq('id', nodeId);
+    
+    const node = state.nodes.find(n => n.id === nodeId);
+    if (node) {
+      node.sequence_num = seq;
+      node.sequence_tag = seq > 0 ? String(seq) : null;
+    }
+    
+    showToast(`Seq set to ${seq}`, 'success');
+    renderGraph();
+  } catch (e) {
+    showToast('Failed to set seq', 'error');
+  }
+}
+window.quickSetSeq = quickSetSeq;
 
 function showLinkContextMenu(x, y, link) {
   const menu = document.getElementById('contextMenu');
