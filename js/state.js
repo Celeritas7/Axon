@@ -178,6 +178,17 @@ export function resetLevelGaps() {
   levelGaps = null;
 }
 
+// Vertical gap between sibling nodes
+export let verticalGap = null; // null = use default (48)
+
+export function setVerticalGap(gap) {
+  verticalGap = gap;
+}
+
+export function resetVerticalGap() {
+  verticalGap = null;
+}
+
 // Flagged nodes (persisted per assembly in localStorage)
 export let flaggedNodes = new Set();
 

@@ -574,7 +574,7 @@ function calculateTreeLayout(nodes, links) {
   // Tree layout settings
   const nodeWidth = 150;
   const nodeHeight = 48;
-  const verticalGap = 48;
+  const verticalGap = state.verticalGap || 48;
   const groupGap = 16;  // Extra gap between groups
   const headerHeight = 36;
   const leftPadding = 80;
@@ -2426,7 +2426,15 @@ function loadSavedSpacing() {
     const key = `logi_spacing_${state.currentAssemblyId}`;
     const saved = localStorage.getItem(key);
     if (saved) {
-      state.setLevelGaps(JSON.parse(saved));
+      const data = JSON.parse(saved);
+      if (Array.isArray(data)) {
+        // Legacy format: just horizontal gaps
+        state.setLevelGaps(data);
+      } else if (data && typeof data === 'object') {
+        // New format: { horizontal: [...], vertical: N }
+        if (data.horizontal) state.setLevelGaps(data.horizontal);
+        if (data.vertical) state.setVerticalGap(data.vertical);
+      }
     }
   } catch (e) {
     console.warn('Failed to load spacing:', e);
@@ -2435,10 +2443,13 @@ function loadSavedSpacing() {
 
 // Save spacing for current assembly to localStorage
 function saveSpacingToStorage() {
-  if (!state.currentAssemblyId || !state.levelGaps) return;
+  if (!state.currentAssemblyId) return;
   try {
     const key = `logi_spacing_${state.currentAssemblyId}`;
-    localStorage.setItem(key, JSON.stringify(state.levelGaps));
+    localStorage.setItem(key, JSON.stringify({
+      horizontal: state.levelGaps,
+      vertical: state.verticalGap || 48
+    }));
   } catch (e) {
     console.warn('Failed to save spacing:', e);
   }
@@ -2456,7 +2467,20 @@ function openSpacingSettings() {
   window._spacingNumGaps = numGaps;
   
   // Build slider rows
-  let html = '';
+  let html = `
+    <div class="spacing-section-label">↕ Vertical Gap (between siblings)</div>
+    <div class="spacing-row">
+      <label>Gap</label>
+      <input type="range" id="spacingSliderV" 
+        min="20" max="120" value="${state.verticalGap || 48}" step="4"
+        oninput="document.getElementById('spacingValueV').value=this.value; window._previewSpacing();">
+      <input type="number" id="spacingValueV" 
+        min="20" max="120" value="${state.verticalGap || 48}" step="4"
+        oninput="document.getElementById('spacingSliderV').value=this.value; window._previewSpacing();">
+      <span class="spacing-unit">px</span>
+    </div>
+    <div class="spacing-section-label" style="margin-top:12px;">↔ Horizontal Gaps (between levels)</div>
+  `;
   for (let i = 0; i < numGaps; i++) {
     const currentGap = (state.levelGaps && state.levelGaps[i] != null)
       ? state.levelGaps[i]
@@ -2499,9 +2523,15 @@ function _previewSpacing() {
       gaps.push(slider ? parseInt(slider.value) : 200);
     }
     
+    // Read vertical gap
+    const vSlider = document.getElementById('spacingSliderV');
+    if (vSlider) {
+      state.setVerticalGap(parseInt(vSlider.value) || 48);
+    }
+    
     state.setLevelGaps(gaps);
     saveSpacingToStorage();
-    _fitAfterRender = true;  // Fit to screen after re-render so tree stays visible
+    _fitAfterRender = true;
     renderGraph();
   }, 150);
 }
@@ -2517,6 +2547,12 @@ function _resetSpacingDefaults() {
     if (slider) slider.value = defaultVal;
     if (input) input.value = defaultVal;
   }
+  
+  // Reset vertical gap
+  const vSlider = document.getElementById('spacingSliderV');
+  const vInput = document.getElementById('spacingValueV');
+  if (vSlider) vSlider.value = 48;
+  if (vInput) vInput.value = 48;
   
   _previewSpacing();
 }
