@@ -30,6 +30,7 @@ function escapeAttr(str) {
 let zoomBehavior = null;
 let currentTransform = d3.zoomIdentity;
 let _fitAfterRender = false;  // Flag: fit to screen after next render
+let _lastLoadedAssemblyId = null;  // Track which assembly is loaded to avoid re-fitting on save
 
 export function initZoom() {
   const svg = d3.select('#treeSvg');
@@ -202,15 +203,21 @@ export async function loadAssemblyData(assemblyId) {
   // Load saved collapsed state for this assembly
   state.loadCollapsedState();
   
-  // Reset zoom transform so we don't restore a stale view from a different assembly
-  currentTransform = d3.zoomIdentity;
+  // Only reset zoom and fit when switching to a DIFFERENT assembly
+  const isNewAssembly = _lastLoadedAssemblyId !== assemblyId;
+  _lastLoadedAssemblyId = assemblyId;
+  
+  if (isNewAssembly) {
+    currentTransform = d3.zoomIdentity;
+    _fitAfterRender = true;
+  }
   
   // Render
-  _fitAfterRender = true;  // Auto-fit after first render of new assembly
   renderGraph();
   
-  // Also do a smooth fit after a short delay (in case render triggers async layout)
-  setTimeout(() => fitToScreen(), 100);
+  if (isNewAssembly) {
+    setTimeout(() => fitToScreen(), 100);
+  }
   
   setStatus(`Loaded ${state.nodes.length} nodes`, 'success');
   setTimeout(() => setStatus(''), 2000);
