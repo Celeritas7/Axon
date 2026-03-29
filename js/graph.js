@@ -947,13 +947,13 @@ export function renderGraph() {
   
   // Always use tree layout
   const isTreeMode = true;
-  let treeLayout = calculateTreeLayout(state.nodes, state.links);
-  
   const visibleNodes = state.nodes.filter(isNodeVisible);
   const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
   const visibleLinks = state.links.filter(l => 
     visibleNodeIds.has(l.parent_id) && visibleNodeIds.has(l.child_id)
   );
+  
+  let treeLayout = calculateTreeLayout(visibleNodes, visibleLinks);
   
   // Apply tree positions if in tree mode
   if (isTreeMode && treeLayout) {
