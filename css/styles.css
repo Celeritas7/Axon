@@ -1850,6 +1850,9 @@ body.tree-view .chat-fab { bottom: 155px; }
 /* Row number column */
 .bom-col-num { width: 35px; text-align: center; color: #999; font-size: 11px; }
 
+/* Assembly name styling */
+.bom-assembly-name { font-weight: 700 !important; font-size: 13px; }
+
 /* Seq column */
 .bom-col-seq { width: 45px; text-align: center; }
 .bom-edit-seq { width: 40px; text-align: center; font-weight: 600; color: #e67e22; }

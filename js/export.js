@@ -587,6 +587,49 @@ function renderBOMTable() {
     `<option value="${s.value}">${s.label}</option>`
   ).join('');
   
+  // Color palette for assembly groups
+  const groupColors = [
+    { bg: '#e8f5e9', header: '#2e7d32', tint: '#f1f8f2' },  // green
+    { bg: '#e3f2fd', header: '#1565c0', tint: '#f0f7fd' },  // blue
+    { bg: '#fce4ec', header: '#c62828', tint: '#fdf0f3' },  // red
+    { bg: '#f3e5f5', header: '#6a1b9a', tint: '#f8f0fa' },  // purple
+    { bg: '#fff3e0', header: '#e65100', tint: '#fef8f0' },  // orange
+    { bg: '#e0f7fa', header: '#00838f', tint: '#f0fbfc' },  // teal
+    { bg: '#fff8e1', header: '#f9a825', tint: '#fffcf0' },  // yellow
+    { bg: '#efebe9', header: '#4e342e', tint: '#f7f5f4' },  // brown
+    { bg: '#e8eaf6', header: '#283593', tint: '#f0f1fa' },  // indigo
+    { bg: '#fbe9e7', header: '#bf360c', tint: '#fdf3f1' },  // deep orange
+  ];
+  
+  // Track which L2 group each node belongs to for coloring
+  const nodeGroupColor = {};
+  let colorIdx = 0;
+  rows.forEach(row => {
+    if (row.level === 1) {
+      nodeGroupColor[row.id] = { bg: '#c8e6c9', header: '#1b5e20', tint: '#e8f5e9' };
+    } else if (row.level === 2) {
+      nodeGroupColor[row.id] = groupColors[colorIdx % groupColors.length];
+      colorIdx++;
+    }
+  });
+  
+  // Propagate parent color to children
+  function getRowColor(row) {
+    if (nodeGroupColor[row.id]) return nodeGroupColor[row.id];
+    // Walk up ancestry to find colored parent
+    const parentLink = state.links.find(l => l.child_id === row.id);
+    if (parentLink) {
+      const parentRow = rows.find(r => r.id === parentLink.parent_id);
+      if (parentRow) {
+        const parentColor = getRowColor(parentRow);
+        nodeGroupColor[row.id] = parentColor;
+        return parentColor;
+      }
+    }
+    return { bg: '#f5f5f5', header: '#666', tint: '#fafafa' };
+  }
+  rows.forEach(row => getRowColor(row));
+  
   let html = `
     <table class="bom-table" id="bomTable">
       <thead>
@@ -608,16 +651,22 @@ function renderBOMTable() {
   `;
   
   rows.forEach(row => {
-    const indent = row.depth * 20;
+    const indent = row.depth * 16;
     const toggle = row.hasChildren 
       ? `<span class="bom-toggle" onclick="window.bomToggle('${row.id}')">${row.isCollapsed ? '▶' : '▼'}</span>` 
       : `<span class="bom-toggle-spacer"></span>`;
-    const levelBadge = `<span class="bom-level-badge bom-level-${row.level}">L${row.level}</span>`;
     const qtyHighlight = row.qty > 1 ? 'bom-qty-highlight' : '';
+    const color = nodeGroupColor[row.id] || { bg: '#f5f5f5', header: '#666', tint: '#fafafa' };
+    const isAssembly = row.hasChildren;
+    const rowBg = isAssembly ? color.bg : color.tint;
+    const rowStyle = isAssembly 
+      ? `style="background:${rowBg};border-left:3px solid ${color.header};"` 
+      : `style="background:${rowBg};"`;
+    const nameClass = isAssembly ? 'bom-assembly-name' : '';
     
     if (isAdmin) {
       html += `
-        <tr class="bom-row bom-depth-${Math.min(row.depth, 5)}" data-id="${row.id}" data-link-id="${row.linkId || ''}">
+        <tr class="bom-row" data-id="${row.id}" data-link-id="${row.linkId || ''}" ${rowStyle}>
           <td class="bom-col-sel"><input type="checkbox" class="bom-sel-cb" data-id="${row.id}" onchange="window.bomUpdateSelection()"></td>
           <td class="bom-col-num">${row.rowNum}</td>
           <td class="bom-col-seq">
@@ -627,9 +676,9 @@ function renderBOMTable() {
           <td class="bom-col-tree">
             <span style="display:inline-block;width:${indent}px;"></span>
             ${toggle}
-            ${levelBadge}
-            <input type="text" class="bom-edit-input bom-edit-name" value="${escapeAttr(row.name)}" 
-              data-field="name" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)">
+            <input type="text" class="bom-edit-input bom-edit-name ${nameClass}" value="${escapeAttr(row.name)}" 
+              data-field="name" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)"
+              ${isAssembly ? `style="font-weight:700;color:${color.header};"` : ''}>
           </td>
           <td class="bom-col-pn">
             <input type="text" class="bom-edit-input bom-edit-pn" value="${escapeAttr(row.partNumber)}" 
@@ -666,16 +715,14 @@ function renderBOMTable() {
         </tr>
       `;
     } else {
-      // Read-only for guests
       html += `
-        <tr class="bom-row bom-depth-${Math.min(row.depth, 5)}" data-id="${row.id}">
+        <tr class="bom-row" data-id="${row.id}" ${rowStyle}>
           <td class="bom-col-num">${row.rowNum}</td>
           <td class="bom-col-seq">${row.seq || ''}</td>
           <td class="bom-col-tree">
             <span style="display:inline-block;width:${indent}px;"></span>
             ${toggle}
-            ${levelBadge}
-            <span class="bom-name">${escapeHtml(row.name)}</span>
+            <span class="bom-name ${nameClass}" ${isAssembly ? `style="font-weight:700;color:${color.header};"` : ''}>${escapeHtml(row.name)}</span>
           </td>
           <td class="bom-col-pn">${escapeHtml(row.partNumber)}</td>
           <td class="bom-col-qty">${row.qty}</td>
@@ -1093,23 +1140,64 @@ function bomPrint() {
   const date = new Date().toLocaleDateString();
   const totalParts = rows.length;
   
+  const groupColors = [
+    { bg: '#e8f5e9', header: '#2e7d32', tint: '#f1f8f2' },
+    { bg: '#e3f2fd', header: '#1565c0', tint: '#f0f7fd' },
+    { bg: '#fce4ec', header: '#c62828', tint: '#fdf0f3' },
+    { bg: '#f3e5f5', header: '#6a1b9a', tint: '#f8f0fa' },
+    { bg: '#fff3e0', header: '#e65100', tint: '#fef8f0' },
+    { bg: '#e0f7fa', header: '#00838f', tint: '#f0fbfc' },
+    { bg: '#fff8e1', header: '#f9a825', tint: '#fffcf0' },
+    { bg: '#efebe9', header: '#4e342e', tint: '#f7f5f4' },
+    { bg: '#e8eaf6', header: '#283593', tint: '#f0f1fa' },
+    { bg: '#fbe9e7', header: '#bf360c', tint: '#fdf3f1' },
+  ];
+  
+  // Assign colors same as BOM table
+  const nodeGroupColor = {};
+  let colorIdx = 0;
+  rows.forEach(row => {
+    if (row.level === 1) {
+      nodeGroupColor[row.id] = { bg: '#c8e6c9', header: '#1b5e20', tint: '#e8f5e9' };
+    } else if (row.level === 2) {
+      nodeGroupColor[row.id] = groupColors[colorIdx % groupColors.length];
+      colorIdx++;
+    }
+  });
+  function getColor(row) {
+    if (nodeGroupColor[row.id]) return nodeGroupColor[row.id];
+    const parentLink = state.links.find(l => l.child_id === row.id);
+    if (parentLink) {
+      const parentRow = rows.find(r => r.id === parentLink.parent_id);
+      if (parentRow) { const c = getColor(parentRow); nodeGroupColor[row.id] = c; return c; }
+    }
+    return { bg: '#f5f5f5', header: '#666', tint: '#fafafa' };
+  }
+  rows.forEach(row => getColor(row));
+  
   let tableRows = '';
   rows.forEach(row => {
-    const indent = '&nbsp;&nbsp;'.repeat(row.depth);
-    const bg = row.depth === 0 ? '#e8f5e9' : (row.depth % 2 === 0 ? '#fafafa' : '#fff');
-    const fw = row.level <= 2 ? 'bold' : 'normal';
+    const indent = row.depth * 16;
+    const color = nodeGroupColor[row.id];
+    const isAsm = row.hasChildren;
+    const bg = isAsm ? color.bg : color.tint;
+    const borderLeft = isAsm ? `border-left:3px solid ${color.header};` : '';
+    const fw = isAsm ? '700' : '400';
+    const nameColor = isAsm ? `color:${color.header};` : '';
+    const fastenerInfo = [
+      row.fastener ? `${escapeHtml(row.fastener)}${row.fastenerQty > 1 ? ' ×' + row.fastenerQty : ''}` : '',
+      row.loctite ? `LT-${escapeHtml(row.loctite)}` : '',
+      row.torque ? `${row.torque}${row.torqueUnit}` : ''
+    ].filter(Boolean).join(' · ');
     
-    tableRows += `<tr style="background:${bg}">
-      <td style="padding:4px 8px;border:1px solid #ccc;text-align:center;color:#888;font-size:11px;">${row.rowNum}</td>
-      <td style="padding:4px 8px;border:1px solid #ccc;font-weight:${fw};">
-        ${indent}<span style="display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;background:${row.level===1?'#a5d6a7':row.level===2?'#e1bee7':'#b3e5fc'};margin-right:4px;">L${row.level}</span>${escapeHtml(row.name)}
+    tableRows += `<tr style="background:${bg};${borderLeft}">
+      <td style="padding:5px 8px;border:1px solid #e0e0e0;text-align:center;color:#aaa;font-size:10px;">${row.rowNum}</td>
+      <td style="padding:5px 8px;border:1px solid #e0e0e0;font-weight:${fw};${nameColor}">
+        <span style="display:inline-block;width:${indent}px;"></span>${escapeHtml(row.name)}
       </td>
-      <td style="padding:4px 8px;border:1px solid #ccc;font-size:11px;color:#555;">${escapeHtml(row.partNumber)}</td>
-      <td style="padding:4px 8px;border:1px solid #ccc;text-align:center;font-weight:${row.qty > 1 ? 'bold;color:#e74c3c' : 'normal'};">${row.qty}</td>
-      <td style="padding:4px 8px;border:1px solid #ccc;text-align:center;">${STATUS_ICONS[row.status] || '⚪'}</td>
-      <td style="padding:4px 8px;border:1px solid #ccc;color:#3498db;font-size:11px;">${escapeHtml(row.fastener)}${row.fastener && row.fastenerQty > 1 ? ' ×' + row.fastenerQty : ''}</td>
-      <td style="padding:4px 8px;border:1px solid #ccc;color:#9b59b6;font-size:11px;">${row.loctite ? 'LT-' + escapeHtml(row.loctite) : ''}</td>
-      <td style="padding:4px 8px;border:1px solid #ccc;color:#e67e22;font-size:11px;">${row.torque ? row.torque + row.torqueUnit : ''}</td>
+      <td style="padding:5px 8px;border:1px solid #e0e0e0;font-size:11px;color:#666;">${escapeHtml(row.partNumber)}</td>
+      <td style="padding:5px 8px;border:1px solid #e0e0e0;text-align:center;${row.qty > 1 ? 'font-weight:700;color:#e74c3c;' : ''}">${row.qty}</td>
+      <td style="padding:5px 8px;border:1px solid #e0e0e0;font-size:11px;color:#3498db;">${fastenerInfo}</td>
     </tr>`;
   });
   
@@ -1119,7 +1207,7 @@ function bomPrint() {
   h1 { font-size: 18px; margin-bottom: 4px; }
   .meta { font-size: 12px; color: #666; margin-bottom: 16px; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { background: #1a1a2e; color: white; padding: 6px 8px; text-align: left; font-size: 11px; text-transform: uppercase; }
+  th { background: #1a1a2e; color: white; padding: 7px 8px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
   @media print { body { margin: 10px; } h1 { font-size: 16px; } }
 </style></head><body>
 <h1>📋 BOM — ${escapeHtml(title)}</h1>
@@ -1127,8 +1215,7 @@ function bomPrint() {
 <table>
   <thead><tr>
     <th style="width:30px;">#</th><th>Component</th><th>Part Number</th>
-    <th style="width:40px;">Qty</th><th style="width:40px;">Status</th>
-    <th>Fastener</th><th>Loctite</th><th>Torque</th>
+    <th style="width:40px;">Qty</th><th>Fastener / Loctite / Torque</th>
   </tr></thead>
   <tbody>${tableRows}</tbody>
 </table>
