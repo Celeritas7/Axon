@@ -152,15 +152,24 @@ export async function loadAssemblyData(assemblyId) {
   
   console.log('Loaded nodes:', nodesData?.length, 'links:', activeLinks.length);
   
+  // Clear and rebuild locked nodes
+  state.clearLockedNodes();
+  
   // Process nodes
   const processedNodes = nodesData.map(n => {
+    if (n.is_locked) {
+      state.addLockedNode(n.id);
+    }
+    
     return {
       ...n,
       goesInto: [],
       receivesFrom: [],
       level: -1,
       width: calculateNodeWidth(n.name, n.part_number),
-      height: calculateNodeHeight(n.name, n.part_number)
+      height: calculateNodeHeight(n.name, n.part_number),
+      fx: n.is_locked ? n.x : null,
+      fy: n.is_locked ? n.y : null
     };
   });
   
@@ -199,9 +208,6 @@ export async function loadAssemblyData(assemblyId) {
   // Load saved spacing for this assembly
   loadSavedSpacing();
   
-  // Load saved collapsed state for this assembly
-  state.loadCollapsedState();
-  
   // Reset zoom transform so we don't restore a stale view from a different assembly
   currentTransform = d3.zoomIdentity;
   
@@ -212,7 +218,8 @@ export async function loadAssemblyData(assemblyId) {
   // Also do a smooth fit after a short delay (in case render triggers async layout)
   setTimeout(() => fitToScreen(), 100);
   
-  setStatus(`Loaded ${state.nodes.length} nodes`, 'success');
+  const lockedCount = state.lockedNodes.size;
+  setStatus(`Loaded ${state.nodes.length} nodes (${lockedCount} locked)`, 'success');
   setTimeout(() => setStatus(''), 2000);
   showLoading(false);
 }
@@ -739,12 +746,25 @@ function calculateTreeLayout(nodes, links) {
       groupStartY = groupMaxY + verticalGap + groupGap;
     });
     
+    // Step 3b: Pin locked nodes to their stored tree_y (override auto-layout)
+    nodes.forEach(node => {
+      if (state.lockedNodes.has(node.id) && node.tree_y != null && treePositions[node.id]) {
+        treePositions[node.id].y = node.tree_y;
+      }
+    });
+    
     // Step 4: Bidirectional centering — alternate parent-centering and child-pushing
+    // Build set of locked node IDs for quick lookup
+    const lockedIds = state.lockedNodes;
+    
     for (let pass = 0; pass < 5; pass++) {
       // Up pass: center each parent among its children (leaves → root)
       [...levels].reverse().forEach(level => {
         const nodesInLevel = levelGroups[level] || [];
         nodesInLevel.forEach(node => {
+          // Skip locked nodes — they stay where they are
+          if (lockedIds.has(node.id)) return;
+          
           const children = parentToChildren[node.id] || [];
           const childYs = children
             .filter(cid => treePositions[cid])
@@ -760,6 +780,11 @@ function calculateTreeLayout(nodes, links) {
         nodesInLevel.sort((a, b) => treePositions[a.id].y - treePositions[b.id].y);
         let lastY = topPadding + headerHeight - verticalGap;
         nodesInLevel.forEach(node => {
+          if (lockedIds.has(node.id)) {
+            // Locked node stays put, but still updates lastY for gap tracking
+            lastY = Math.max(lastY, treePositions[node.id].y);
+            return;
+          }
           if (treePositions[node.id].y < lastY + verticalGap) {
             treePositions[node.id].y = lastY + verticalGap;
           }
@@ -773,15 +798,17 @@ function calculateTreeLayout(nodes, links) {
         nodesInLevel.forEach(node => {
           const children = parentToChildren[node.id] || [];
           const childrenWithPos = children.filter(cid => treePositions[cid]);
+          // Only push UNLOCKED children
+          const movableChildren = childrenWithPos.filter(cid => !lockedIds.has(cid));
           
-          if (childrenWithPos.length > 0) {
+          if (movableChildren.length > 0 && childrenWithPos.length > 0) {
             const childYs = childrenWithPos.map(cid => treePositions[cid].y);
             const childCenter = (Math.min(...childYs) + Math.max(...childYs)) / 2;
             const parentY = treePositions[node.id].y;
             const offset = parentY - childCenter;
             
             if (Math.abs(offset) > 1) {
-              childrenWithPos.forEach(cid => {
+              movableChildren.forEach(cid => {
                 treePositions[cid].y += offset;
               });
             }
@@ -792,6 +819,10 @@ function calculateTreeLayout(nodes, links) {
         nodesInLevel.sort((a, b) => treePositions[a.id].y - treePositions[b.id].y);
         let lastY2 = topPadding + headerHeight - verticalGap;
         nodesInLevel.forEach(node => {
+          if (lockedIds.has(node.id)) {
+            lastY2 = Math.max(lastY2, treePositions[node.id].y);
+            return;
+          }
           if (treePositions[node.id].y < lastY2 + verticalGap) {
             treePositions[node.id].y = lastY2 + verticalGap;
           }
@@ -1438,7 +1469,7 @@ export function renderGraph() {
     .data(visibleNodes, d => d.id)
     .enter()
     .append('g')
-    .attr('class', d => `node ${isTreeMode ? 'tree-mode' : ''}`)
+    .attr('class', d => `node ${state.lockedNodes.has(d.id) ? 'locked' : ''} ${isTreeMode ? 'tree-mode' : ''}`)
     .attr('transform', d => {
       const x = isTreeMode ? (d.treeX || d.x || 400) : (d.x || 400);
       const y = isTreeMode ? (d.treeY || d.y || 300) : (d.y || 300);
@@ -1548,12 +1579,12 @@ export function renderGraph() {
     const isCollapsed = state.collapsedNodes.has(d.id);
     const nodeW = d.treeWidth || d.width;
     
-    // Circle on right edge — larger for easy tapping
+    // Circle on right edge
     group.append('circle')
       .attr('class', 'collapse-indicator')
-      .attr('cx', nodeW/2 + 14)
+      .attr('cx', nodeW/2 + 12)
       .attr('cy', 0)
-      .attr('r', 10)
+      .attr('r', 8)
       .on('click', (e) => {
         e.stopPropagation();
         toggleCollapse(d.id);
@@ -1562,13 +1593,11 @@ export function renderGraph() {
     // +/- text
     group.append('text')
       .attr('class', 'toggle-icon')
-      .attr('x', nodeW/2 + 14)
+      .attr('x', nodeW/2 + 12)
       .attr('y', 0)
       .attr('text-anchor', 'middle')
       .attr('dy', '0.35em')
-      .attr('font-size', '14px')
-      .attr('font-weight', '700')
-      .attr('fill', '#e67e22')
+      .attr('font-size', '12px')
       .text(isCollapsed ? '+' : '−')
       .style('cursor', 'pointer')
       .on('click', (e) => {
@@ -1576,6 +1605,21 @@ export function renderGraph() {
         toggleCollapse(d.id);
       });
   });
+  
+  // Lock indicators
+  if (state.isAdmin) {
+    nodeElements.filter(d => state.lockedNodes.has(d.id)).each(function(d) {
+      const nodeW = d.treeWidth || d.width;
+      const nodeH = d.treeHeight || d.height;
+      d3.select(this).append('text')
+        .attr('class', 'lock-indicator')
+        .attr('x', nodeW/2 - 8)
+        .attr('y', nodeH/2 - 6)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '10px')
+        .text('🔒');
+    });
+  }
   
   // Setup interactions (tree mode always)
   setupNodeInteractions(nodeElements, true);
@@ -2143,12 +2187,6 @@ export function collapseAll() {
       state.collapsedNodes.add(n.id);
     }
   });
-  // Persist
-  if (state.currentAssemblyId) {
-    try {
-      localStorage.setItem(`axon_collapsed_${state.currentAssemblyId}`, JSON.stringify(Array.from(state.collapsedNodes)));
-    } catch(e) {}
-  }
   renderGraph();
 }
 
@@ -2185,6 +2223,11 @@ function showNodeContextMenu(x, y, node) {
       <span class="context-menu-icon">🔩</span> Edit Links (${outgoingLinks.length})
     </div>
     ` : ''}
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" onclick="window.toggleNodeLock('${node.id}')">
+      <span class="context-menu-icon">${state.lockedNodes.has(node.id) ? '🔓' : '🔒'}</span> 
+      ${state.lockedNodes.has(node.id) ? 'Unlock Position' : 'Lock Position'}
+    </div>
     <div class="context-menu-divider"></div>
     <div class="context-menu-item danger" onclick="window.confirmDeleteNode('${node.id}')">
       <span class="context-menu-icon">🗑️</span> Delete Node

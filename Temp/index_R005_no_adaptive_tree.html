@@ -72,8 +72,8 @@
     <!-- Layout mode is always tree -->
     
     <button class="header-btn admin-only" id="refreshBtn" onclick="refreshUnlockedNodes()">🔄</button>
-    <button class="header-btn" id="expandBtn" onclick="expandAll()">➕</button>
-    <button class="header-btn" id="collapseBtn" onclick="collapseAll()">➖</button>
+    <button class="header-btn admin-only" id="expandBtn" onclick="expandAll()">➕</button>
+    <button class="header-btn admin-only" id="collapseBtn" onclick="collapseAll()">➖</button>
     
     <!-- Tree layout is always active -->
     
@@ -81,6 +81,17 @@
     <button class="header-btn" id="levelToggleBtn" onclick="toggleLevelHeaders()" title="Toggle Level Headers">📊 Levels</button>
     <button class="header-btn admin-only" id="spacingBtn" onclick="openSpacingSettings()" title="Adjust Level Spacing" style="background:#2980b9;">↔️ Spacing</button>
     <button class="header-btn" id="separatorToggleBtn" onclick="toggleSeparatorLines()" title="Toggle Group Separators" style="background:#95a5a6;">─ Sep</button>
+    <button class="header-btn undo-btn admin-only" id="undoBtn" onclick="undoPositions()" disabled>↩️ Undo</button>
+    
+    <div class="dropdown admin-only">
+      <button class="header-btn dropdown-btn" style="background:#9b59b6;" onclick="toggleLockDropdown()">🔒 Lock ▼</button>
+      <div class="dropdown-content" id="lockDropdown">
+        <a href="#" onclick="lockAllVisibleNodes(); closeLockDropdown(); return false;">🔒 Lock All Visible</a>
+        <a href="#" onclick="unlockAllNodes(); closeLockDropdown(); return false;">🔓 Unlock All</a>
+      </div>
+    </div>
+    
+    <button class="header-btn save-btn admin-only" id="saveBtn" onclick="saveAllPositions()">💾 Save</button>
     
     <button class="header-btn" style="background:#16a085;" onclick="window.openBOMList()" title="BOM List View">📋 BOM</button>
     <button class="header-btn" style="background:#e67e22;" onclick="window.openPickup()" title="Pickup Mode">🧺 Pickup</button>

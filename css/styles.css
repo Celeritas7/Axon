@@ -528,14 +528,14 @@ svg { display: block; }
 }
 
 .collapse-indicator {
-  fill: #ffffff;
-  stroke: #333;
-  stroke-width: 1.5px;
+  fill: #fff3e0;
+  stroke: #e67e22;
+  stroke-width: 2px;
   cursor: pointer;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.15));
 }
 
-.collapse-indicator:hover { fill: #e8e8e8; }
+.collapse-indicator:hover { fill: #ffe0b2; }
 
 .multi-parent-indicator {
   fill: none;
@@ -1346,19 +1346,19 @@ svg { display: block; }
    COLLAPSE INDICATOR STYLING
    ============================================ */
 .collapse-indicator {
-  fill: #ffffff;
-  stroke: #333;
-  stroke-width: 1.5px;
+  fill: #fff3e0;
+  stroke: #e67e22;
+  stroke-width: 2px;
   cursor: pointer;
 }
 
 .collapse-indicator:hover {
-  fill: #e9ecef;
+  fill: #ffe0b2;
 }
 
 .toggle-icon {
   font-weight: bold;
-  fill: #333;
+  fill: #e67e22;
   pointer-events: none;
 }
 

@@ -69,7 +69,6 @@ export function setSimulation(sim) {
 
 export function clearCollapsedNodes() {
   collapsedNodes.clear();
-  saveCollapsedState();
 }
 
 export function toggleCollapsedNode(id) {
@@ -78,27 +77,6 @@ export function toggleCollapsedNode(id) {
   } else {
     collapsedNodes.add(id);
   }
-  saveCollapsedState();
-}
-
-// Persist collapsed state per assembly
-function saveCollapsedState() {
-  if (!currentAssemblyId) return;
-  try {
-    const arr = Array.from(collapsedNodes);
-    localStorage.setItem(`axon_collapsed_${currentAssemblyId}`, JSON.stringify(arr));
-  } catch (e) {}
-}
-
-export function loadCollapsedState() {
-  collapsedNodes.clear();
-  if (!currentAssemblyId) return;
-  try {
-    const saved = localStorage.getItem(`axon_collapsed_${currentAssemblyId}`);
-    if (saved) {
-      JSON.parse(saved).forEach(id => collapsedNodes.add(id));
-    }
-  } catch (e) {}
 }
 
 export function clearLockedNodes() {
