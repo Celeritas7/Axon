@@ -315,8 +315,6 @@ export function showConnectNodeMenu(childId) {
   
   setTimeout(() => document.getElementById('connectParentSearch')?.focus(), 100);
 }
-  );
-}
 
 async function createConnection(childId) {
   const parentId = document.getElementById('connectParentId').value;
