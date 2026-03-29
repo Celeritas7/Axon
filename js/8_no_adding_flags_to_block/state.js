@@ -177,33 +177,3 @@ export function setLevelGaps(gaps) {
 export function resetLevelGaps() {
   levelGaps = null;
 }
-
-// Flagged nodes (persisted per assembly in localStorage)
-export let flaggedNodes = new Set();
-
-export function toggleFlaggedNode(id) {
-  if (flaggedNodes.has(id)) {
-    flaggedNodes.delete(id);
-  } else {
-    flaggedNodes.add(id);
-  }
-  saveFlaggedState();
-}
-
-function saveFlaggedState() {
-  if (!currentAssemblyId) return;
-  try {
-    localStorage.setItem(`axon_flagged_${currentAssemblyId}`, JSON.stringify(Array.from(flaggedNodes)));
-  } catch (e) {}
-}
-
-export function loadFlaggedState() {
-  flaggedNodes.clear();
-  if (!currentAssemblyId) return;
-  try {
-    const saved = localStorage.getItem(`axon_flagged_${currentAssemblyId}`);
-    if (saved) {
-      JSON.parse(saved).forEach(id => flaggedNodes.add(id));
-    }
-  } catch (e) {}
-}

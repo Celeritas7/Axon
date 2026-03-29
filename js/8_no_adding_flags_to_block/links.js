@@ -252,29 +252,11 @@ export function showConnectNodeMenu(childId) {
     }).join('');
   };
   
-  const hasExistingParent = childNode.goesInto.length > 0;
-  const existingParentNames = childNode.goesInto
-    .map(pid => state.nodes.find(n => n.id === pid)?.name || 'Unknown')
-    .join(', ');
-  
-  const moveOrAddHtml = hasExistingParent ? `
-    <div style="margin-bottom:12px;padding:10px;background:#fff3e0;border-radius:6px;border:1px solid #ffe0b2;">
-      <div style="font-size:12px;color:#e65100;font-weight:600;margin-bottom:6px;">Currently under: ${escapeHtml(existingParentNames)}</div>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;margin-bottom:4px;">
-        <input type="radio" name="connectMode" value="move" checked> <strong>Move</strong> — disconnect from old parent
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
-        <input type="radio" name="connectMode" value="add"> <strong>Add</strong> — keep both connections
-      </label>
-    </div>
-  ` : '';
-  
   showModal(
     'Connect to Parent',
     `<p style="margin-bottom:10px;color:#666;font-size:13px;">
       Connect "<strong>${escapeHtml(childNode.name)}</strong>" (L${childNode.level}) to a parent:
     </p>
-    ${moveOrAddHtml}
     <div class="form-group">
       <label class="form-label">Search</label>
       <input type="text" class="form-input" id="connectParentSearch" placeholder="Type to filter nodes..." 
@@ -341,8 +323,6 @@ async function createConnection(childId) {
   const loctite = document.getElementById('connectLoctite').value || null;
   const torqueValue = document.getElementById('connectTorqueValue').value.trim();
   const torqueUnit = document.getElementById('connectTorqueUnit').value;
-  const modeEl = document.querySelector('input[name="connectMode"]:checked');
-  const isMove = modeEl ? modeEl.value === 'move' : false;
   
   if (!parentId) {
     showToast('Please select a parent node', 'error');
@@ -350,14 +330,6 @@ async function createConnection(childId) {
   }
   
   try {
-    // If move mode, delete existing parent links first
-    if (isMove) {
-      const oldLinks = state.links.filter(l => l.child_id === childId);
-      for (const link of oldLinks) {
-        await db.from('logi_links').delete().eq('id', link.id);
-      }
-    }
-    
     const { error } = await db.from('logi_links').insert({
       assembly_id: state.currentAssemblyId,
       parent_id: parentId,
@@ -372,7 +344,7 @@ async function createConnection(childId) {
     if (error) throw error;
     
     hideModal();
-    showToast(isMove ? 'Node moved' : 'Connection created', 'success');
+    showToast('Connection created', 'success');
     await loadAssemblyData(state.currentAssemblyId);
   } catch (e) {
     console.error('Error creating connection:', e);

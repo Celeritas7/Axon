@@ -609,6 +609,17 @@ svg { display: block; }
 }
 .ctx-seq-btn:hover { background: #219a52; }
 
+/* Flag indicator */
+.flag-indicator {
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+.node.flagged .node-shape {
+  stroke: #e74c3c !important;
+  stroke-width: 2.5px !important;
+  stroke-dasharray: 6 3;
+}
+
 .context-menu-divider {
   height: 1px;
   background: #eee;

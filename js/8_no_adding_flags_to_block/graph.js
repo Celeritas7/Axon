@@ -203,9 +203,6 @@ export async function loadAssemblyData(assemblyId) {
   // Load saved collapsed state for this assembly
   state.loadCollapsedState();
   
-  // Load saved flagged state for this assembly
-  state.loadFlaggedState();
-  
   // Only reset zoom and fit when switching to a DIFFERENT assembly
   const isNewAssembly = _lastLoadedAssemblyId !== assemblyId;
   _lastLoadedAssemblyId = assemblyId;
@@ -1542,7 +1539,7 @@ export function renderGraph() {
     .data(visibleNodes, d => d.id)
     .enter()
     .append('g')
-    .attr('class', d => `node ${isTreeMode ? 'tree-mode' : ''} ${state.flaggedNodes.has(d.id) ? 'flagged' : ''}`)
+    .attr('class', d => `node ${isTreeMode ? 'tree-mode' : ''}`)
     .attr('transform', d => {
       const x = isTreeMode ? (d.treeX || d.x || 400) : (d.x || 400);
       const y = isTreeMode ? (d.treeY || d.y || 300) : (d.y || 300);
@@ -1679,19 +1676,6 @@ export function renderGraph() {
         e.stopPropagation();
         toggleCollapse(d.id);
       });
-  });
-  
-  // Flag indicators
-  nodeElements.filter(d => state.flaggedNodes.has(d.id)).each(function(d) {
-    const nodeW = d.treeWidth || d.width;
-    const nodeH = d.treeHeight || d.height;
-    d3.select(this).append('text')
-      .attr('class', 'flag-indicator')
-      .attr('x', -nodeW/2 + 8)
-      .attr('y', -nodeH/2 - 6)
-      .attr('text-anchor', 'middle')
-      .attr('font-size', '14px')
-      .text('🚩');
   });
   
   // Setup interactions (tree mode always)
@@ -2313,9 +2297,6 @@ function showNodeContextMenu(x, y, node) {
         onclick="event.stopPropagation();">
       <button class="ctx-seq-btn" onclick="event.stopPropagation();window.quickSetSeq('${node.id}',document.getElementById('ctxSeqInput').value);">✓</button>
     </div>
-    <div class="context-menu-item" onclick="window.toggleFlag('${node.id}')">
-      <span class="context-menu-icon">${state.flaggedNodes.has(node.id) ? '🏁' : '🚩'}</span> ${state.flaggedNodes.has(node.id) ? 'Remove Flag' : 'Flag Node'}
-    </div>
     <div class="context-menu-divider"></div>
     <div class="context-menu-item danger" onclick="window.confirmDeleteNode('${node.id}')">
       <span class="context-menu-icon">🗑️</span> Delete Node
@@ -2478,13 +2459,6 @@ async function quickSetSeq(nodeId, val) {
   }
 }
 window.quickSetSeq = quickSetSeq;
-
-function toggleFlag(nodeId) {
-  hideContextMenu();
-  state.toggleFlaggedNode(nodeId);
-  renderGraph();
-}
-window.toggleFlag = toggleFlag;
 
 function showLinkContextMenu(x, y, link) {
   const menu = document.getElementById('contextMenu');
