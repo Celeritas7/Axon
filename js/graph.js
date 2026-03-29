@@ -574,11 +574,11 @@ function calculateTreeLayout(nodes, links) {
   // Tree layout settings
   const nodeWidth = 150;
   const nodeHeight = 48;
-  const verticalGap = 52;
-  const groupGap = 20;  // Extra gap between groups
-  const headerHeight = 40;
-  const leftPadding = 100;
-  const topPadding = 60;
+  const verticalGap = 48;
+  const groupGap = 16;  // Extra gap between groups
+  const headerHeight = 36;
+  const leftPadding = 80;
+  const topPadding = 50;
   
   // Get levels sorted: highest level on left, L1 on right
   const levels = Object.keys(levelGroups).map(Number).sort((a, b) => b - a);
@@ -750,7 +750,7 @@ function calculateTreeLayout(nodes, links) {
     });
     
     // Step 4: Bidirectional centering — alternate parent-centering and child-pushing
-    for (let pass = 0; pass < 8; pass++) {
+    for (let pass = 0; pass < 5; pass++) {
       // Up pass: center each parent among its children (leaves → root)
       [...levels].reverse().forEach(level => {
         const nodesInLevel = levelGroups[level] || [];
@@ -811,10 +811,9 @@ function calculateTreeLayout(nodes, links) {
     }
     
     // Step 5: Enforce sibling sequence order
-    // After centering, siblings may be out of sequence order because centering
-    // pulls parents toward their children. Fix by swapping entire subtrees.
+    // Instead of restacking subtrees (which creates gaps), swap center positions
+    // of misordered siblings and shift their subtrees accordingly.
     
-    // Helper: collect all descendants of a node
     function getDescendants(nodeId, collected) {
       const children = parentToChildren[nodeId] || [];
       children.forEach(cid => {
@@ -828,7 +827,7 @@ function calculateTreeLayout(nodes, links) {
     
     const allParentIds = new Set(Object.keys(parentToChildren));
     
-    for (let fix = 0; fix < 5; fix++) {
+    for (let fix = 0; fix < 3; fix++) {
       let anyFixed = false;
       
       allParentIds.forEach(parentId => {
@@ -855,41 +854,29 @@ function calculateTreeLayout(nodes, links) {
         
         anyFixed = true;
         
-        // Calculate the center Y and span of each child's subtree
-        const subtreeInfo = {};
-        seqSorted.forEach(node => {
-          const descendants = getDescendants(node.id, new Set());
-          const allIds = [node.id, ...descendants];
-          const ys = allIds.map(id => treePositions[id]?.y).filter(y => y != null);
-          const minY = Math.min(...ys);
-          const maxY = Math.max(...ys);
-          subtreeInfo[node.id] = { descendants, minY, maxY, height: maxY - minY, centerY: treePositions[node.id].y };
-        });
+        // Swap approach: assign Y slots from ySorted to seqSorted order
+        // Each slot = the center Y of that subtree position
+        const ySlots = ySorted.map(n => treePositions[n.id].y);
         
-        // Reposition subtrees in sequence order, stacking them top to bottom
-        // Use the first node's current position as the starting point
-        const currentMinY = Math.min(...seqSorted.map(n => subtreeInfo[n.id].minY));
-        let nextY = currentMinY;
-        
-        seqSorted.forEach(node => {
-          const info = subtreeInfo[node.id];
-          const currentSubtreeMin = info.minY;
-          const delta = nextY - currentSubtreeMin;
+        seqSorted.forEach((node, i) => {
+          const currentY = treePositions[node.id].y;
+          const targetY = ySlots[i];
+          const delta = targetY - currentY;
           
-          // Move the node and all its descendants
+          if (Math.abs(delta) < 1) return;
+          
+          // Move node and all descendants
           treePositions[node.id].y += delta;
-          info.descendants.forEach(did => {
+          const descendants = getDescendants(node.id, new Set());
+          descendants.forEach(did => {
             if (treePositions[did]) treePositions[did].y += delta;
           });
-          
-          // Next subtree starts after this one
-          nextY = nextY + info.height + verticalGap;
         });
       });
       
       if (!anyFixed) break;
       
-      // Re-center parents after subtree moves
+      // Re-center parents after swaps
       [...levels].reverse().forEach(level => {
         const nodesInLevel = levelGroups[level] || [];
         nodesInLevel.forEach(node => {
@@ -900,6 +887,19 @@ function calculateTreeLayout(nodes, links) {
           if (childYs.length > 0) {
             treePositions[node.id].y = (Math.min(...childYs) + Math.max(...childYs)) / 2;
           }
+        });
+      });
+      
+      // Fix overlaps created by swapping
+      levels.forEach(level => {
+        const nodesInLevel = levelGroups[level] || [];
+        nodesInLevel.sort((a, b) => treePositions[a.id].y - treePositions[b.id].y);
+        let lastY = topPadding + headerHeight - verticalGap;
+        nodesInLevel.forEach(node => {
+          if (treePositions[node.id].y < lastY + verticalGap) {
+            treePositions[node.id].y = lastY + verticalGap;
+          }
+          lastY = treePositions[node.id].y;
         });
       });
     }
