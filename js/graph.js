@@ -564,11 +564,11 @@ function calculateTreeLayout(nodes, links) {
   // Tree layout settings
   const nodeWidth = 150;
   const nodeHeight = 48;
-  const verticalGap = 68;
-  const groupGap = 40;  // Extra gap between groups
-  const headerHeight = 50;
-  const leftPadding = 120;
-  const topPadding = 80;
+  const verticalGap = 52;
+  const groupGap = 20;  // Extra gap between groups
+  const headerHeight = 40;
+  const leftPadding = 100;
+  const topPadding = 60;
   
   // Get levels sorted: highest level on left, L1 on right
   const levels = Object.keys(levelGroups).map(Number).sort((a, b) => b - a);
@@ -740,7 +740,7 @@ function calculateTreeLayout(nodes, links) {
     });
     
     // Step 4: Bidirectional centering — alternate parent-centering and child-pushing
-    for (let pass = 0; pass < 5; pass++) {
+    for (let pass = 0; pass < 8; pass++) {
       // Up pass: center each parent among its children (leaves → root)
       [...levels].reverse().forEach(level => {
         const nodesInLevel = levelGroups[level] || [];
@@ -2130,11 +2130,13 @@ function setupForceSimulation(visibleNodes, visibleLinks) {
 function toggleCollapse(nodeId) {
   state.toggleCollapsedNode(nodeId);
   renderGraph();
+  setTimeout(() => fitToScreen(), 150);
 }
 
 export function expandAll() {
   state.clearCollapsedNodes();
   renderGraph();
+  setTimeout(() => fitToScreen(), 150);
 }
 
 export function collapseAll() {
@@ -2150,6 +2152,7 @@ export function collapseAll() {
     } catch(e) {}
   }
   renderGraph();
+  setTimeout(() => fitToScreen(), 150);
 }
 
 // ============================================================
