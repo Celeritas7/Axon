@@ -252,12 +252,16 @@ function showMultiImportPreview(parsedFiles) {
     <div style="margin-bottom: 15px; padding: 12px; background: #fff3cd; border-radius: 6px; border: 1px solid #ffc107;">
       <strong>🔗 Attach to existing node</strong>
       <p style="font-size: 12px; color: #666; margin: 6px 0;">
-        All root nodes from the imported file(s) will become children of the selected parent.
+        Pick a parent node. Imported root(s) will become children of the selected node.
       </p>
-      <select id="importAttachParent" class="form-select" style="width: 100%; margin-top: 8px; font-size: 14px; padding: 8px;">
-        <option value="">— Don't attach (import as standalone) —</option>
-        ${parentOptions}
-      </select>
+      <input type="hidden" id="importAttachParent" value="">
+      
+      <div id="importNodeBrowser">
+        <div id="importLevelChips" style="display:flex;gap:5px;flex-wrap:wrap;margin:8px 0;"></div>
+        <div id="importNodeList" style="max-height:200px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:6px;background:white;"></div>
+        <div id="importSelectedNode" style="display:none;margin-top:8px;padding:8px 12px;background:#e8f5e9;border-radius:6px;border:1px solid #a5d6a7;font-size:13px;"></div>
+      </div>
+      
       <div style="margin-top: 8px; display: flex; gap: 10px;">
         <div style="flex: 1;">
           <label style="font-size: 12px; color: #666;">Fastener for attachment (optional)</label>
@@ -348,6 +352,146 @@ function showMultiImportPreview(parsedFiles) {
       { label: `Import All (${parsedFiles.length})`, class: 'btn-primary', action: () => performMultiImport(parsedFiles) }
     ]
   );
+  
+  // Initialize node browser after DOM is ready
+  setTimeout(() => initImportNodeBrowser(), 50);
+}
+
+function initImportNodeBrowser() {
+  const chipsEl = document.getElementById('importLevelChips');
+  const listEl = document.getElementById('importNodeList');
+  const selectedEl = document.getElementById('importSelectedNode');
+  if (!chipsEl || !listEl) return;
+  
+  const nodes = state.nodes.filter(n => !n.deleted);
+  if (nodes.length === 0) return;
+  
+  // Build parent→children map
+  const parentToChildren = {};
+  state.links.filter(l => !l.deleted).forEach(l => {
+    if (!parentToChildren[l.parent_id]) parentToChildren[l.parent_id] = [];
+    parentToChildren[l.parent_id].push(l.child_id);
+  });
+  
+  // Get unique levels
+  const levels = [...new Set(nodes.map(n => n.level || 1))].sort((a, b) => a - b);
+  
+  // Render level chips
+  let chipsHtml = `<button class="import-chip import-chip-active" data-level="all" onclick="window._importFilterLevel('all')">All</button>`;
+  levels.forEach(l => {
+    chipsHtml += `<button class="import-chip" data-level="${l}" onclick="window._importFilterLevel(${l})">L${l}</button>`;
+  });
+  chipsEl.innerHTML = chipsHtml;
+  
+  // Show "no selection" initially
+  listEl.innerHTML = `<div style="padding:12px;text-align:center;color:#999;font-size:13px;">Select a level chip to browse, or tap a node below</div>`;
+  renderNodeList('all');
+  
+  function renderNodeList(level) {
+    let filtered = nodes;
+    if (level !== 'all') {
+      filtered = nodes.filter(n => (n.level || 1) === level);
+    }
+    filtered.sort((a, b) => (a.sequence_num || 9999) - (b.sequence_num || 9999) || a.name.localeCompare(b.name));
+    
+    if (filtered.length === 0) {
+      listEl.innerHTML = `<div style="padding:12px;text-align:center;color:#999;">No nodes at this level</div>`;
+      return;
+    }
+    
+    listEl.innerHTML = filtered.map(n => {
+      const children = (parentToChildren[n.id] || []).map(cid => nodes.find(nn => nn.id === cid)).filter(Boolean);
+      const hasChildren = children.length > 0;
+      const childPreview = hasChildren 
+        ? `<div class="import-node-children" id="importChildren_${n.id}" style="display:none;"></div>` 
+        : '';
+      
+      return `
+        <div class="import-node-item" data-id="${n.id}">
+          <div class="import-node-row" onclick="window._importSelectNode('${n.id}')">
+            ${hasChildren ? `<span class="import-expand-btn" onclick="event.stopPropagation();window._importToggleChildren('${n.id}')">▶</span>` : `<span style="width:18px;display:inline-block;"></span>`}
+            <span class="import-node-level">L${n.level}</span>
+            <span class="import-node-name">${escapeHtml(n.name)}</span>
+            ${n.part_number ? `<span class="import-node-pn">${escapeHtml(n.part_number)}</span>` : ''}
+          </div>
+          ${childPreview}
+        </div>
+      `;
+    }).join('');
+  }
+  
+  window._importFilterLevel = (level) => {
+    // Update chip active state
+    document.querySelectorAll('.import-chip').forEach(c => {
+      c.classList.toggle('import-chip-active', c.dataset.level === String(level));
+    });
+    renderNodeList(level);
+  };
+  
+  window._importToggleChildren = (nodeId) => {
+    const childrenEl = document.getElementById(`importChildren_${nodeId}`);
+    const btn = childrenEl?.parentElement?.querySelector('.import-expand-btn');
+    if (!childrenEl) return;
+    
+    if (childrenEl.style.display === 'none') {
+      // Populate children
+      const children = (parentToChildren[nodeId] || [])
+        .map(cid => nodes.find(n => n.id === cid))
+        .filter(Boolean)
+        .sort((a, b) => (a.sequence_num || 9999) - (b.sequence_num || 9999));
+      
+      childrenEl.innerHTML = children.map(c => {
+        const grandChildren = (parentToChildren[c.id] || []).map(cid => nodes.find(n => n.id === cid)).filter(Boolean);
+        const hasGrand = grandChildren.length > 0;
+        return `
+          <div class="import-node-item import-child-item">
+            <div class="import-node-row" onclick="window._importSelectNode('${c.id}')">
+              ${hasGrand ? `<span class="import-expand-btn" onclick="event.stopPropagation();window._importToggleChildren('${c.id}')">▶</span>` : `<span style="width:18px;display:inline-block;"></span>`}
+              <span class="import-node-level">L${c.level}</span>
+              <span class="import-node-name">${escapeHtml(c.name)}</span>
+            </div>
+            ${hasGrand ? `<div class="import-node-children" id="importChildren_${c.id}" style="display:none;"></div>` : ''}
+          </div>
+        `;
+      }).join('');
+      
+      childrenEl.style.display = 'block';
+      if (btn) btn.textContent = '▼';
+    } else {
+      childrenEl.style.display = 'none';
+      if (btn) btn.textContent = '▶';
+    }
+  };
+  
+  window._importSelectNode = (nodeId) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    // Set hidden input value
+    document.getElementById('importAttachParent').value = nodeId;
+    
+    // Highlight selected
+    document.querySelectorAll('.import-node-row').forEach(r => r.classList.remove('import-node-selected'));
+    const rows = document.querySelectorAll(`.import-node-item[data-id="${nodeId}"] > .import-node-row, .import-child-item .import-node-row`);
+    // Find the right row
+    document.querySelectorAll('.import-node-row').forEach(r => {
+      const item = r.closest('.import-node-item');
+      if (item && (item.dataset.id === nodeId || r.getAttribute('onclick')?.includes(nodeId))) {
+        r.classList.add('import-node-selected');
+      }
+    });
+    
+    // Show selection confirmation
+    selectedEl.style.display = 'block';
+    selectedEl.innerHTML = `✅ Attach to: <strong>${escapeHtml(node.name)}</strong> (L${node.level})
+      <button onclick="window._importClearSelection()" style="float:right;border:none;background:none;cursor:pointer;font-size:14px;" title="Clear">✕</button>`;
+  };
+  
+  window._importClearSelection = () => {
+    document.getElementById('importAttachParent').value = '';
+    selectedEl.style.display = 'none';
+    document.querySelectorAll('.import-node-row').forEach(r => r.classList.remove('import-node-selected'));
+  };
 }
 
 // Keep single-file preview as alias for backward compat

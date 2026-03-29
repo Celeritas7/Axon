@@ -620,6 +620,61 @@ svg { display: block; }
   stroke-dasharray: 6 3;
 }
 
+/* Import node browser */
+.import-chip {
+  padding: 5px 12px;
+  border-radius: 16px;
+  border: 1px solid #ddd;
+  background: white;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.import-chip:hover { border-color: #e67e22; color: #e67e22; }
+.import-chip-active {
+  background: #e67e22 !important;
+  color: white !important;
+  border-color: #e67e22 !important;
+  font-weight: 700;
+}
+.import-node-item { border-bottom: 1px solid #f0f0f0; }
+.import-node-item:last-child { border-bottom: none; }
+.import-node-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background 0.12s;
+  font-size: 13px;
+}
+.import-node-row:hover { background: #fef6ee; }
+.import-node-selected { background: #e8f5e9 !important; font-weight: 600; }
+.import-expand-btn {
+  width: 18px;
+  text-align: center;
+  font-size: 10px;
+  color: #999;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.import-expand-btn:hover { color: #333; }
+.import-node-level {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #e0e0e0;
+  color: #555;
+  flex-shrink: 0;
+}
+.import-node-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.import-node-pn { font-size: 10px; color: #999; flex-shrink: 0; }
+.import-child-item { padding-left: 20px; }
+.import-node-children { background: #fafafa; }
+
 .context-menu-divider {
   height: 1px;
   background: #eee;
