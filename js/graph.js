@@ -806,6 +806,60 @@ function calculateTreeLayout(nodes, links) {
         });
       });
     }
+    
+    // Step 5: Enforce sibling sequence order
+    // After centering, some siblings may be out of sequence order.
+    // For each parent, ensure children appear in sequence_num order vertically.
+    const allParentIds = new Set(Object.keys(parentToChildren));
+    let orderFixed = true;
+    for (let fix = 0; fix < 5 && orderFixed; fix++) {
+      orderFixed = false;
+      allParentIds.forEach(parentId => {
+        const children = (parentToChildren[parentId] || [])
+          .filter(cid => treePositions[cid])
+          .map(cid => nodes.find(n => n.id === cid))
+          .filter(Boolean);
+        
+        if (children.length < 2) return;
+        
+        // Sort by sequence_num (desired order)
+        const seqSorted = [...children].sort((a, b) => 
+          (a.sequence_num || 9999) - (b.sequence_num || 9999) || a.name.localeCompare(b.name)
+        );
+        
+        // Sort by current Y position
+        const ySorted = [...children].sort((a, b) => 
+          treePositions[a.id].y - treePositions[b.id].y
+        );
+        
+        // Check if order matches
+        const isCorrect = seqSorted.every((n, i) => n.id === ySorted[i]?.id);
+        if (isCorrect) return;
+        
+        // Reassign Y positions: keep the same Y slots but assign them in sequence order
+        orderFixed = true;
+        const ySlots = ySorted.map(n => treePositions[n.id].y);
+        seqSorted.forEach((node, i) => {
+          treePositions[node.id].y = ySlots[i];
+        });
+      });
+      
+      // After reordering, re-center parents
+      if (orderFixed) {
+        [...levels].reverse().forEach(level => {
+          const nodesInLevel = levelGroups[level] || [];
+          nodesInLevel.forEach(node => {
+            const children = parentToChildren[node.id] || [];
+            const childYs = children
+              .filter(cid => treePositions[cid])
+              .map(cid => treePositions[cid].y);
+            if (childYs.length > 0) {
+              treePositions[node.id].y = (Math.min(...childYs) + Math.max(...childYs)) / 2;
+            }
+          });
+        });
+      }
+    }
   }
   
   // Calculate separator line positions between groups
