@@ -627,284 +627,102 @@ function calculateTreeLayout(nodes, links) {
   // Detect groups based on L2 nodes (main branches)
   const groups = detectGroups(nodes, links, childToParents, parentToChildren);
   
-  // Always run auto-layout, then pin locked nodes afterward
-  {
-    // Step 1: Assign nodes to groups
-    const nodeToGroup = {};
-    groups.forEach((group, groupIdx) => {
-      group.nodeIds.forEach(nid => {
-        nodeToGroup[nid] = groupIdx;
-      });
-    });
+  // ---- CLEAN RECURSIVE TREE LAYOUT ----
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  const subtreeHeight = {};
+  
+  // Step 1: Calculate subtree height for each node (bottom-up)
+  function calcHeight(nodeId, visited) {
+    if (visited.has(nodeId)) return nodeHeight;
+    visited.add(nodeId);
     
-    // Step 2: Initial column X positions
-    levels.forEach((level, colIndex) => {
-      const nodesInLevel = levelGroups[level];
-      const columnX = getColumnX(level);
-      
-      nodesInLevel.forEach(node => {
-        treePositions[node.id] = {
-          x: columnX,
-          y: 0, // Will be set later
-          treeWidth: nodeWidth - 20,
-          treeHeight: nodeHeight - 10,
-          group: nodeToGroup[node.id] ?? 0
-        };
-      });
-    });
+    const children = (parentToChildren[nodeId] || [])
+      .map(cid => nodeMap.get(cid))
+      .filter(Boolean)
+      .sort((a, b) => (a.sequence_num || 9999) - (b.sequence_num || 9999) || a.name.localeCompare(b.name));
     
-    // Step 3: Position each group separately using recursive centering
-    let groupStartY = topPadding + headerHeight;
-    
-    groups.forEach((group, groupIdx) => {
-      // Get all nodes in this group, organized by level
-      const groupNodesByLevel = {};
-      levels.forEach(level => {
-        groupNodesByLevel[level] = levelGroups[level].filter(n => 
-          group.nodeIds.has(n.id)
-        );
-      });
-      
-      // Position from leftmost level (highest) to rightmost (L1)
-      // But calculate sizes from right to left first
-      const levelHeights = {};
-      
-      // Calculate required height for each level in this group
-      [...levels].reverse().forEach(level => {
-        const nodesInLevel = groupNodesByLevel[level] || [];
-        if (nodesInLevel.length === 0) {
-          levelHeights[level] = 0;
-          return;
-        }
-        
-        // Sort by sequence number within group
-        nodesInLevel.sort((a, b) => (a.sequence_num || 9999) - (b.sequence_num || 9999));
-        
-        // Check if these nodes have children (to the left)
-        let totalHeight = 0;
-        nodesInLevel.forEach(node => {
-          const children = parentToChildren[node.id] || [];
-          const childrenInGroup = children.filter(cid => group.nodeIds.has(cid));
-          
-          if (childrenInGroup.length > 0) {
-            // This node needs space for its children
-            const childYs = childrenInGroup.map(cid => treePositions[cid]?.y || 0);
-            const childMin = Math.min(...childYs);
-            const childMax = Math.max(...childYs);
-            const childSpan = childMax - childMin + verticalGap;
-            totalHeight = Math.max(totalHeight, childSpan);
-          } else {
-            totalHeight += verticalGap;
-          }
-        });
-        
-        levelHeights[level] = Math.max(nodesInLevel.length * verticalGap, totalHeight);
-      });
-      
-      // Now position nodes from highest level to L1
-      levels.forEach(level => {
-        const nodesInLevel = groupNodesByLevel[level] || [];
-        if (nodesInLevel.length === 0) return;
-        
-        // Sort by sequence number
-        nodesInLevel.sort((a, b) => (a.sequence_num || 9999) - (b.sequence_num || 9999));
-        
-        nodesInLevel.forEach((node, idx) => {
-          const children = parentToChildren[node.id] || [];
-          const childrenInGroup = children.filter(cid => group.nodeIds.has(cid));
-          
-          if (childrenInGroup.length > 0 && childrenInGroup.some(cid => treePositions[cid]?.y > 0)) {
-            // Center this node among its children
-            const childYs = childrenInGroup.map(cid => treePositions[cid].y);
-            const minChildY = Math.min(...childYs);
-            const maxChildY = Math.max(...childYs);
-            treePositions[node.id].y = (minChildY + maxChildY) / 2;
-          } else {
-            // Position sequentially
-            treePositions[node.id].y = groupStartY + idx * verticalGap;
-          }
-        });
-        
-        // Ensure no overlaps within this level for this group
-        nodesInLevel.sort((a, b) => treePositions[a.id].y - treePositions[b.id].y);
-        let lastY = groupStartY - verticalGap;
-        nodesInLevel.forEach(node => {
-          if (treePositions[node.id].y < lastY + verticalGap) {
-            treePositions[node.id].y = lastY + verticalGap;
-          }
-          lastY = treePositions[node.id].y;
-        });
-      });
-      
-      // Calculate actual group bounds after positioning
-      const groupNodes = nodes.filter(n => group.nodeIds.has(n.id));
-      const groupYs = groupNodes.map(n => treePositions[n.id].y);
-      const groupMaxY = Math.max(...groupYs);
-      
-      // Store group bounds for separator lines
-      group.minY = groupStartY;
-      group.maxY = groupMaxY;
-      
-      // Next group starts after this one plus gap
-      groupStartY = groupMaxY + verticalGap + groupGap;
-    });
-    
-    // Step 4: Bidirectional centering — alternate parent-centering and child-pushing
-    for (let pass = 0; pass < 5; pass++) {
-      // Up pass: center each parent among its children (leaves → root)
-      [...levels].reverse().forEach(level => {
-        const nodesInLevel = levelGroups[level] || [];
-        nodesInLevel.forEach(node => {
-          const children = parentToChildren[node.id] || [];
-          const childYs = children
-            .filter(cid => treePositions[cid])
-            .map(cid => treePositions[cid].y);
-          
-          if (childYs.length > 0) {
-            const centerY = (Math.min(...childYs) + Math.max(...childYs)) / 2;
-            treePositions[node.id].y = centerY;
-          }
-        });
-        
-        // Fix overlaps
-        nodesInLevel.sort((a, b) => treePositions[a.id].y - treePositions[b.id].y);
-        let lastY = topPadding + headerHeight - verticalGap;
-        nodesInLevel.forEach(node => {
-          if (treePositions[node.id].y < lastY + verticalGap) {
-            treePositions[node.id].y = lastY + verticalGap;
-          }
-          lastY = treePositions[node.id].y;
-        });
-      });
-      
-      // Down pass: push children to stay centered under their parent (root → leaves)
-      levels.forEach(level => {
-        const nodesInLevel = levelGroups[level] || [];
-        nodesInLevel.forEach(node => {
-          const children = parentToChildren[node.id] || [];
-          const childrenWithPos = children.filter(cid => treePositions[cid]);
-          
-          if (childrenWithPos.length > 0) {
-            const childYs = childrenWithPos.map(cid => treePositions[cid].y);
-            const childCenter = (Math.min(...childYs) + Math.max(...childYs)) / 2;
-            const parentY = treePositions[node.id].y;
-            const offset = parentY - childCenter;
-            
-            if (Math.abs(offset) > 1) {
-              childrenWithPos.forEach(cid => {
-                treePositions[cid].y += offset;
-              });
-            }
-          }
-        });
-        
-        // Fix overlaps after pushing
-        nodesInLevel.sort((a, b) => treePositions[a.id].y - treePositions[b.id].y);
-        let lastY2 = topPadding + headerHeight - verticalGap;
-        nodesInLevel.forEach(node => {
-          if (treePositions[node.id].y < lastY2 + verticalGap) {
-            treePositions[node.id].y = lastY2 + verticalGap;
-          }
-          lastY2 = treePositions[node.id].y;
-        });
-      });
+    if (children.length === 0) {
+      subtreeHeight[nodeId] = nodeHeight;
+      return nodeHeight;
     }
     
-    // Step 5: Enforce sibling sequence order
-    // Instead of restacking subtrees (which creates gaps), swap center positions
-    // of misordered siblings and shift their subtrees accordingly.
+    let totalH = 0;
+    children.forEach((child, i) => {
+      totalH += calcHeight(child.id, visited);
+      if (i < children.length - 1) totalH += verticalGap;
+    });
     
-    function getDescendants(nodeId, collected) {
-      const children = parentToChildren[nodeId] || [];
-      children.forEach(cid => {
-        if (treePositions[cid] && !collected.has(cid)) {
-          collected.add(cid);
-          getDescendants(cid, collected);
-        }
-      });
-      return collected;
-    }
+    subtreeHeight[nodeId] = Math.max(totalH, nodeHeight);
+    return subtreeHeight[nodeId];
+  }
+  
+  // Step 2: Position nodes recursively (top-down)
+  function positionNode(nodeId, topY, visited) {
+    if (visited.has(nodeId)) return;
+    visited.add(nodeId);
     
-    const allParentIds = new Set(Object.keys(parentToChildren));
+    const node = nodeMap.get(nodeId);
+    if (!node) return;
     
-    for (let fix = 0; fix < 3; fix++) {
-      let anyFixed = false;
-      
-      allParentIds.forEach(parentId => {
-        const children = (parentToChildren[parentId] || [])
-          .filter(cid => treePositions[cid])
-          .map(cid => nodes.find(n => n.id === cid))
-          .filter(Boolean);
-        
-        if (children.length < 2) return;
-        
-        // Desired order by sequence_num
-        const seqSorted = [...children].sort((a, b) => 
-          (a.sequence_num || 9999) - (b.sequence_num || 9999) || a.name.localeCompare(b.name)
-        );
-        
-        // Current order by Y position
-        const ySorted = [...children].sort((a, b) => 
-          treePositions[a.id].y - treePositions[b.id].y
-        );
-        
-        // Check if order matches
-        const isCorrect = seqSorted.every((n, i) => n.id === ySorted[i]?.id);
-        if (isCorrect) return;
-        
-        anyFixed = true;
-        
-        // Swap approach: assign Y slots from ySorted to seqSorted order
-        // Each slot = the center Y of that subtree position
-        const ySlots = ySorted.map(n => treePositions[n.id].y);
-        
-        seqSorted.forEach((node, i) => {
-          const currentY = treePositions[node.id].y;
-          const targetY = ySlots[i];
-          const delta = targetY - currentY;
-          
-          if (Math.abs(delta) < 1) return;
-          
-          // Move node and all descendants
-          treePositions[node.id].y += delta;
-          const descendants = getDescendants(node.id, new Set());
-          descendants.forEach(did => {
-            if (treePositions[did]) treePositions[did].y += delta;
-          });
-        });
+    const children = (parentToChildren[nodeId] || [])
+      .map(cid => nodeMap.get(cid))
+      .filter(Boolean)
+      .sort((a, b) => (a.sequence_num || 9999) - (b.sequence_num || 9999) || a.name.localeCompare(b.name));
+    
+    const myHeight = subtreeHeight[nodeId] || nodeHeight;
+    const centerY = topY + myHeight / 2;
+    
+    treePositions[nodeId] = {
+      x: getColumnX(node.level || 1),
+      y: centerY,
+      treeWidth: node.width || nodeWidth,
+      treeHeight: node.height || nodeHeight
+    };
+    
+    if (children.length > 0) {
+      let childTopY = topY;
+      children.forEach(child => {
+        const childH = subtreeHeight[child.id] || nodeHeight;
+        positionNode(child.id, childTopY, visited);
+        childTopY += childH + verticalGap;
       });
       
-      if (!anyFixed) break;
-      
-      // Re-center parents after swaps
-      [...levels].reverse().forEach(level => {
-        const nodesInLevel = levelGroups[level] || [];
-        nodesInLevel.forEach(node => {
-          const children = parentToChildren[node.id] || [];
-          const childYs = children
-            .filter(cid => treePositions[cid])
-            .map(cid => treePositions[cid].y);
-          if (childYs.length > 0) {
-            treePositions[node.id].y = (Math.min(...childYs) + Math.max(...childYs)) / 2;
-          }
-        });
-      });
-      
-      // Fix overlaps created by swapping
-      levels.forEach(level => {
-        const nodesInLevel = levelGroups[level] || [];
-        nodesInLevel.sort((a, b) => treePositions[a.id].y - treePositions[b.id].y);
-        let lastY = topPadding + headerHeight - verticalGap;
-        nodesInLevel.forEach(node => {
-          if (treePositions[node.id].y < lastY + verticalGap) {
-            treePositions[node.id].y = lastY + verticalGap;
-          }
-          lastY = treePositions[node.id].y;
-        });
-      });
+      // Re-center parent among its positioned children
+      const childYs = children.map(c => treePositions[c.id]?.y).filter(y => y != null);
+      if (childYs.length > 0) {
+        treePositions[nodeId].y = (Math.min(...childYs) + Math.max(...childYs)) / 2;
+      }
     }
   }
   
+  // Step 3: Find roots and layout
+  const childIds = new Set(links.map(l => l.child_id));
+  const rootNodes = nodes.filter(n => !childIds.has(n.id))
+    .sort((a, b) => (a.sequence_num || 9999) - (b.sequence_num || 9999) || a.name.localeCompare(b.name));
+  
+  const hVisited = new Set();
+  rootNodes.forEach(r => calcHeight(r.id, hVisited));
+  
+  let currentTopY = topPadding + headerHeight;
+  const pVisited = new Set();
+  rootNodes.forEach(root => {
+    positionNode(root.id, currentTopY, pVisited);
+    currentTopY += (subtreeHeight[root.id] || nodeHeight) + verticalGap + groupGap;
+  });
+  
+  // Step 4: Position any orphans
+  nodes.forEach(n => {
+    if (!treePositions[n.id]) {
+      treePositions[n.id] = {
+        x: getColumnX(n.level || 1),
+        y: currentTopY,
+        treeWidth: n.width || nodeWidth,
+        treeHeight: n.height || nodeHeight
+      };
+      currentTopY += verticalGap;
+    }
+  });
+
   // Calculate separator line positions between groups
   const separatorLines = [];
   for (let i = 0; i < groups.length - 1; i++) {
