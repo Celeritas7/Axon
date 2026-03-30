@@ -537,6 +537,7 @@ function buildBOMTree() {
       partNumber: node.part_number || '',
       qty: node.qty || 1,
       seq: node.sequence_num || 0,
+      seqTag: node.sequence_tag || '',
       status: node.status || 'NOT_STARTED',
       level: node.level || 1,
       fastener: link?.fastener || '',
@@ -662,6 +663,7 @@ function renderBOMTable() {
       html += `<div class="bom2-part" style="background:${stripe};border-left:3px solid ${color.bg};" data-id="${row.id}" data-link-id="${row.linkId || ''}">
         ${isAdmin ? `<input type="checkbox" class="bom-sel-cb bom2-part-cb" data-id="${row.id}" onchange="window.bomUpdateSelection()">` : ''}
         <span class="bom2-part-num">${row.rowNum}</span>
+        ${row.seqTag ? `<span class="bom2-seq-tag">${escapeHtml(row.seqTag)}</span>` : (row.seq ? `<span class="bom2-seq-tag">${row.seq}</span>` : '')}
         <div class="bom2-part-body">
           <div class="bom2-part-row1">
             ${isAdmin ? 
@@ -1071,7 +1073,7 @@ function bomExportCSV() {
   
   rows.forEach(row => {
     csvRows.push([
-      row.seq || '',
+      row.seqTag || row.seq || '',
       `L${row.level}`,
       escapeCSV(row.name),
       escapeCSV(row.parentName),
@@ -1139,8 +1141,9 @@ function bomPrint() {
     if (isAsm) {
       const fs = row.level === 1 ? '15px' : '13px';
       const pad = row.level === 1 ? '10px 14px' : '8px 14px';
+      const seqBadge = row.seq ? `<span style="background:rgba(255,255,255,0.25);padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;margin-right:6px;">#${row.seqTag || row.seq}</span>` : '';
       body += `<div style="background:${color.bg};color:white;padding:${pad};border-radius:4px;margin:${row.level===1?'10':'5'}px 0 2px;font-weight:700;font-size:${fs};display:flex;justify-content:space-between;align-items:center;">
-        <div><span style="display:inline-block;width:${indent}px;"></span>${escapeHtml(row.name)}${row.partNumber ? ` <span style="opacity:0.6;font-size:10px;font-weight:400;">${escapeHtml(row.partNumber)}</span>` : ''}</div>
+        <div><span style="display:inline-block;width:${indent}px;"></span>${seqBadge}${escapeHtml(row.name)}${row.partNumber ? ` <span style="opacity:0.6;font-size:10px;font-weight:400;">${escapeHtml(row.partNumber)}</span>` : ''}</div>
         <div style="font-size:10px;opacity:0.8;">${row.fastener ? escapeHtml(row.fastener) + (row.fastenerQty > 1 ? ' x' + row.fastenerQty : '') : ''}${row.loctite ? ' LT-' + escapeHtml(row.loctite) : ''}</div>
       </div>`;
     } else {
@@ -1153,6 +1156,7 @@ function bomPrint() {
       
       body += `<div style="background:${stripe};border-left:3px solid ${color.bg};padding:5px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(0,0,0,0.04);">
         <span style="width:24px;color:#bbb;font-size:10px;text-align:center;flex-shrink:0;">${row.rowNum}</span>
+        ${row.seqTag ? `<span style="background:#e74c3c;color:white;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;flex-shrink:0;">${escapeHtml(row.seqTag)}</span>` : (row.seq ? `<span style="background:#e74c3c;color:white;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;flex-shrink:0;">${row.seq}</span>` : '')}
         <div style="flex:1;min-width:0;">
           <span style="font-size:12px;font-weight:500;color:#333;">${escapeHtml(row.name)}</span>
           ${row.partNumber ? `<span style="font-size:10px;color:#999;margin-left:8px;">${escapeHtml(row.partNumber)}</span>` : ''}
@@ -1403,7 +1407,9 @@ function buildGroupedPickup() {
           isFastener: true,
           loctite: link.loctite || '',
           torque: link.torque_value ? `${link.torque_value}${link.torque_unit || 'Nm'}` : '',
-          usedWith: child.name
+          usedWith: child.name,
+          seqTag: '',
+          seq: 0
         });
       }
 
@@ -1419,7 +1425,9 @@ function buildGroupedPickup() {
           isFastener: false,
           loctite: '',
           torque: '',
-          usedWith: ''
+          usedWith: '',
+          seqTag: child.sequence_tag || '',
+          seq: child.sequence_num || 0
         });
       } else {
         // Sub-assembly — recurse
@@ -1432,6 +1440,8 @@ function buildGroupedPickup() {
         assemblyName: node.name,
         assemblyLevel: node.level || 1,
         assemblyId: node.id,
+        assemblySeq: node.sequence_num || 0,
+        assemblySeqTag: node.sequence_tag || '',
         parts,
         fasteners
       });
@@ -1532,6 +1542,7 @@ function renderPickupRow(item, idx, globalIdx, units) {
   const cs = _pickupState[item.key] || '';
   const rowState = cs === 'picked' ? 'pickup-picked' : cs === 'missing' ? 'pickup-missing' : '';
   const stripe = idx % 2 === 0 ? 'pickup-even' : 'pickup-odd';
+  const seqDisplay = item.seqTag || (item.seq ? item.seq : '');
 
   return `<div class="pickup-row ${rowState} ${stripe}">
     <div class="pickup-row-num">${globalIdx}</div>
@@ -1541,7 +1552,7 @@ function renderPickupRow(item, idx, globalIdx, units) {
     </div>
     <div class="pickup-row-body">
       <div class="pickup-row-name ${cs === 'picked' ? 'pk-done' : ''}">
-        ${item.isFastener ? '<span class="pk-tag">FASTENER</span>' : ''}${escapeHtml(item.name)}
+        ${seqDisplay ? `<span class="pk-tag" style="background:#e74c3c;">${escapeHtml(String(seqDisplay))}</span>` : ''}${item.isFastener ? '<span class="pk-tag">FASTENER</span>' : ''}${escapeHtml(item.name)}
       </div>
       ${item.partNumber ? `<div class="pickup-row-pn">${escapeHtml(item.partNumber)}</div>` : ''}
       ${item.usedWith ? `<div class="pickup-row-used">→ ${escapeHtml(item.usedWith)}</div>` : ''}
@@ -1668,20 +1679,24 @@ function pickupPrint() {
   groups.forEach(group => {
     const all = [...group.parts, ...group.fasteners];
     const gPicked = all.filter(it => _pickupState[it.key] === 'picked').length;
-    tbody += `<tr style="background:#fff3e0;"><td colspan="6" style="padding:8px 10px;font-weight:700;border:1px solid #ddd;font-size:13px;">
+    const seqLabel = group.assemblySeqTag || group.assemblySeq || '';
+    tbody += `<tr style="background:#fff3e0;"><td colspan="7" style="padding:8px 10px;font-weight:700;border:1px solid #ddd;font-size:13px;">
       <span style="background:#e67e22;color:white;padding:1px 6px;border-radius:3px;font-size:10px;margin-right:6px;">L${group.assemblyLevel}</span>
+      ${seqLabel ? `<span style="background:#e74c3c;color:white;padding:1px 6px;border-radius:3px;font-size:10px;margin-right:6px;">#${escapeHtml(String(seqLabel))}</span>` : ''}
       ${escapeHtml(group.assemblyName)} <span style="float:right;color:#888;font-size:11px;">${gPicked}/${all.length}</span></td></tr>`;
 
     function printItems(items, label) {
       if (items.length === 0) return;
-      tbody += `<tr><td colspan="6" style="padding:4px 10px 4px 24px;background:#f5f5f5;font-size:11px;font-weight:600;color:#666;border:1px solid #ddd;">${label}</td></tr>`;
+      tbody += `<tr><td colspan="7" style="padding:4px 10px 4px 24px;background:#f5f5f5;font-size:11px;font-weight:600;color:#666;border:1px solid #ddd;">${label}</td></tr>`;
       items.forEach((item, i) => {
         const totalQty = item.qty * units;
         const cs = _pickupState[item.key] || '';
         const bg = cs === 'picked' ? '#d5f5d5' : cs === 'missing' ? '#fdd' : (i % 2 === 0 ? '#fff' : '#f9f9f9');
         const mark = cs === 'picked' ? '✅' : cs === 'missing' ? '❌' : '⬜';
+        const seqDisplay = item.seqTag || (item.seq ? item.seq : '');
         tbody += `<tr style="background:${bg};">
           <td style="padding:4px 8px;border:1px solid #ddd;text-align:center;font-size:14px;">${mark}</td>
+          <td style="padding:4px 8px;border:1px solid #ddd;text-align:center;font-size:10px;font-weight:700;color:#e74c3c;">${seqDisplay}</td>
           <td style="padding:4px 8px;border:1px solid #ddd;${cs === 'picked' ? 'text-decoration:line-through;color:#999;' : ''}">
             ${item.isFastener ? '<span style="background:#e67e22;color:white;font-size:8px;padding:1px 4px;border-radius:2px;margin-right:4px;">F</span>' : ''}
             ${escapeHtml(item.name)}${item.usedWith ? ' <span style="color:#aaa;font-size:10px;">→ ' + escapeHtml(item.usedWith) + '</span>' : ''}</td>
@@ -1703,7 +1718,7 @@ th{background:#d35400;color:white;padding:6px 8px;text-align:left;font-size:11px
 @media print{body{margin:10px;}}</style></head><body>
 <h1>🧺 Pickup — ${escapeHtml(title)}</h1>
 <div class="meta">📅 ${date} &nbsp;|&nbsp; ×${units} unit(s) &nbsp;|&nbsp; ${allItems.length} items &nbsp;|&nbsp; ${picked} picked &nbsp;|&nbsp; ${missing} missing</div>
-<table><thead><tr><th style="width:30px;">✓</th><th>Item</th><th>Part Number</th><th style="width:50px;">Qty</th><th>Loctite</th><th>Torque</th></tr></thead>
+<table><thead><tr><th style="width:30px;">✓</th><th style="width:35px;">Seq</th><th>Item</th><th>Part Number</th><th style="width:50px;">Qty</th><th>Loctite</th><th>Torque</th></tr></thead>
 <tbody>${tbody}</tbody></table>
 <script>window.print();<\/script></body></html>`;
 

@@ -1951,6 +1951,16 @@ body.tree-view .chat-fab { bottom: 155px; }
   text-align: center;
   flex-shrink: 0;
 }
+.bom2-seq-tag {
+  background: #e74c3c;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
 .bom2-part-body { flex: 1; min-width: 0; }
 .bom2-part-row1 {
   display: flex;
