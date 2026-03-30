@@ -1250,17 +1250,7 @@ svg { display: block; }
 /* ============================================
    RESPONSIVE
    ============================================ */
-@media (max-width: 768px) {
-  .side-panel.open {
-    position: fixed;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 100%;
-    max-width: 320px;
-    z-index: 200;
-  }
-}
+/* Side panel mobile overrides are in the main mobile block below */
 
 /* ============================================
    CHATBOT PANEL
@@ -1718,16 +1708,31 @@ body.tree-view .chat-fab { bottom: 155px; }
     position: fixed !important;
     top: 0;
     right: 0;
+    bottom: 0;
+    left: 0;
     width: 100vw !important;
     height: 100vh !important;
+    height: 100dvh !important; /* dynamic viewport height — excludes browser chrome */
     max-height: 100vh !important;
+    max-height: 100dvh !important;
     z-index: 300;
     transform: translateX(100%);
     transition: transform 0.3s ease;
+    overflow: hidden !important; /* flex children handle their own scroll */
   }
   .side-panel.open {
     transform: translateX(0);
     width: 100vw !important;
+  }
+  .side-panel-content {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .side-panel-footer {
+    flex-shrink: 0 !important;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px)) !important;
   }
   
   /* Node action bar slightly bigger */
