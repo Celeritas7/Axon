@@ -1499,9 +1499,8 @@ function renderPickupTable() {
     html += `<div class="pickup-group">
       <div class="pickup-group-header" style="background:${headerBg};">
         <div class="pickup-group-left">
-          ${group.assemblySeqTag || group.assemblySeq ? `<span class="pickup-group-seq">#${escapeHtml(String(group.assemblySeqTag || group.assemblySeq))}</span>` : ''}
+          <span class="pickup-group-level">L${group.assemblyLevel}</span>
           <span class="pickup-group-name">${escapeHtml(group.assemblyName)}</span>
-          <span class="pickup-group-level-muted">L${group.assemblyLevel}</span>
         </div>
         <div class="pickup-group-right">
           <span class="pickup-group-count" style="color:${pctColor};">${groupPicked}/${groupTotal}</span>
@@ -1682,10 +1681,9 @@ function pickupPrint() {
     const gPicked = all.filter(it => _pickupState[it.key] === 'picked').length;
     const seqLabel = group.assemblySeqTag || group.assemblySeq || '';
     tbody += `<tr style="background:#fff3e0;"><td colspan="7" style="padding:8px 10px;font-weight:700;border:1px solid #ddd;font-size:13px;">
+      <span style="background:#e67e22;color:white;padding:1px 6px;border-radius:3px;font-size:10px;margin-right:6px;">L${group.assemblyLevel}</span>
       ${seqLabel ? `<span style="background:#e74c3c;color:white;padding:1px 6px;border-radius:3px;font-size:10px;margin-right:6px;">#${escapeHtml(String(seqLabel))}</span>` : ''}
-      ${escapeHtml(group.assemblyName)}
-      <span style="color:#bbb;font-size:10px;font-weight:400;margin-left:6px;">L${group.assemblyLevel}</span>
-      <span style="float:right;color:#888;font-size:11px;">${gPicked}/${all.length}</span></td></tr>`;
+      ${escapeHtml(group.assemblyName)} <span style="float:right;color:#888;font-size:11px;">${gPicked}/${all.length}</span></td></tr>`;
 
     function printItems(items, label) {
       if (items.length === 0) return;

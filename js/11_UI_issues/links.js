@@ -1,0 +1,388 @@
+// ============================================================
+// Logi Assembly v28 - Links Module
+// ============================================================
+
+import { db } from './database.js';
+import * as state from './state.js';
+import { showToast, showModal, hideModal, hideContextMenu, escapeHtml, openSidePanel, closeSidePanel, setSidePanelContent } from './ui.js';
+import { loadAssemblyData } from './graph.js';
+
+// ============================================================
+// EDIT LINK (Fastener, Loctite, Torque) - Opens in Side Panel
+// ============================================================
+export function editLinkFastener(linkId) {
+  hideContextMenu();
+  
+  if (!state.isAdmin) return;
+  
+  const link = state.links.find(l => l.id === linkId);
+  if (!link) return;
+  
+  const sourceNode = state.nodes.find(n => n.id === link.child_id);
+  const targetNode = state.nodes.find(n => n.id === link.parent_id);
+  
+  const content = `
+    <p style="margin-bottom:15px;color:#666;font-size:13px;padding:0 5px;">
+      <strong>${escapeHtml(sourceNode?.name || 'Unknown')}</strong><br>
+      ↓<br>
+      <strong>${escapeHtml(targetNode?.name || 'Unknown')}</strong>
+    </p>
+    
+    <div class="form-group">
+      <label class="form-label">Fastener Type</label>
+      <input type="text" class="form-input" id="linkFastener" value="${escapeHtml(link.fastener || '')}" placeholder="e.g., M6x20, CBE10">
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">Quantity</label>
+      <input type="number" class="form-input" id="linkQty" value="${link.qty || 1}" min="1">
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">Loctite</label>
+      <select class="form-select" id="linkLoctite">
+        <option value="" ${!link.loctite ? 'selected' : ''}>None</option>
+        <option value="222" ${link.loctite === '222' ? 'selected' : ''}>222 (Purple - Low)</option>
+        <option value="243" ${link.loctite === '243' ? 'selected' : ''}>243 (Blue - Medium)</option>
+        <option value="262" ${link.loctite === '262' ? 'selected' : ''}>262 (Red - High)</option>
+        <option value="263" ${link.loctite === '263' ? 'selected' : ''}>263 (Green - High)</option>
+        <option value="271" ${link.loctite === '271' ? 'selected' : ''}>271 (Red - High Strength)</option>
+        <option value="290" ${link.loctite === '290' ? 'selected' : ''}>290 (Green - Wicking)</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">Torque Value</label>
+      <input type="number" class="form-input" id="linkTorqueValue" value="${link.torque_value || ''}" placeholder="e.g., 25">
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">Torque Unit</label>
+      <select class="form-select" id="linkTorqueUnit">
+        <option value="Nm" ${link.torque_unit === 'Nm' || !link.torque_unit ? 'selected' : ''}>Nm</option>
+        <option value="ft-lb" ${link.torque_unit === 'ft-lb' ? 'selected' : ''}>ft-lb</option>
+        <option value="in-lb" ${link.torque_unit === 'in-lb' ? 'selected' : ''}>in-lb</option>
+        <option value="kgf-cm" ${link.torque_unit === 'kgf-cm' ? 'selected' : ''}>kgf-cm</option>
+      </select>
+    </div>
+    
+    <div style="margin-top:15px;padding:10px;background:#f5f5f5;border-radius:6px;font-size:11px;color:#666;">
+      <strong>Reference:</strong><br>
+      <span style="color:#9b59b6;">●</span> 222 = Low (Purple)<br>
+      <span style="color:#3498db;">●</span> 243 = Medium (Blue)<br>
+      <span style="color:#e74c3c;">●</span> 262/271 = High (Red)
+    </div>
+  `;
+  
+  setSidePanelContent('Edit Link', content, [
+    { label: 'Cancel', class: 'btn-secondary', action: closeSidePanel },
+    { label: 'Delete Link', class: 'btn-danger', action: () => confirmDeleteLinkFromPanel(linkId) },
+    { label: 'Save', class: 'btn-primary', action: () => saveLinkProperties(linkId) }
+  ]);
+  
+  openSidePanel();
+  setTimeout(() => document.getElementById('linkFastener')?.focus(), 100);
+}
+
+async function saveLinkProperties(linkId) {
+  const fastener = document.getElementById('linkFastener').value.trim();
+  const qty = parseInt(document.getElementById('linkQty').value) || 1;
+  const loctite = document.getElementById('linkLoctite').value || null;
+  const torqueValue = document.getElementById('linkTorqueValue').value.trim();
+  const torqueUnit = document.getElementById('linkTorqueUnit').value;
+  
+  try {
+    const { error } = await db.from('logi_links').update({
+      fastener: fastener || null,
+      qty: qty,
+      loctite: loctite,
+      torque_value: torqueValue ? parseFloat(torqueValue) : null,
+      torque_unit: torqueValue ? torqueUnit : null
+    }).eq('id', linkId);
+    
+    if (error) throw error;
+    
+    closeSidePanel();
+    showToast('Link updated', 'success');
+    await loadAssemblyData(state.currentAssemblyId);
+  } catch (e) {
+    console.error('Error updating link:', e);
+    showToast('Failed to update link: ' + e.message, 'error');
+  }
+}
+
+function confirmDeleteLinkFromPanel(linkId) {
+  if (confirm('Delete this link? The nodes will remain.')) {
+    deleteLink(linkId);
+  }
+}
+
+// ============================================================
+// DELETE LINK
+// ============================================================
+export function confirmDeleteLink(linkId) {
+  hideContextMenu();
+  
+  if (!state.isAdmin) return;
+  
+  const link = state.links.find(l => l.id === linkId);
+  if (!link) return;
+  
+  const sourceNode = state.nodes.find(n => n.id === link.child_id);
+  const targetNode = state.nodes.find(n => n.id === link.parent_id);
+  
+  showModal(
+    'Delete Link',
+    `<p>Are you sure you want to delete the link between:</p>
+     <p style="margin:10px 0;font-weight:600;">
+       ${escapeHtml(sourceNode?.name || 'Unknown')} → ${escapeHtml(targetNode?.name || 'Unknown')}
+     </p>
+     <p style="color:#888;font-size:12px;">The nodes will remain, only the connection will be removed.</p>`,
+    [
+      { label: 'Cancel', class: 'btn-secondary', action: hideModal },
+      { label: 'Delete', class: 'btn-danger', action: () => deleteLink(linkId) }
+    ]
+  );
+}
+
+async function deleteLink(linkId) {
+  try {
+    const { error } = await db.from('logi_links').delete().eq('id', linkId);
+    if (error) throw error;
+    
+    hideModal();
+    showToast('Link deleted', 'success');
+    await loadAssemblyData(state.currentAssemblyId);
+  } catch (e) {
+    console.error('Error deleting link:', e);
+    showToast('Failed to delete link: ' + e.message, 'error');
+  }
+}
+
+// ============================================================
+// CREATE LINK (Connect existing nodes)
+// ============================================================
+export function showConnectNodeMenu(childId) {
+  hideContextMenu();
+  
+  if (!state.isAdmin) return;
+  
+  const childNode = state.nodes.find(n => n.id === childId);
+  if (!childNode) return;
+  
+  // Get potential parents (nodes that this node doesn't already connect to)
+  const existingParents = new Set(childNode.goesInto);
+  const potentialParents = state.nodes.filter(n => 
+    n.id !== childId && !existingParents.has(n.id)
+  );
+  
+  if (potentialParents.length === 0) {
+    showToast('No available nodes to connect to', 'info');
+    return;
+  }
+  
+  // Smart sort: prioritize nodes in the same branch
+  // 1. Find ancestors of this node
+  const ancestors = new Set();
+  function findAncestors(nodeId) {
+    const node = state.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    node.goesInto.forEach(pid => {
+      if (!ancestors.has(pid)) {
+        ancestors.add(pid);
+        findAncestors(pid);
+      }
+    });
+  }
+  findAncestors(childId);
+  
+  // 2. Find siblings (other children of same parents)
+  const siblings = new Set();
+  childNode.goesInto.forEach(pid => {
+    const parent = state.nodes.find(n => n.id === pid);
+    if (parent) {
+      parent.receivesFrom.forEach(cid => siblings.add(cid));
+    }
+  });
+  
+  // 3. Find nodes in the same sub-tree (children of ancestors)
+  const sameSubtree = new Set();
+  function collectDescendants(nodeId, depth) {
+    if (depth > 5) return;
+    const node = state.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    node.receivesFrom.forEach(cid => {
+      sameSubtree.add(cid);
+      collectDescendants(cid, depth + 1);
+    });
+  }
+  ancestors.forEach(aid => {
+    sameSubtree.add(aid);
+    collectDescendants(aid, 0);
+  });
+  
+  // Score each potential parent for priority
+  potentialParents.forEach(n => {
+    let score = 100; // default
+    if (ancestors.has(n.id)) score = 10;           // direct ancestor = highest
+    else if (siblings.has(n.id)) score = 20;       // sibling
+    else if (sameSubtree.has(n.id)) score = 30;    // same sub-tree
+    else score = 50 + n.level;                     // everything else by level
+    n._connectScore = score;
+  });
+  
+  potentialParents.sort((a, b) => {
+    if (a._connectScore !== b._connectScore) return a._connectScore - b._connectScore;
+    return a.level - b.level || a.name.localeCompare(b.name);
+  });
+  
+  // Build options with group headers
+  const buildOptions = (filter) => {
+    let filtered = potentialParents;
+    if (filter) {
+      const q = filter.toLowerCase();
+      filtered = potentialParents.filter(n => 
+        n.name.toLowerCase().includes(q) || 
+        (n.part_number && n.part_number.toLowerCase().includes(q))
+      );
+    }
+    return filtered.map(n => {
+      const tag = ancestors.has(n.id) ? '⬆' : siblings.has(n.id) ? '↔' : sameSubtree.has(n.id) ? '📂' : '';
+      return `<option value="${n.id}">${tag} ${escapeHtml(n.name)} (L${n.level})</option>`;
+    }).join('');
+  };
+  
+  const hasExistingParent = childNode.goesInto.length > 0;
+  const existingParentNames = childNode.goesInto
+    .map(pid => state.nodes.find(n => n.id === pid)?.name || 'Unknown')
+    .join(', ');
+  
+  const moveOrAddHtml = hasExistingParent ? `
+    <div style="margin-bottom:12px;padding:10px;background:#fff3e0;border-radius:6px;border:1px solid #ffe0b2;">
+      <div style="font-size:12px;color:#e65100;font-weight:600;margin-bottom:6px;">Currently under: ${escapeHtml(existingParentNames)}</div>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;margin-bottom:4px;">
+        <input type="radio" name="connectMode" value="move" checked> <strong>Move</strong> — disconnect from old parent
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+        <input type="radio" name="connectMode" value="add"> <strong>Add</strong> — keep both connections
+      </label>
+    </div>
+  ` : '';
+  
+  showModal(
+    'Connect to Parent',
+    `<p style="margin-bottom:10px;color:#666;font-size:13px;">
+      Connect "<strong>${escapeHtml(childNode.name)}</strong>" (L${childNode.level}) to a parent:
+    </p>
+    ${moveOrAddHtml}
+    <div class="form-group">
+      <label class="form-label">Search</label>
+      <input type="text" class="form-input" id="connectParentSearch" placeholder="Type to filter nodes..." 
+        oninput="window._filterConnectParents(this.value)" style="margin-bottom:6px;">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Select Parent Node</label>
+      <select class="form-select" id="connectParentId" size="8" style="height:auto;">${buildOptions('')}</select>
+    </div>
+    <p style="font-size:10px;color:#aaa;margin:-8px 0 10px;">⬆ ancestor &nbsp; ↔ sibling &nbsp; 📂 same branch</p>
+    
+    <div class="form-row" style="display:flex;gap:10px;">
+      <div class="form-group" style="flex:2;">
+        <label class="form-label">Fastener</label>
+        <input type="text" class="form-input" id="connectFastener" placeholder="e.g., M6x20">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label class="form-label">Qty</label>
+        <input type="number" class="form-input" id="connectQty" value="1" min="1">
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">Loctite</label>
+      <select class="form-select" id="connectLoctite">
+        <option value="">None</option>
+        <option value="222">222 (Purple - Low)</option>
+        <option value="243">243 (Blue - Medium)</option>
+        <option value="262">262 (Red - High)</option>
+        <option value="271">271 (Red - High Strength)</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">Torque</label>
+      <div style="display:flex;gap:10px;">
+        <input type="number" class="form-input" id="connectTorqueValue" placeholder="e.g., 25" style="flex:1;">
+        <select class="form-select" id="connectTorqueUnit" style="flex:1;">
+          <option value="Nm">Nm</option>
+          <option value="ft-lb">ft-lb</option>
+          <option value="in-lb">in-lb</option>
+        </select>
+      </div>
+    </div>`,
+    [
+      { label: 'Cancel', class: 'btn-secondary', action: hideModal },
+      { label: 'Connect', class: 'btn-primary', action: () => createConnection(childId) }
+    ]
+  );
+  
+  // Store filter function globally for inline event handler
+  window._filterConnectParents = (query) => {
+    const sel = document.getElementById('connectParentId');
+    if (sel) sel.innerHTML = buildOptions(query);
+  };
+  
+  setTimeout(() => document.getElementById('connectParentSearch')?.focus(), 100);
+}
+
+async function createConnection(childId) {
+  const parentId = document.getElementById('connectParentId').value;
+  const fastener = document.getElementById('connectFastener').value.trim();
+  const qty = parseInt(document.getElementById('connectQty').value) || 1;
+  const loctite = document.getElementById('connectLoctite').value || null;
+  const torqueValue = document.getElementById('connectTorqueValue').value.trim();
+  const torqueUnit = document.getElementById('connectTorqueUnit').value;
+  const modeEl = document.querySelector('input[name="connectMode"]:checked');
+  const isMove = modeEl ? modeEl.value === 'move' : false;
+  
+  if (!parentId) {
+    showToast('Please select a parent node', 'error');
+    return;
+  }
+  
+  try {
+    // If move mode, delete existing parent links first
+    if (isMove) {
+      const oldLinks = state.links.filter(l => l.child_id === childId);
+      for (const link of oldLinks) {
+        await db.from('logi_links').delete().eq('id', link.id);
+      }
+    }
+    
+    const { error } = await db.from('logi_links').insert({
+      assembly_id: state.currentAssemblyId,
+      parent_id: parentId,
+      child_id: childId,
+      fastener: fastener || null,
+      qty: qty,
+      loctite: loctite,
+      torque_value: torqueValue ? parseFloat(torqueValue) : null,
+      torque_unit: torqueValue ? torqueUnit : null
+    });
+    
+    if (error) throw error;
+    
+    hideModal();
+    showToast(isMove ? 'Node moved' : 'Connection created', 'success');
+    await loadAssemblyData(state.currentAssemblyId);
+  } catch (e) {
+    console.error('Error creating connection:', e);
+    showToast('Failed to create connection: ' + e.message, 'error');
+  }
+}
+
+// ============================================================
+// EXPORTS TO WINDOW
+// ============================================================
+window.editLinkFastener = editLinkFastener;
+window.confirmDeleteLink = confirmDeleteLink;
+window.showConnectNodeMenu = showConnectNodeMenu;

@@ -2371,8 +2371,8 @@ function openNodeEditPanel(node) {
       <label class="form-label">Notes</label>
       <textarea class="form-textarea" id="nodeEditNotes">${escapeHtml(node.notes || '')}</textarea>
     </div>
-    <div style="padding:8px 0 0;font-size:11px;color:#aaa;border-top:1px solid #eee;margin-top:4px;">
-      Level ${node.level} &nbsp;·&nbsp; ${node.receivesFrom?.length || 0} children
+    <div class="form-group">
+      <label class="form-label">Level: L${node.level}</label>
     </div>
   `;
   

@@ -2318,6 +2318,20 @@ body.tree-view .chat-fab { bottom: 155px; }
   background: rgba(0,0,0,0.08);
   color: #333;
 }
+.pickup-group-seq {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #e74c3c;
+  color: white;
+}
+.pickup-group-level-muted {
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(0,0,0,0.35);
+}
 .pickup-group-name { font-weight: 700; font-size: 14px; color: #333; }
 .pickup-group-right { display: flex; align-items: center; gap: 8px; }
 .pickup-group-count { font-size: 12px; font-weight: 600; }
