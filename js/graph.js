@@ -1536,10 +1536,11 @@ function setupNodeInteractions(nodeElements, isTreeMode = true) {
     nodeElements.call(treeDrag);
   }
   
-  // Tap to show action bar (instead of immediately opening edit panel)
+  // Tap to show action bar (admin only)
   nodeElements.on('click', (e, d) => {
     e.stopPropagation();
     if (state.isDragging) return;
+    if (!state.isAdmin) return;
     showNodeActionBar(d, e);
   });
   
@@ -2326,6 +2327,7 @@ function showLinkContextMenu(x, y, link) {
 // NODE EDIT PANEL
 // ============================================================
 function openNodeEditPanel(node) {
+  if (!state.isAdmin) return;
   if (typeof node === 'string') {
     node = state.nodes.find(n => n.id === node);
   }
