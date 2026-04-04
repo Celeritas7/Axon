@@ -1945,11 +1945,29 @@ body.tree-view .chat-fab { bottom: 155px; }
 
 .bom2-part-cb { flex-shrink: 0; }
 .bom2-part-num {
-  width: 28px;
-  font-size: 10px;
-  color: #bbb;
+  width: 24px;
+  font-size: 11px;
+  color: #ccc;
   text-align: center;
   flex-shrink: 0;
+}
+.bom2-seq-col {
+  width: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.bom2-seq-pill {
+  background: #e74c3c;
+  color: white;
+  font-family: 'Courier New', monospace;
+  font-size: 15px;
+  font-weight: 900;
+  padding: 3px 10px;
+  border-radius: 12px;
+  letter-spacing: 1px;
+  line-height: 1.2;
 }
 .bom2-seq-tag {
   background: #e74c3c;
@@ -1964,8 +1982,8 @@ body.tree-view .chat-fab { bottom: 155px; }
 .bom2-part-body { flex: 1; min-width: 0; }
 .bom2-part-row1 {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: baseline;
+  gap: 4px 8px;
   flex-wrap: wrap;
 }
 .bom2-part-row2 {
@@ -1977,6 +1995,8 @@ body.tree-view .chat-fab { bottom: 155px; }
 }
 .bom2-part-name { font-size: 13px; font-weight: 500; color: #333; }
 .bom2-part-pn { font-size: 11px; color: #888; }
+.bom2-pn-primary.bom2-part-pn { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+.bom2-name-secondary.bom2-part-name { font-size: 12px; font-weight: 400; color: #888; }
 .bom2-part-name-input {
   border: none;
   background: transparent;
@@ -1985,7 +2005,14 @@ body.tree-view .chat-fab { bottom: 155px; }
   color: #333;
   padding: 2px 4px;
   border-radius: 3px;
-  min-width: 120px;
+  min-width: 100px;
+  flex: 1;
+}
+.bom2-part-name-input.bom2-name-secondary {
+  font-size: 12px;
+  font-weight: 400;
+  color: #888;
+  min-width: 80px;
   flex: 1;
 }
 .bom2-part-name-input:focus { background: white; outline: 1px solid #3498db; }
@@ -1998,7 +2025,28 @@ body.tree-view .chat-fab { bottom: 155px; }
   border-radius: 3px;
   width: 110px;
 }
+.bom2-part-pn-input.bom2-pn-primary {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a2e;
+  width: 150px;
+}
 .bom2-part-pn-input:focus { background: white; outline: 1px solid #3498db; }
+.bom2-fastener-col {
+  width: 110px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.bom2-fastener-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 .bom2-fastener-input {
   border: 1px dashed #ddd;
   background: transparent;
@@ -2007,6 +2055,7 @@ body.tree-view .chat-fab { bottom: 155px; }
   border-radius: 3px;
   width: 90px;
   color: #888;
+  text-align: right;
 }
 .bom2-fastener-input:focus { background: white; border-style: solid; outline: none; border-color: #3498db; }
 
@@ -2048,9 +2097,14 @@ body.tree-view .chat-fab { bottom: 155px; }
 @media (max-width: 768px) {
   .bom2-header-l1 { font-size: 14px; padding: 10px 12px; }
   .bom2-header { font-size: 12px; padding: 8px 12px; }
-  .bom2-part { padding: 8px 12px; gap: 8px; }
-  .bom2-part-pn, .bom2-part-pn-input { display: none; }
+  .bom2-part { padding: 8px 10px; gap: 6px; }
   .bom2-part-num { display: none; }
+  .bom2-seq-col { width: 40px; }
+  .bom2-seq-pill { font-size: 13px; padding: 2px 8px; }
+  .bom2-fastener-col { width: 80px; }
+  .bom2-fastener-chip { font-size: 9px; padding: 1px 6px; }
+  .bom2-pn-primary.bom2-part-pn,
+  .bom2-part-pn-input.bom2-pn-primary { font-size: 12px; width: 120px; }
 }
 
 /* Seq column */

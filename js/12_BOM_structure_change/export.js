@@ -4,7 +4,7 @@
 
 import {
   LEVEL_COLORS, LEVEL_SHAPES, LEVEL_FONT_SIZES, LEVEL_FONT_WEIGHTS,
-  FASTENER_COLORS, getFastenerColor
+  FASTENER_COLORS
 } from './config.js';
 import { db } from './database.js';
 import * as state from './state.js';
@@ -659,37 +659,34 @@ function renderBOMTable() {
     } else {
       // ---- PART ROW ----
       const stripe = idx % 2 === 0 ? color.tint : color.light;
-      const seqDisplay = row.seqTag || (row.seq ? String(row.seq) : '');
-      const fColor = row.fastener ? getFastenerColor(row.fastener) : null;
       
       html += `<div class="bom2-part" style="background:${stripe};border-left:3px solid ${color.bg};" data-id="${row.id}" data-link-id="${row.linkId || ''}">
         ${isAdmin ? `<input type="checkbox" class="bom-sel-cb bom2-part-cb" data-id="${row.id}" onchange="window.bomUpdateSelection()">` : ''}
-        <div class="bom2-seq-col">${seqDisplay ? `<span class="bom2-seq-pill">${escapeHtml(seqDisplay)}</span>` : ''}</div>
         <span class="bom2-part-num">${row.rowNum}</span>
+        ${row.seqTag ? `<span class="bom2-seq-tag">${escapeHtml(row.seqTag)}</span>` : (row.seq ? `<span class="bom2-seq-tag">${row.seq}</span>` : '')}
         <div class="bom2-part-body">
           <div class="bom2-part-row1">
+            ${isAdmin ? 
+              `<input type="text" class="bom2-part-name-input" value="${escapeAttr(row.name)}" 
+                data-field="name" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)">` :
+              `<span class="bom2-part-name">${escapeHtml(row.name)}</span>`
+            }
             ${row.partNumber ? 
               (isAdmin ? 
-                `<input type="text" class="bom2-part-pn-input bom2-pn-primary" value="${escapeAttr(row.partNumber)}" 
+                `<input type="text" class="bom2-part-pn-input" value="${escapeAttr(row.partNumber)}" 
                   data-field="part_number" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)">` :
-                `<span class="bom2-part-pn bom2-pn-primary">${escapeHtml(row.partNumber)}</span>`) : 
-              (isAdmin ? `<input type="text" class="bom2-part-pn-input bom2-pn-primary" value="" placeholder="P/N" 
+                `<span class="bom2-part-pn">${escapeHtml(row.partNumber)}</span>`) : 
+              (isAdmin ? `<input type="text" class="bom2-part-pn-input" value="" placeholder="P/N" 
                 data-field="part_number" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)">` : '')
             }
-            ${isAdmin ? 
-              `<input type="text" class="bom2-part-name-input bom2-name-secondary" value="${escapeAttr(row.name)}" 
-                data-field="name" data-id="${row.id}" onchange="window.bomSaveNode('${row.id}',this)">` :
-              `<span class="bom2-part-name bom2-name-secondary">${escapeHtml(row.name)}</span>`
-            }
+          </div>
+          <div class="bom2-part-row2">
+            ${row.fastener ? `<span class="bom2-pill bom2-pill-fastener">${escapeHtml(row.fastener)}${row.fastenerQty > 1 ? ' ×' + row.fastenerQty : ''}</span>` : 
+              (isAdmin ? `<input type="text" class="bom2-fastener-input" value="" placeholder="Fastener" 
+                data-field="fastener" data-link-id="${row.linkId || ''}" onchange="window.bomSaveLink('${row.linkId}',this)" ${!row.linkId ? 'disabled' : ''}>` : '')}
             ${row.loctite ? `<span class="bom2-pill bom2-pill-loctite">LT-${escapeHtml(row.loctite)}</span>` : ''}
             ${row.torque ? `<span class="bom2-pill bom2-pill-torque">${row.torque}${row.torqueUnit}</span>` : ''}
           </div>
-        </div>
-        <div class="bom2-fastener-col">
-          ${row.fastener ? 
-            `<span class="bom2-fastener-chip" style="background:${fColor}15;color:${fColor};border:1px solid ${fColor}40;">${escapeHtml(row.fastener)}${row.fastenerQty > 1 ? ' ×' + row.fastenerQty : ''}</span>` : 
-            (isAdmin && row.linkId ? `<input type="text" class="bom2-fastener-input" value="" placeholder="—" 
-              data-field="fastener" data-link-id="${row.linkId || ''}" onchange="window.bomSaveLink('${row.linkId}',this)">` : '')}
         </div>
         <div class="bom2-part-qty ${row.qty > 1 ? 'bom2-qty-high' : ''}">${row.qty}</div>
         ${isAdmin ? `
@@ -1151,25 +1148,21 @@ function bomPrint() {
       </div>`;
     } else {
       const stripe = idx % 2 === 0 ? color.tint : color.light;
-      const seqDisplay = row.seqTag || (row.seq ? String(row.seq) : '');
-      const fColor = row.fastener ? getFastenerColor(row.fastener) : null;
-      const inlinePills = [
+      const pills = [
+        row.fastener ? `<span style="background:#e3f2fd;color:#1565c0;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;">${escapeHtml(row.fastener)}${row.fastenerQty > 1 ? ' x' + row.fastenerQty : ''}</span>` : '',
         row.loctite ? `<span style="background:#f3e5f5;color:#6a1b9a;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;">LT-${escapeHtml(row.loctite)}</span>` : '',
         row.torque ? `<span style="background:#fff3e0;color:#e65100;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:600;">${row.torque}${row.torqueUnit}</span>` : ''
       ].filter(Boolean).join(' ');
       
-      body += `<div style="background:${stripe};border-left:3px solid ${color.bg};padding:5px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(0,0,0,0.04);">
-        <span style="width:40px;flex-shrink:0;text-align:center;">${seqDisplay ? `<span style="background:#e74c3c;color:white;font-family:'Courier New',monospace;font-size:14px;font-weight:900;padding:2px 9px;border-radius:10px;letter-spacing:1px;">${escapeHtml(seqDisplay)}</span>` : ''}</span>
-        <span style="width:22px;color:#ccc;font-size:10px;text-align:center;flex-shrink:0;">${row.rowNum}</span>
-        <div style="flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 8px;">
-          ${row.partNumber ? `<span style="font-size:13px;font-weight:600;color:#1a1a2e;">${escapeHtml(row.partNumber)}</span>` : ''}
-          <span style="font-size:11px;color:#888;">${escapeHtml(row.name)}</span>
-          ${inlinePills}
+      body += `<div style="background:${stripe};border-left:3px solid ${color.bg};padding:5px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(0,0,0,0.04);">
+        <span style="width:24px;color:#bbb;font-size:10px;text-align:center;flex-shrink:0;">${row.rowNum}</span>
+        ${row.seqTag ? `<span style="background:#e74c3c;color:white;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;flex-shrink:0;">${escapeHtml(row.seqTag)}</span>` : (row.seq ? `<span style="background:#e74c3c;color:white;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;flex-shrink:0;">${row.seq}</span>` : '')}
+        <div style="flex:1;min-width:0;">
+          <span style="font-size:12px;font-weight:500;color:#333;">${escapeHtml(row.name)}</span>
+          ${row.partNumber ? `<span style="font-size:10px;color:#999;margin-left:8px;">${escapeHtml(row.partNumber)}</span>` : ''}
+          ${pills ? `<div style="margin-top:2px;">${pills}</div>` : ''}
         </div>
-        <div style="width:110px;flex-shrink:0;text-align:right;">
-          ${row.fastener ? `<span style="background:${fColor}15;color:${fColor};border:1px solid ${fColor}40;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;">${escapeHtml(row.fastener)}${row.fastenerQty > 1 ? ' ×' + row.fastenerQty : ''}</span>` : ''}
-        </div>
-        <span style="width:30px;text-align:right;font-size:13px;font-weight:${row.qty > 1 ? '800;color:#e74c3c' : '500;color:#666'};flex-shrink:0;">${row.qty}</span>
+        <span style="font-size:13px;font-weight:${row.qty > 1 ? '800;color:#e74c3c' : '500;color:#666'};flex-shrink:0;">${row.qty}</span>
       </div>`;
     }
   });
