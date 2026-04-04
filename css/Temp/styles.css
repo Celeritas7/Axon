@@ -1671,36 +1671,27 @@ body.tree-view .chat-fab { bottom: 155px; }
   .header {
     padding: 6px 8px;
     gap: 4px;
-    flex-wrap: wrap !important;
   }
   .header h1 { font-size: 13px; }
-  .header select { font-size: 11px; min-width: 70px; padding: 3px 6px; }
-  .header-btn { padding: 4px 8px; font-size: 10px; white-space: nowrap; min-height: 32px; }
+  .header select { font-size: 11px; min-width: 80px; padding: 3px 6px; }
+  .header-btn { padding: 3px 6px; font-size: 9px; }
   
-  /* Tree controls: full-width scrollable second row */
+  /* Tree controls: horizontal scroll, single row */
   #treeControls {
     display: flex !important;
     flex-wrap: nowrap !important;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     gap: 4px;
-    padding: 4px 0;
-    flex: 0 0 100%;
-    order: 99;
-    width: 100%;
+    padding-bottom: 2px;
   }
-  #treeControls > * { flex-shrink: 0; }
-  
-  /* Keep wrapper inline */
-  #treeControlsWrapper { flex-shrink: 0; }
   
   /* Hide legend on mobile */
   .legend { display: none !important; }
   
-  /* Adjust tree container for mobile two-row header */
+  /* Adjust tree container for mobile header */
   .main-container {
-    height: calc(100vh - 90px) !important;
-    height: calc(100dvh - 90px) !important;
+    height: calc(100vh - 60px) !important;
   }
   
   /* Bigger tap targets for nodes */
