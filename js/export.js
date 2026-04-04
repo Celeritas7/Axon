@@ -1167,7 +1167,7 @@ function bomPrint() {
           ${inlinePills}
         </div>
         <div style="width:110px;flex-shrink:0;text-align:right;">
-          ${row.fastener ? `<span style="background:${fColor}15;color:${fColor};border:1px solid ${fColor}40;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;">${escapeHtml(row.fastener)}${row.fastenerQty > 1 ? ' ×' + row.fastenerQty : ''}</span>` : ''}
+          ${row.fastener ? `<span style="background:${fColor}15;color:${fColor};border:1px solid ${fColor}40;padding:2px 8px;border-radius:8px;font-size:12px;font-weight:600;">${escapeHtml(row.fastener)}${row.fastenerQty > 1 ? ' ×' + row.fastenerQty : ''}</span>` : ''}
         </div>
         <span style="width:30px;text-align:right;font-size:13px;font-weight:${row.qty > 1 ? '800;color:#e74c3c' : '500;color:#666'};flex-shrink:0;">${row.qty}</span>
       </div>`;
@@ -1175,7 +1175,7 @@ function bomPrint() {
   });
   
   const printHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BOM - ${escapeHtml(title)}</title>
-<style>body{font-family:'Segoe UI',sans-serif;margin:20px;color:#333;}h1{font-size:18px;margin-bottom:4px;}.meta{font-size:12px;color:#666;margin-bottom:16px;}@media print{body{margin:10px;}}</style>
+<style>body{font-family:'Segoe UI',sans-serif;margin:20px;color:#333;-webkit-print-color-adjust:exact;print-color-adjust:exact;}h1{font-size:18px;margin-bottom:4px;}.meta{font-size:12px;color:#666;margin-bottom:16px;}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;}@media print{body{margin:10px;}}</style>
 </head><body>
 <h1>📋 BOM — ${escapeHtml(title)}</h1>
 <div class="meta">📅 ${date} &nbsp;|&nbsp; ${totalParts} items</div>
