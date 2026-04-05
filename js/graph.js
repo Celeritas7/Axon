@@ -86,15 +86,18 @@ export function fitToScreen(instant = false) {
     1.5
   ) * 0.9;
   
+  // Enforce minimum zoom so nodes stay readable
+  const clampedScale = Math.max(scale, 0.35);
+  
   const centerX = (minX + maxX) / 2;
   const centerY = (minY + maxY) / 2;
   
-  const translateX = containerWidth / 2 - centerX * scale;
-  const translateY = containerHeight / 2 - centerY * scale;
+  const translateX = containerWidth / 2 - centerX * clampedScale;
+  const translateY = containerHeight / 2 - centerY * clampedScale;
   
   const transform = d3.zoomIdentity
     .translate(translateX, translateY)
-    .scale(scale);
+    .scale(clampedScale);
   
   if (instant) {
     svg.call(zoomBehavior.transform, transform);
@@ -2096,7 +2099,7 @@ function setupForceSimulation(visibleNodes, visibleLinks) {
 function toggleCollapse(nodeId) {
   state.toggleCollapsedNode(nodeId);
   renderGraph();
-  setTimeout(() => fitToScreen(), 150);
+  // Don't auto-fit on single expand/collapse — keep user's current zoom & pan
 }
 
 export function expandAll() {
