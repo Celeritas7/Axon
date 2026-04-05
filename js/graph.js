@@ -1466,14 +1466,16 @@ export function renderGraph() {
     // People required kanji badge — bottom-right, only on assembly nodes with >1
     const KANJI_NUMS = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
     if ((d.people_required || 1) > 1 && d.receivesFrom.length > 0) {
-      const kanjiBadgeX = nodeW/2 - 10;
+      const kanjiLabel = (KANJI_NUMS[d.people_required] || String(d.people_required)) + '人';
+      const kanjiBadgeX = nodeW/2 - 14;
       const kanjiBadgeY = nodeH/2 - 2;
+      const badgeW = 30;
       
       group.append('rect')
         .attr('class', 'kanji-badge-bg')
-        .attr('x', kanjiBadgeX - 10)
+        .attr('x', kanjiBadgeX - badgeW/2)
         .attr('y', kanjiBadgeY - 11)
-        .attr('width', 20)
+        .attr('width', badgeW)
         .attr('height', 16)
         .attr('rx', 4)
         .attr('fill', '#2c3e50')
@@ -1486,9 +1488,9 @@ export function renderGraph() {
         .attr('y', kanjiBadgeY)
         .attr('text-anchor', 'middle')
         .attr('fill', 'white')
-        .attr('font-size', '11px')
+        .attr('font-size', '10px')
         .attr('font-weight', '700')
-        .text(KANJI_NUMS[d.people_required] || String(d.people_required));
+        .text(kanjiLabel);
     }
   });
   
