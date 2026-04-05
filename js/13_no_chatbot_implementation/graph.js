@@ -1462,34 +1462,6 @@ export function renderGraph() {
         .attr('font-weight', '700')
         .text(`×${d.qty}`);
     }
-    
-    // People required kanji badge — bottom-right, only on assembly nodes with >1
-    const KANJI_NUMS = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
-    if ((d.people_required || 1) > 1 && d.receivesFrom.length > 0) {
-      const kanjiBadgeX = nodeW/2 - 10;
-      const kanjiBadgeY = nodeH/2 - 2;
-      
-      group.append('rect')
-        .attr('class', 'kanji-badge-bg')
-        .attr('x', kanjiBadgeX - 10)
-        .attr('y', kanjiBadgeY - 11)
-        .attr('width', 20)
-        .attr('height', 16)
-        .attr('rx', 4)
-        .attr('fill', '#2c3e50')
-        .attr('stroke', 'white')
-        .attr('stroke-width', 1);
-      
-      group.append('text')
-        .attr('class', 'kanji-badge-text')
-        .attr('x', kanjiBadgeX)
-        .attr('y', kanjiBadgeY)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
-        .attr('font-size', '11px')
-        .attr('font-weight', '700')
-        .text(KANJI_NUMS[d.people_required] || String(d.people_required));
-    }
   });
   
   // Collapse indicators
@@ -2160,12 +2132,6 @@ function showNodeContextMenu(x, y, node) {
         onclick="event.stopPropagation();">
       <button class="ctx-seq-btn" onclick="event.stopPropagation();window.quickSetSeq('${node.id}',document.getElementById('ctxSeqInput').value);">✓</button>
     </div>
-    <div class="context-menu-item ctx-seq-row" onclick="event.stopPropagation();">
-      <span class="context-menu-icon">👥</span> People:
-      <button class="ctx-people-btn ${(node.people_required || 1) === 1 ? 'active' : ''}" onclick="event.stopPropagation();window.quickSetPeople('${node.id}',1);">1</button>
-      <button class="ctx-people-btn ${node.people_required === 2 ? 'active' : ''}" onclick="event.stopPropagation();window.quickSetPeople('${node.id}',2);">2</button>
-      <button class="ctx-people-btn ${node.people_required === 3 ? 'active' : ''}" onclick="event.stopPropagation();window.quickSetPeople('${node.id}',3);">3</button>
-    </div>
     <div class="context-menu-item" onclick="window.toggleFlag('${node.id}')">
       <span class="context-menu-icon">${state.flaggedNodes.has(node.id) ? '🏁' : '🚩'}</span> ${state.flaggedNodes.has(node.id) ? 'Remove Flag' : 'Flag Node'}
     </div>
@@ -2332,28 +2298,6 @@ async function quickSetSeq(nodeId, val) {
 }
 window.quickSetSeq = quickSetSeq;
 
-async function quickSetPeople(nodeId, count) {
-  hideContextMenu();
-  try {
-    await db.from('logi_nodes').update({
-      people_required: count,
-      updated_at: new Date().toISOString()
-    }).eq('id', nodeId);
-    
-    const node = state.nodes.find(n => n.id === nodeId);
-    if (node) {
-      node.people_required = count;
-    }
-    
-    const KANJI = ['','一','二','三','四','五','六','七','八','九','十'];
-    showToast(`People → ${KANJI[count] || count}人 (${count})`, 'success');
-    renderGraph();
-  } catch (e) {
-    showToast('Failed to set people', 'error');
-  }
-}
-window.quickSetPeople = quickSetPeople;
-
 function toggleFlag(nodeId) {
   hideContextMenu();
   state.toggleFlaggedNode(nodeId);
@@ -2425,18 +2369,6 @@ function openNodeEditPanel(node) {
         <input type="text" class="form-input" id="nodeEditSeqTag" value="${escapeHtml(node.sequence_tag || '')}" placeholder="e.g. 1a, 2b">
       </div>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">People Required</label>
-        <input type="number" class="form-input" id="nodeEditPeople" value="${node.people_required || 1}" min="1" max="10">
-      </div>
-      <div class="form-group" style="flex:2;">
-        <label class="form-label" style="visibility:hidden;">.</label>
-        <div style="font-size:11px;color:#888;padding-top:8px;">
-          ${(node.people_required || 1) > 1 ? '👥 ' + ['','一','二','三','四','五','六','七','八','九','十'][node.people_required || 1] + '人' : '👤 1人 (default)'}
-        </div>
-      </div>
-    </div>
     <div class="form-group">
       <label class="form-label">Notes</label>
       <textarea class="form-textarea" id="nodeEditNotes">${escapeHtml(node.notes || '')}</textarea>
@@ -2463,7 +2395,6 @@ async function saveNodeEdit(nodeId) {
     group_num: parseInt(document.getElementById('nodeEditGroup').value) || 0,
     sequence_num: parseInt(document.getElementById('nodeEditSeqTag').value) || 0,
     sequence_tag: document.getElementById('nodeEditSeqTag').value.trim() || null,
-    people_required: parseInt(document.getElementById('nodeEditPeople').value) || 1,
     notes: document.getElementById('nodeEditNotes').value.trim() || null,
     updated_at: new Date().toISOString()
   };

@@ -609,6 +609,22 @@ svg { display: block; }
 }
 .ctx-seq-btn:hover { background: #219a52; }
 
+/* People quick-set buttons in context menu */
+.ctx-people-btn {
+  padding: 3px 10px;
+  border: 1px solid #bdc3c7;
+  background: #ecf0f1;
+  color: #2c3e50;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 28px;
+  text-align: center;
+}
+.ctx-people-btn:hover { background: #3498db; color: white; border-color: #3498db; }
+.ctx-people-btn.active { background: #2c3e50; color: white; border-color: #2c3e50; }
+
 /* Flag indicator */
 .flag-indicator {
   pointer-events: none;
@@ -1390,6 +1406,21 @@ svg { display: block; }
   background: #f1f3f4;
   color: #333;
   border-bottom-left-radius: 4px;
+}
+
+/* AI response indicator */
+.ai-tag {
+  display: inline-block;
+  font-size: 9px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-right: 4px;
+  margin-bottom: 4px;
+  vertical-align: middle;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 .chat-input-area {
