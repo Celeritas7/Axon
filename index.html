@@ -180,7 +180,7 @@
     <div class="legend-divider"></div>
     
     <div class="legend-section admin-only" id="legendTips">
-      <span style="color:#666; font-size:9px;">💡 Shift+Drag = move with children | Drag orphan = reconnect | 🔒 = locked position</span>
+      <span style="color:#666; font-size:9px;">💡 Shift+Drag = move with children | Drag orphan = reconnect | 🔒 = locked | <strong style="color:#3498db;">Ctrl+Click = multi-select</strong></span>
     </div>
   </div>
 
@@ -315,6 +315,14 @@
 
 <!-- Toast container -->
 <div class="toast-container" id="toastContainer"></div>
+
+<!-- Multi-Select Floating Bar -->
+<div class="selection-bar" id="selectionBar" style="display:none;">
+  <span id="selectionCount">0 selected</span>
+  <button class="sel-bar-btn" onclick="window.openBulkMoveDialog()">📦 Move to…</button>
+  <button class="sel-bar-btn danger" onclick="window.confirmBulkDelete()">🗑️ Delete</button>
+  <button class="sel-bar-btn clear" onclick="window.clearSelection()">✕ Clear</button>
+</div>
 
 <!-- Node Action Toolbar (appears on tap) -->
 <div class="node-action-bar" id="nodeActionBar">

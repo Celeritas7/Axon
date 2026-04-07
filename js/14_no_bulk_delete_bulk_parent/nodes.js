@@ -434,67 +434,6 @@ export function refreshUnlockedNodes() {
 }
 
 // ============================================================
-// BULK MOVE NODES
-// ============================================================
-export async function bulkMoveNodes(nodeIds, newParentId, mode = 'move') {
-  if (!state.isAdmin || !newParentId || nodeIds.length === 0) return;
-
-  const newParent = state.nodes.find(n => n.id === newParentId);
-  if (!newParent) return;
-
-  try {
-    for (const nodeId of nodeIds) {
-      // Skip if nodeId === newParentId (can't parent to itself)
-      if (nodeId === newParentId) continue;
-
-      if (mode === 'move') {
-        // Delete all existing parent links
-        await db.from('logi_links').delete()
-          .eq('child_id', nodeId)
-          .eq('assembly_id', state.currentAssemblyId);
-      }
-
-      // Check link doesn't already exist (in add mode)
-      const existing = state.links.find(l => l.child_id === nodeId && l.parent_id === newParentId);
-      if (!existing) {
-        await db.from('logi_links').insert({
-          assembly_id: state.currentAssemblyId,
-          parent_id: newParentId,
-          child_id: nodeId
-        });
-      }
-    }
-
-    showToast(`${nodeIds.length} node${nodeIds.length > 1 ? 's' : ''} moved to "${newParent.name}"`, 'success');
-    await loadAssemblyData(state.currentAssemblyId);
-  } catch (e) {
-    console.error('Bulk move error:', e);
-    showToast('Failed to move nodes: ' + e.message, 'error');
-  }
-}
-
-// ============================================================
-// BULK DELETE NODES
-// ============================================================
-export async function bulkDeleteNodes(nodeIds) {
-  if (!state.isAdmin || nodeIds.length === 0) return;
-
-  try {
-    for (const nodeId of nodeIds) {
-      await db.from('logi_links').delete()
-        .or(`parent_id.eq.${nodeId},child_id.eq.${nodeId}`);
-      await db.from('logi_nodes').delete().eq('id', nodeId);
-    }
-
-    showToast(`${nodeIds.length} node${nodeIds.length > 1 ? 's' : ''} deleted`, 'success');
-    await loadAssemblyData(state.currentAssemblyId);
-  } catch (e) {
-    console.error('Bulk delete error:', e);
-    showToast('Failed to delete nodes: ' + e.message, 'error');
-  }
-}
-
-// ============================================================
 // EXPORTS TO WINDOW
 // ============================================================
 window.addRootNodeAt = addRootNodeAt;
@@ -506,5 +445,3 @@ window.unlockAllNodes = unlockAllNodes;
 window.saveAllPositions = saveAllPositions;
 window.undoPositions = undoPositions;
 window.refreshUnlockedNodes = refreshUnlockedNodes;
-window.bulkMoveNodes = bulkMoveNodes;
-window.bulkDeleteNodes = bulkDeleteNodes;

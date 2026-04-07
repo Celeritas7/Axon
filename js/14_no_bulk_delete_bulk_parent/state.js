@@ -189,25 +189,6 @@ export function resetVerticalGap() {
   verticalGap = null;
 }
 
-// Multi-select state
-export let selectedNodes = new Set();
-
-export function toggleSelectedNode(id) {
-  if (selectedNodes.has(id)) {
-    selectedNodes.delete(id);
-  } else {
-    selectedNodes.add(id);
-  }
-}
-
-export function clearSelectedNodes() {
-  selectedNodes.clear();
-}
-
-export function addSelectedNode(id) {
-  selectedNodes.add(id);
-}
-
 // Flagged nodes (persisted per assembly in localStorage)
 export let flaggedNodes = new Set();
 

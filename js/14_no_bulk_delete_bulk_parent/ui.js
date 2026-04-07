@@ -171,11 +171,6 @@ export function closeAllDropdowns() {
 export function navigateTo(page) {
   state.setCurrentPage(page);
   
-  // Clear any multi-select when navigating
-  state.clearSelectedNodes();
-  const selBar = document.getElementById('selectionBar');
-  if (selBar) selBar.style.display = 'none';
-  
   // Toggle body class for tree view (controls FAB visibility)
   document.body.classList.toggle('tree-view', page === 'tree');
   

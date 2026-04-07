@@ -1383,21 +1383,6 @@ export function renderGraph() {
     
     // Draw shape
     drawShape(group, shape, nodeW, nodeH, color, '#555', isMultiParent, isOrphan);
-
-    // Selection ring (shown when node is multi-selected)
-    group.append('rect')
-      .attr('class', 'selection-ring')
-      .attr('x', -nodeW / 2 - 5)
-      .attr('y', -nodeH / 2 - 5)
-      .attr('width', nodeW + 10)
-      .attr('height', nodeH + 10)
-      .attr('rx', 6)
-      .attr('fill', 'none')
-      .attr('stroke', '#3498db')
-      .attr('stroke-width', 2.5)
-      .attr('stroke-dasharray', '5,3')
-      .style('pointer-events', 'none')
-      .style('display', state.selectedNodes.has(d.id) ? 'block' : 'none');
     
     // v28: Status indicator dot (top-left, visible to all)
     const statusColors = {
@@ -1584,28 +1569,11 @@ function setupNodeInteractions(nodeElements, isTreeMode = true) {
     nodeElements.call(treeDrag);
   }
   
-  // Tap to show action bar (admin only); Ctrl/Cmd+click = multi-select
+  // Tap to show action bar (admin only)
   nodeElements.on('click', (e, d) => {
     e.stopPropagation();
     if (state.isDragging) return;
     if (!state.isAdmin) return;
-
-    if (e.ctrlKey || e.metaKey) {
-      // Toggle this node in/out of selection
-      state.toggleSelectedNode(d.id);
-      updateSelectionVisuals();
-      updateSelectionBar();
-      return;
-    }
-
-    // If selection is active, a plain click clears it
-    if (state.selectedNodes.size > 0) {
-      state.clearSelectedNodes();
-      updateSelectionVisuals();
-      updateSelectionBar();
-      return;
-    }
-
     showNodeActionBar(d, e);
   });
   
@@ -1613,13 +1581,6 @@ function setupNodeInteractions(nodeElements, isTreeMode = true) {
   nodeElements.on('contextmenu', (e, d) => {
     if (!state.isAdmin) return;
     e.preventDefault();
-
-    // If this node is part of an active multi-selection, show bulk menu
-    if (state.selectedNodes.size > 1 && state.selectedNodes.has(d.id)) {
-      showMultiSelectContextMenu(e.clientX, e.clientY);
-      return;
-    }
-
     showNodeContextMenu(e.clientX, e.clientY, d);
   });
   
@@ -2162,176 +2123,6 @@ export function collapseAll() {
   renderGraph();
   setTimeout(() => fitToScreen(), 150);
 }
-
-// ============================================================
-// MULTI-SELECT HELPERS
-// ============================================================
-function updateSelectionVisuals() {
-  d3.selectAll('.node').each(function(d) {
-    d3.select(this).select('.selection-ring')
-      .style('display', state.selectedNodes.has(d.id) ? 'block' : 'none');
-  });
-}
-
-function updateSelectionBar() {
-  const bar = document.getElementById('selectionBar');
-  if (!bar) return;
-  const count = state.selectedNodes.size;
-  if (count === 0) {
-    bar.style.display = 'none';
-  } else {
-    bar.style.display = 'flex';
-    const countEl = document.getElementById('selectionCount');
-    if (countEl) countEl.textContent = `${count} node${count > 1 ? 's' : ''} selected`;
-  }
-}
-
-function showMultiSelectContextMenu(x, y) {
-  const menu = document.getElementById('contextMenu');
-  const count = state.selectedNodes.size;
-
-  menu.innerHTML = `
-    <div class="context-menu-item" style="color:#3498db;font-weight:600;pointer-events:none;">
-      <span class="context-menu-icon">☑️</span> ${count} nodes selected
-    </div>
-    <div class="context-menu-divider"></div>
-    <div class="context-menu-item" onclick="window.openBulkMoveDialog()">
-      <span class="context-menu-icon">📦</span> Move all to…
-    </div>
-    <div class="context-menu-item danger" onclick="window.confirmBulkDelete()">
-      <span class="context-menu-icon">🗑️</span> Delete all (${count})
-    </div>
-    <div class="context-menu-divider"></div>
-    <div class="context-menu-item" onclick="window.clearSelection()">
-      <span class="context-menu-icon">✕</span> Clear Selection
-    </div>
-  `;
-
-  menu.style.left = x + 'px';
-  menu.style.top = y + 'px';
-  menu.classList.add('show');
-}
-
-window.clearSelection = function() {
-  state.clearSelectedNodes();
-  updateSelectionVisuals();
-  updateSelectionBar();
-  hideContextMenu();
-};
-
-window.openBulkMoveDialog = function() {
-  hideContextMenu();
-  if (!state.isAdmin) return;
-
-  const nodeIds = Array.from(state.selectedNodes);
-  const count = nodeIds.length;
-
-  // Build potential parent list (exclude selected nodes themselves)
-  const potentialParents = state.nodes
-    .filter(n => !state.selectedNodes.has(n.id))
-    .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
-
-  if (potentialParents.length === 0) {
-    showToast('No available parent nodes', 'info');
-    return;
-  }
-
-  const options = potentialParents.map(n =>
-    `<option value="${n.id}">L${n.level} — ${escapeHtml(n.name)}</option>`
-  ).join('');
-
-  showModal(
-    `Move ${count} Nodes`,
-    `<p style="margin-bottom:12px;color:#555;font-size:13px;">
-      Move <strong>${count} selected node${count > 1 ? 's' : ''}</strong> under a new parent.
-    </p>
-    <div style="margin-bottom:12px;padding:10px;background:#fff3e0;border-radius:6px;border:1px solid #ffe0b2;font-size:12px;color:#e65100;">
-      <label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer;">
-        <input type="radio" name="bulkMoveMode" value="move" checked> <strong>Move</strong> — disconnect from current parent first
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-        <input type="radio" name="bulkMoveMode" value="add"> <strong>Add</strong> — keep existing connections too
-      </label>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Search</label>
-      <input type="text" class="form-input" id="bulkMoveSearch" placeholder="Type to filter…"
-        oninput="window._filterBulkParents(this.value, ${JSON.stringify(nodeIds).replace(/"/g, '&quot;')})">
-    </div>
-    <div class="form-group">
-      <label class="form-label">New Parent</label>
-      <select class="form-select" id="bulkMoveParentId" size="8" style="height:auto;">${options}</select>
-    </div>`,
-    [
-      { label: 'Cancel', class: 'btn-secondary', action: hideModal },
-      { label: `Move ${count} Nodes`, class: 'btn-primary', action: () => executeBulkMove(nodeIds) }
-    ]
-  );
-
-  // Store full list for filtering
-  window._bulkParentList = potentialParents;
-  window._filterBulkParents = (query, ids) => {
-    const q = query.toLowerCase();
-    const filtered = window._bulkParentList.filter(n =>
-      n.name.toLowerCase().includes(q) || (n.part_number && n.part_number.toLowerCase().includes(q))
-    );
-    const sel = document.getElementById('bulkMoveParentId');
-    if (sel) {
-      sel.innerHTML = filtered.map(n =>
-        `<option value="${n.id}">L${n.level} — ${escapeHtml(n.name)}</option>`
-      ).join('');
-    }
-  };
-
-  setTimeout(() => document.getElementById('bulkMoveSearch')?.focus(), 100);
-};
-
-async function executeBulkMove(nodeIds) {
-  const newParentId = document.getElementById('bulkMoveParentId')?.value;
-  const modeEl = document.querySelector('input[name="bulkMoveMode"]:checked');
-  const mode = modeEl ? modeEl.value : 'move';
-
-  if (!newParentId) {
-    showToast('Please select a parent', 'error');
-    return;
-  }
-
-  hideModal();
-  state.clearSelectedNodes();
-  updateSelectionVisuals();
-  updateSelectionBar();
-
-  await window.bulkMoveNodes(nodeIds, newParentId, mode);
-}
-
-window.confirmBulkDelete = function() {
-  hideContextMenu();
-  if (!state.isAdmin) return;
-
-  const nodeIds = Array.from(state.selectedNodes);
-  const count = nodeIds.length;
-  const names = nodeIds
-    .map(id => state.nodes.find(n => n.id === id)?.name || 'Unknown')
-    .slice(0, 5)
-    .join(', ') + (count > 5 ? `… +${count - 5} more` : '');
-
-  showModal(
-    `Delete ${count} Nodes`,
-    `<p>Delete <strong>${count} selected node${count > 1 ? 's' : ''}</strong>?</p>
-     <p style="color:#888;font-size:12px;margin-top:8px;">${escapeHtml(names)}</p>
-     <p style="color:#e74c3c;margin-top:10px;font-size:13px;">⚠️ All their links will also be deleted.</p>`,
-    [
-      { label: 'Cancel', class: 'btn-secondary', action: hideModal },
-      { label: `Delete ${count} Nodes`, class: 'btn-danger', action: async () => {
-        hideModal();
-        state.clearSelectedNodes();
-        updateSelectionVisuals();
-        updateSelectionBar();
-        await window.bulkDeleteNodes(nodeIds);
-      }}
-    ]
-  );
-};
 
 // ============================================================
 // CONTEXT MENUS
@@ -2877,6 +2668,5 @@ window.openNodeEditPanel = openNodeEditPanel;
 window.renderGraph = renderGraph;
 window.expandAll = expandAll;
 window.collapseAll = collapseAll;
-window.updateSelectionBar = updateSelectionBar;
 
 export { calculateLevels, getNodeColor, isNodeVisible, drawShape };
