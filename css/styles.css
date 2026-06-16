@@ -548,7 +548,7 @@ svg { display: block; }
 .toggle-icon {
   font-weight: bold;
   font-size: 10px;
-  fill: var(--ink);
+  fill: var(--accent);
   pointer-events: none;
   user-select: none;
 }
@@ -1551,26 +1551,6 @@ svg { display: block; }
 
 .chat-send:hover {
   background: var(--accent-2);
-}
-
-/* ============================================
-   COLLAPSE INDICATOR STYLING
-   ============================================ */
-.collapse-indicator {
-  fill: var(--accent-soft);
-  stroke: var(--accent);
-  stroke-width: 2px;
-  cursor: pointer;
-}
-
-.collapse-indicator:hover {
-  fill: var(--accent);
-}
-
-.toggle-icon {
-  font-weight: bold;
-  fill: var(--accent);
-  pointer-events: none;
 }
 
 /* Spacing settings sliders */
