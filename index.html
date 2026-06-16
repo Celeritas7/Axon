@@ -10,6 +10,11 @@
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <!-- Google GSI removed - now using Supabase Auth with Google provider -->
   
+  <!-- Fonts: IBM Plex Sans + Plex Mono (Datum theme) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+
   <!-- Styles -->
   <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -22,7 +27,7 @@
   <h1>⚡ Axon</h1>
   
   <!-- Back button -->
-  <button class="header-btn back-btn" id="backBtn" style="display:none;" onclick="navigateBack()">← Back</button>
+  <button class="header-btn back-btn" id="backBtn" style="display:none;" onclick="navigateBack()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M15 5l-7 7 7 7 M8 12h12"/></svg>Back</button>
   
   <!-- Breadcrumb -->
   <div id="breadcrumb" class="control-group" style="display:none;">
@@ -36,10 +41,10 @@
       <select id="assemblySelect">
         <option value="">Loading...</option>
       </select>
-      <button class="header-btn admin-only" style="padding:4px 8px;margin-left:4px;" onclick="createNewAssemblyInTree()" title="New Assembly">➕</button>
-      <button class="header-btn admin-only" style="padding:4px 8px;background:#f39c12;" onclick="renameAssembly()" title="Rename">✏️</button>
-      <button class="header-btn admin-only" style="padding:4px 8px;background:#9b59b6;" onclick="duplicateAssembly()" title="Duplicate">📋</button>
-      <button class="header-btn admin-only" style="padding:4px 8px;background:#e74c3c;" onclick="confirmDeleteAssembly()" title="Delete">🗑️</button>
+      <button class="header-btn admin-only" style="padding:4px 8px;margin-left:4px;" onclick="createNewAssemblyInTree()" title="New Assembly"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="header-btn admin-only" style="padding:4px 8px;" onclick="renameAssembly()" title="Rename"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z M13.5 6.5l3 3"/></svg></button>
+      <button class="header-btn admin-only" style="padding:4px 8px;" onclick="duplicateAssembly()" title="Duplicate"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M9 9h10v10H9z M5 15V5h10"/></svg></button>
+      <button class="header-btn admin-only" style="padding:4px 8px;" onclick="confirmDeleteAssembly()" title="Delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M4 7h16 M9 7V5h6v2 M6 7l1 13h10l1-13"/></svg></button>
     </div>
   </div>
   
@@ -71,22 +76,22 @@
     
     <!-- Layout mode is always tree -->
     
-    <button class="header-btn admin-only" id="refreshBtn" onclick="refreshUnlockedNodes()">🔄</button>
-    <button class="header-btn" id="expandBtn" onclick="expandAll()">➕</button>
-    <button class="header-btn" id="collapseBtn" onclick="collapseAll()">➖</button>
+    <button class="header-btn admin-only" id="refreshBtn" onclick="refreshUnlockedNodes()" title="Refresh"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M20 12a8 8 0 1 1-2.3-5.6 M20 4v3.5h-3.5"/></svg></button>
+    <button class="header-btn" id="expandBtn" onclick="expandAll()" title="Expand All"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5"/></svg></button>
+    <button class="header-btn" id="collapseBtn" onclick="collapseAll()" title="Collapse All"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M9 4v5H4 M15 4v5h5 M9 20v-5H4 M15 20v-5h5"/></svg></button>
     
     <!-- Tree layout is always active -->
     
-    <button class="header-btn" id="seqToggleBtn" onclick="toggleSequenceNumbers()" title="Toggle Sequence Numbers">🔢 Seq</button>
-    <button class="header-btn" id="levelToggleBtn" onclick="toggleLevelHeaders()" title="Toggle Level Headers">📊 Levels</button>
-    <button class="header-btn admin-only" id="spacingBtn" onclick="openSpacingSettings()" title="Adjust Level Spacing" style="background:#2980b9;">↔️ Spacing</button>
-    <button class="header-btn" id="separatorToggleBtn" onclick="toggleSeparatorLines()" title="Toggle Group Separators" style="background:#95a5a6;">─ Sep</button>
-    
-    <button class="header-btn" style="background:#16a085;" onclick="window.openBOMList()" title="BOM List View">📋 BOM</button>
-    <button class="header-btn" style="background:#e67e22;" onclick="window.openPickup()" title="Pickup Mode">🧺 Pickup</button>
+    <button class="header-btn" id="seqToggleBtn" onclick="toggleSequenceNumbers()" title="Toggle Sequence Numbers"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M9 4 7 20 M17 4l-2 16 M4 9h16 M3.5 15h16"/></svg>Seq</button>
+    <button class="header-btn" id="levelToggleBtn" onclick="toggleLevelHeaders()" title="Toggle Level Headers"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M12 4 3 9l9 5 9-5-9-5z M3 14l9 5 9-5"/></svg>Levels</button>
+    <button class="header-btn admin-only" id="spacingBtn" onclick="openSpacingSettings()" title="Adjust Level Spacing"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M9 6h.01 M15 6h.01 M9 12h.01 M15 12h.01 M9 18h.01 M15 18h.01"/></svg>Spacing</button>
+    <button class="header-btn" id="separatorToggleBtn" onclick="toggleSeparatorLines()" title="Toggle Group Separators"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M4 8h16 M4 16h16"/></svg>Sep</button>
+
+    <button class="header-btn" onclick="window.openBOMList()" title="BOM List View"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M8 6h12 M8 12h12 M8 18h12 M4 6h.01 M4 12h.01 M4 18h.01"/></svg>BOM</button>
+    <button class="header-btn" onclick="window.openPickup()" title="Pickup Mode"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M5 9h14l-1.2 9.5a1 1 0 0 1-1 .9H7.2a1 1 0 0 1-1-.9L5 9z M8.5 9 12 3.5 15.5 9 M9.5 13v3 M14.5 13v3"/></svg>Pickup</button>
     
     <div class="dropdown">
-      <button class="header-btn dropdown-btn" onclick="toggleExportDropdown()">📤 Export ▼</button>
+      <button class="header-btn dropdown-btn" onclick="toggleExportDropdown()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M12 16V5 M7.5 9 12 4.5 16.5 9 M5 19h14"/></svg>Export<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-left:3px"><path d="M5 9l7 7 7-7"/></svg></button>
       <div class="dropdown-content" id="exportDropdown">
         <a href="#" onclick="downloadCSV(); return false;">📋 Download CSV</a>
         <a href="#" onclick="downloadPNG(); return false;">📷 Download PNG</a>
@@ -94,7 +99,7 @@
       </div>
     </div>
     
-    <button class="header-btn admin-only" style="background:#27ae60;" onclick="openImportCSV()">📥 Import CSV</button>
+    <button class="header-btn admin-only" onclick="openImportCSV()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M12 4v11 M7.5 11l4.5 4 4.5-4 M5 19h14"/></svg>Import CSV</button>
     <input type="file" id="csvFileInput" accept=".csv" multiple style="display:none;" onchange="handleCSVFile(event)">
   </div>
   
@@ -114,7 +119,7 @@
     </div>
     <div id="userBadge" class="user-badge" style="display:none;">
       <span id="userName"></span>
-      <button class="header-btn" style="padding:2px 6px;font-size:9px;" onclick="handleLogout()">✕</button>
+      <button class="header-btn" style="padding:2px 6px;" onclick="handleLogout()" title="Sign Out"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M6 6l12 12 M18 6 6 18"/></svg></button>
     </div>
   </div>
 </div>
@@ -124,7 +129,7 @@
 <!-- ============================================ -->
 <div class="home-page show" id="homePage">
   <div class="home-header">
-    <h2>📁 My Projects</h2>
+    <h2><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px;margin-right:8px"><path d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z"/></svg>My Projects</h2>
     <p>Select a project to view its assemblies</p>
   </div>
   <div class="projects-grid" id="projectsGrid">
@@ -191,10 +196,10 @@
       
       <!-- Zoom/Fit Controls -->
       <div class="zoom-controls">
-        <button onclick="zoomIn()" title="Zoom In">+</button>
-        <button onclick="zoomOut()" title="Zoom Out">−</button>
-        <button onclick="fitToScreen()" title="Fit to Screen">⊡</button>
-        <button onclick="resetView()" title="Reset View">↺</button>
+        <button onclick="zoomIn()" title="Zoom In"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.5-4.5 M11 8v6 M8 11h6"/></svg></button>
+        <button onclick="zoomOut()" title="Zoom Out"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.5-4.5 M8 11h6"/></svg></button>
+        <button onclick="fitToScreen()" title="Fit to Screen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5 M9 9h6v6H9z"/></svg></button>
+        <button onclick="resetView()" title="Reset View"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12a7 7 0 1 0 7-7 M12 2 8.5 5 12 8"/></svg></button>
       </div>
       
       <div class="loading-overlay" id="loadingOverlay">
@@ -206,7 +211,7 @@
     <div class="side-panel" id="sidePanel">
       <div class="side-panel-header">
         <span class="side-panel-title" id="panelTitle">Edit Node</span>
-        <button class="side-panel-close" onclick="closeSidePanel()">×</button>
+        <button class="side-panel-close" onclick="closeSidePanel()" title="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M6 6l12 12 M18 6 6 18"/></svg></button>
       </div>
       <div class="side-panel-content" id="panelContent">
         <!-- Dynamic content -->
@@ -225,14 +230,14 @@
   <!-- Spacing Settings Panel (floating right) -->
   <div class="spacing-panel" id="spacingPanel">
     <div class="spacing-panel-header">
-      <span>↔️ Level Spacing</span>
-      <button class="spacing-panel-close" onclick="closeSpacingPanel()">×</button>
+      <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path d="M9 6h.01 M15 6h.01 M9 12h.01 M15 12h.01 M9 18h.01 M15 18h.01"/></svg>Level Spacing</span>
+      <button class="spacing-panel-close" onclick="closeSpacingPanel()" title="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M6 6l12 12 M18 6 6 18"/></svg></button>
     </div>
     <div class="spacing-panel-body" id="spacingPanelBody">
       <!-- Dynamic sliders -->
     </div>
     <div class="spacing-panel-footer">
-      <button class="spacing-btn" onclick="window._resetSpacingDefaults()">↺ Reset</button>
+      <button class="spacing-btn" onclick="window._resetSpacingDefaults()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M5 12a7 7 0 1 0 7-7 M12 2 8.5 5 12 8"/></svg>Reset</button>
       <button class="spacing-btn" onclick="window._equalizeSpacing()">= Equal</button>
     </div>
   </div>
@@ -243,18 +248,18 @@
 <div class="bom-overlay" id="bomOverlay">
   <div class="bom-panel">
     <div class="bom-header">
-      <h3>📋 BOM - <span id="bomAssemblyName"></span></h3>
+      <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path d="M8 6h12 M8 12h12 M8 18h12 M4 6h.01 M4 12h.01 M4 18h.01"/></svg>BOM - <span id="bomAssemblyName"></span></h3>
       <div class="bom-actions">
         <button class="bom-btn" onclick="window.bomExpandAll()">Expand All</button>
         <button class="bom-btn" onclick="window.bomCollapseAll()">Collapse All</button>
         <label class="bom-btn" style="cursor:pointer;display:flex;align-items:center;gap:4px;" title="Select All">
           <input type="checkbox" id="bomSelectAll" onchange="window.bomSelectAll(this.checked)"> All
         </label>
-        <button class="bom-btn bom-delete-btn" id="bomDeleteBtn" style="display:none;background:rgba(231,76,60,0.3);border-color:#e74c3c;" onclick="window.bomDeleteSelected()">🗑️ Delete <span id="bomDeleteCount"></span></button>
-        <button class="bom-btn" style="background:rgba(39,174,96,0.3);border-color:#27ae60;" onclick="document.getElementById('bomCsvInput').click()">📤 Import CSV</button>
-        <button class="bom-btn bom-export" onclick="window.bomExportCSV()">📥 Export CSV</button>
-        <button class="bom-btn" style="background:rgba(52,152,219,0.3);border-color:#3498db;" onclick="window.bomPrint()">🖨️ Print</button>
-        <button class="bom-close" onclick="window.closeBOMList()">✕</button>
+        <button class="bom-btn bom-delete-btn" id="bomDeleteBtn" style="display:none;" onclick="window.bomDeleteSelected()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M4 7h16 M9 7V5h6v2 M6 7l1 13h10l1-13"/></svg>Delete <span id="bomDeleteCount"></span></button>
+        <button class="bom-btn" onclick="document.getElementById('bomCsvInput').click()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M12 4v11 M7.5 11l4.5 4 4.5-4 M5 19h14"/></svg>Import CSV</button>
+        <button class="bom-btn bom-export" onclick="window.bomExportCSV()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M12 16V5 M7.5 9 12 4.5 16.5 9 M5 19h14"/></svg>Export CSV</button>
+        <button class="bom-btn" onclick="window.bomPrint()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M7 9V4h10v5 M7 17H5v-6h14v6h-2 M8 14h8v6H8z"/></svg>Print</button>
+        <button class="bom-close" onclick="window.closeBOMList()" title="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M6 6l12 12 M18 6 6 18"/></svg></button>
       </div>
     </div>
     <input type="file" id="bomCsvInput" accept=".csv" style="display:none;" onchange="window.bomHandleCSVImport(event)">
@@ -268,15 +273,15 @@
 <div class="pickup-overlay" id="pickupOverlay">
   <div class="pickup-panel">
     <div class="pickup-header">
-      <h3>🧺 Pickup List</h3>
+      <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path d="M5 9h14l-1.2 9.5a1 1 0 0 1-1 .9H7.2a1 1 0 0 1-1-.9L5 9z M8.5 9 12 3.5 15.5 9 M9.5 13v3 M14.5 13v3"/></svg>Pickup List</h3>
       <div class="pickup-actions">
         <div class="pickup-units-wrap">
           <label>Units:</label>
           <input type="number" id="pickupUnits" class="pickup-units-input" value="1" min="1" max="999" onchange="window.pickupSetUnits(this.value)">
         </div>
-        <button class="bom-btn" onclick="window.pickupReset()">↺ Reset</button>
-        <button class="bom-btn" style="background:rgba(52,152,219,0.3);border-color:#3498db;" onclick="window.pickupPrint()">🖨️ Print</button>
-        <button class="bom-close" onclick="window.closePickup()">✕</button>
+        <button class="bom-btn" onclick="window.pickupReset()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M5 12a7 7 0 1 0 7-7 M12 2 8.5 5 12 8"/></svg>Reset</button>
+        <button class="bom-btn" onclick="window.pickupPrint()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M7 9V4h10v5 M7 17H5v-6h14v6h-2 M8 14h8v6H8z"/></svg>Print</button>
+        <button class="bom-close" onclick="window.closePickup()" title="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M6 6l12 12 M18 6 6 18"/></svg></button>
       </div>
     </div>
     <div class="pickup-scope-chips" id="pickupScopeChips">
@@ -319,41 +324,41 @@
 <!-- Multi-Select Floating Bar -->
 <div class="selection-bar" id="selectionBar" style="display:none;">
   <span id="selectionCount">0 selected</span>
-  <button class="sel-bar-btn" onclick="window.openBulkMoveDialog()">📦 Move to…</button>
-  <button class="sel-bar-btn danger" onclick="window.confirmBulkDelete()">🗑️ Delete</button>
-  <button class="sel-bar-btn clear" onclick="window.clearSelection()">✕ Clear</button>
+  <button class="sel-bar-btn" onclick="window.openBulkMoveDialog()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M9 7l-5 5 5 5 M4 12h11a4 4 0 0 0 4-4V5"/></svg>Move to…</button>
+  <button class="sel-bar-btn danger" onclick="window.confirmBulkDelete()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M4 7h16 M9 7V5h6v2 M6 7l1 13h10l1-13"/></svg>Delete</button>
+  <button class="sel-bar-btn clear" onclick="window.clearSelection()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M6 6l12 12 M18 6 6 18"/></svg>Clear</button>
 </div>
 
 <!-- Node Action Toolbar (appears on tap) -->
 <div class="node-action-bar" id="nodeActionBar">
-  <button class="nab-btn nab-add" id="nabAdd" title="Add Child">➕</button>
-  <button class="nab-btn nab-edit" id="nabEdit" title="Edit">✏️</button>
-  <button class="nab-btn nab-link" id="nabLink" title="Edit Links">🔩</button>
-  <button class="nab-btn nab-delete" id="nabDelete" title="Delete">🗑️</button>
+  <button class="nab-btn nab-add" id="nabAdd" title="Add Child"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="nab-btn nab-edit" id="nabEdit" title="Edit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z M13.5 6.5l3 3"/></svg></button>
+  <button class="nab-btn nab-link" id="nabLink" title="Edit Links"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z M6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M6 8v8 M18 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M18 6c0 6-12 3-12 10"/></svg></button>
+  <button class="nab-btn nab-delete" id="nabDelete" title="Delete"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16 M9 7V5h6v2 M6 7l1 13h10l1-13"/></svg></button>
 </div>
 
 <!-- Add Node FAB (bottom-left, visible when admin) -->
 <button class="add-node-fab admin-only" id="addNodeFab" onclick="window.fabAddNode()" title="Add Node">
-  ➕
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M12 5v14M5 12h14"/></svg>
 </button>
 
 <!-- Chatbot FAB Button -->
 <button class="chat-fab" onclick="toggleChatPanel()" title="Assembly Assistant">
-  🤖
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M9 13h.01 M15 13h.01 M7 8h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z M12 4v4 M12 3.5h.01 M3 12v3 M21 12v3"/></svg>
 </button>
 
 <!-- Chatbot Panel -->
 <div class="chat-panel" id="chatPanel">
   <div class="chat-header">
-    <h3>🤖 Assembly Assistant</h3>
-    <button class="chat-close" onclick="closeChatPanel()">×</button>
+    <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><path d="M9 13h.01 M15 13h.01 M7 8h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z M12 4v4 M12 3.5h.01 M3 12v3 M21 12v3"/></svg>Assembly Assistant</h3>
+    <button class="chat-close" onclick="closeChatPanel()" title="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M6 6l12 12 M18 6 6 18"/></svg></button>
   </div>
-  
+
   <div class="chat-quick-actions">
-    <button class="quick-btn" onclick="quickStatus()">📊 Status</button>
-    <button class="quick-btn" onclick="quickBlocked()">🚫 Blocked</button>
-    <button class="quick-btn" onclick="quickParallel()">🚀 Parallel Work</button>
-    <button class="quick-btn" onclick="quickProgress()">📈 Progress</button>
+    <button class="quick-btn" onclick="quickStatus()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z"/></svg>Status</button>
+    <button class="quick-btn" onclick="quickBlocked()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M12 3.5L21.5 20H2.5z M12 10v4 M12 17.4h.01"/></svg>Blocked</button>
+    <button class="quick-btn" onclick="quickParallel()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M6 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z M6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M6 8v8 M18 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M18 6c0 6-12 3-12 10"/></svg>Parallel Work</button>
+    <button class="quick-btn" onclick="quickProgress()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:4px"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 12h.01"/></svg>Progress</button>
   </div>
   
   <div class="chat-messages" id="chatMessages">
@@ -374,7 +379,7 @@
   <div class="chat-input-area">
     <input type="text" id="chatInput" placeholder="Ask about your assembly..." 
            onkeypress="if(event.key==='Enter') sendMessage()">
-    <button class="chat-send" onclick="sendMessage()">➤</button>
+    <button class="chat-send" onclick="sendMessage()" title="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M12 16V5 M7.5 9 12 4.5 16.5 9 M5 19h14"/></svg></button>
   </div>
 </div>
 

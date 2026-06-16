@@ -1,9 +1,8 @@
 /* ============================================
    Axon - Tree Builder Styles
    "Datum" theme — precise, light, engineering-tool look
+   Fonts (IBM Plex Sans + Plex Mono) are loaded via <link> in index.html <head>.
    ============================================ */
-
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
 /* ============================================
    DATUM DESIGN TOKENS
@@ -148,6 +147,10 @@ body.tree-view {
   color: var(--ink);
   transition: background 0.15s, border-color 0.15s, transform 0.15s;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 /* Icon-only buttons - constrain width */
@@ -2248,7 +2251,8 @@ body.tree-view .chat-fab { bottom: 155px; }
 }
 .bom-row-selected { background: var(--accent-soft) !important; }
 .bom-row-selected:hover { background: color-mix(in srgb, var(--accent) 18%, var(--surface)) !important; }
-.bom-delete-btn { font-weight: 700; animation: bomDeletePulse 1s ease infinite; }
+.bom-delete-btn { font-weight: 700; background: var(--st-blocked); border-color: var(--st-blocked); color: #fff; animation: bomDeletePulse 1s ease infinite; }
+.bom-delete-btn:hover { filter: brightness(0.92); }
 @keyframes bomDeletePulse {
   0%, 100% { box-shadow: none; }
   50% { box-shadow: 0 0 8px rgba(231,76,60,0.4); }
