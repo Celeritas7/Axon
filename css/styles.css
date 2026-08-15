@@ -482,6 +482,7 @@ svg { display: block; }
 .node-label {
   pointer-events: none;
   font-weight: 500;
+  fill: var(--node-text);
 }
 
 .node-pn {

@@ -44,7 +44,6 @@ export function initZoom() {
     });
   
   svg.call(zoomBehavior);
-  window._axGetZoom = () => zoomBehavior;
 }
 
 export function zoomIn() {

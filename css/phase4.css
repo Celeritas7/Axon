@@ -1,0 +1,63 @@
+/* Axon Phase 4 — Datum-styled UI for the derived UX features.
+   Copy to Axon/css/phase4.css and link after css/styles.css. */
+
+/* ---- ⌘K command palette (ported from reference/prototype.css) ---- */
+.axe-cmdk-scrim{position:fixed;inset:0;z-index:90;display:none;justify-content:center;align-items:flex-start;padding-top:12vh;background:color-mix(in srgb,var(--ink) 32%,transparent);backdrop-filter:blur(3px)}
+.axe-cmdk-scrim.open{display:flex}
+.axe-cmdk{width:100%;max-width:580px;background:var(--surface);border:1px solid var(--border-2);border-radius:14px;box-shadow:var(--shadow-pop);overflow:hidden;animation:ax-pop .16s cubic-bezier(.2,.7,.3,1)}
+@keyframes ax-pop{from{transform:scale(.97);opacity:0}to{transform:scale(1);opacity:1}}
+.axe-cmdk-input{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid var(--border);color:var(--ink-3)}
+.axe-cmdk-input input{flex:1;border:none;background:transparent;font:inherit;font-size:15px;color:var(--ink);outline:none}
+.axe-cmdk-input kbd,.axe-cmdk-foot kbd,.ax-kbd{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:1px 5px;border:1px solid var(--border-2);border-radius:4px;color:var(--ink-3)}
+.ax-kbd{margin-left:5px}
+.axe-cmdk-list{max-height:52vh;overflow-y:auto;padding:6px}
+.axe-cmdk-empty{padding:26px;text-align:center;color:var(--ink-3);font-size:13px}
+.axe-cmdk-grouphead{font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding:9px 10px 4px}
+.axe-cmdk-row{display:flex;align-items:center;gap:11px;width:100%;padding:9px 10px;border:none;background:transparent;border-radius:8px;cursor:pointer;text-align:left;color:var(--ink);font:inherit}
+.axe-cmdk-row.hi{background:var(--accent-soft)}
+.axe-cmdk-row .ic{width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border-2);color:var(--ink-3)}
+.axe-cmdk-row.hi .ic{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.axe-cmdk-row .lbl{flex:1;min-width:0;font-size:13.5px;font-weight:500;display:flex;align-items:center;gap:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.axe-cmdk-row .lbl .pn{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-3);font-weight:400}
+.axe-cmdk-row .meta{font-size:11px;color:var(--ink-3);flex-shrink:0}
+.axe-cmdk-row .meta .usedin,.axe-cmdk-foot .usedin{color:var(--accent)}
+.axe-cmdk-row .go{opacity:0;color:var(--ink-3);flex-shrink:0}
+.axe-cmdk-row.hi .go{opacity:1}
+.axe-cmdk-foot{display:flex;gap:6px;align-items:center;padding:9px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--ink-3)}
+
+/* ---- interactive legend ---- */
+.legend-item.ax-clickable{cursor:pointer;border-radius:6px;padding:2px 6px;transition:background .14s}
+.legend-item.ax-clickable:hover{background:var(--ctl-hover)}
+.legend-item.ax-active{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent);color:var(--accent-2)}
+
+/* ---- isolate / critical-path overlays on the SVG ---- */
+#treeSvg g.node.ax-dim,#treeSvg .link-group.ax-dim{opacity:.14;transition:opacity .16s}
+#treeSvg g.node.ax-crit rect:first-of-type{stroke:var(--st-blocked) !important;stroke-width:2.5px}
+#treeSvg .link-group.ax-crit-link path{stroke:var(--st-blocked) !important;stroke-width:2.4px}
+#treeSvg g.node.ax-jump rect:first-of-type{stroke:var(--accent) !important;stroke-width:3px;filter:drop-shadow(0 0 8px color-mix(in srgb,var(--accent) 70%,transparent));animation:ax-jump-pulse 1.2s ease-in-out 2}
+@keyframes ax-jump-pulse{50%{filter:drop-shadow(0 0 2px transparent)}}
+
+/* ---- toggled header buttons ---- */
+.header-btn.ax-on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-2)}
+
+/* ---- issues panel ---- */
+#axIssuesPanel{position:fixed;top:110px;right:14px;bottom:14px;width:300px;z-index:60;background:var(--surface);border:1px solid var(--border-2);border-radius:9px;box-shadow:var(--shadow-pop);display:flex;flex-direction:column;overflow:hidden;animation:ax-pop .16s cubic-bezier(.2,.7,.3,1)}
+.ax-issues-head{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--ink)}
+.ax-issues-count{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--st-blocked);color:#fff;border-radius:100px;padding:1px 7px;margin-left:6px}
+.ax-issues-close{border:none;background:transparent;color:var(--ink-3);cursor:pointer;padding:2px}
+.ax-issues-close:hover{color:var(--ink)}
+.ax-issues-body{overflow-y:auto;padding:8px}
+.ax-issues-empty{padding:26px 10px;text-align:center;color:var(--ink-3);font-size:12.5px}
+.ax-issues-sec{margin-bottom:10px}
+.ax-issues-sechead{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:6px 6px 3px;display:flex;justify-content:space-between}
+.ax-issues-sechead span{font-family:'IBM Plex Mono',monospace}
+.ax-issues-row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:7px 8px;border:none;background:transparent;border-radius:6px;cursor:pointer;text-align:left;font:inherit;color:var(--ink)}
+.ax-issues-row:hover{background:var(--ctl-hover)}
+.ax-issues-name{font-size:12.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ax-issues-meta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-3);flex-shrink:0}
+
+/* ---- BOM extended qty ---- */
+.ax-ext{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:var(--accent-2);background:var(--accent-soft);border-radius:100px;padding:1px 8px;margin:0 6px;flex-shrink:0}
+.ax-bom-units{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-2);margin-right:8px}
+.ax-bom-units input{width:52px;height:26px;border:1px solid var(--ctl-border);border-radius:6px;background:var(--ctl);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:12px;text-align:center}
+.ax-bom-units input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}

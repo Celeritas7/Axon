@@ -14,6 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="css/phase4.css">
 
   <!-- Styles -->
   <link rel="stylesheet" href="css/styles.css">
@@ -162,24 +163,24 @@
   <div class="legend">
     <div class="legend-section">
       <span class="legend-title">Levels:</span>
-      <div class="legend-item"><div class="legend-color" style="background:#a5d6a7;"></div>L1</div>
-      <div class="legend-item"><div class="legend-color" style="background:#e1bee7;"></div>L2</div>
-      <div class="legend-item"><div class="legend-color" style="background:#b3e5fc;"></div>L3</div>
-      <div class="legend-item"><div class="legend-color" style="background:#c8e6c9;"></div>L4</div>
-      <div class="legend-item"><div class="legend-color" style="background:#fff9c4;"></div>L5</div>
-      <div class="legend-item"><div class="legend-color" style="background:#ffe0b2;"></div>L6</div>
-      <div class="legend-item"><div class="legend-color" style="background:#ffcdd2;"></div>L7</div>
-      <div class="legend-item"><div class="legend-color" style="background:#e8e8e8;"></div>L8+</div>
+      <div class="legend-item"><div class="legend-color" style="background:var(--lv1-fill);border-color:var(--lv1-bar);"></div>L1</div>
+      <div class="legend-item"><div class="legend-color" style="background:var(--lv2-fill);border-color:var(--lv2-bar);"></div>L2</div>
+      <div class="legend-item"><div class="legend-color" style="background:var(--lv3-fill);border-color:var(--lv3-bar);"></div>L3</div>
+      <div class="legend-item"><div class="legend-color" style="background:var(--lv4-fill);border-color:var(--lv4-bar);"></div>L4</div>
+      <div class="legend-item"><div class="legend-color" style="background:var(--lv5-fill);border-color:var(--lv5-bar);"></div>L5</div>
+      <div class="legend-item"><div class="legend-color" style="background:var(--lv6-fill);border-color:var(--lv6-bar);"></div>L6</div>
+      <div class="legend-item"><div class="legend-color" style="background:var(--lv7-fill);border-color:var(--lv7-bar);"></div>L7</div>
+      <div class="legend-item"><div class="legend-color" style="background:var(--lv8-fill);border-color:var(--lv8-bar);"></div>L8+</div>
     </div>
     
     <div class="legend-divider"></div>
     
     <div class="legend-section">
       <span class="legend-title">Status:</span>
-      <div class="legend-item"><div class="legend-color" style="background:#27ae60;"></div>Done</div>
-      <div class="legend-item"><div class="legend-color" style="background:#f1c40f;"></div>WIP</div>
-      <div class="legend-item"><div class="legend-color" style="background:#e74c3c;"></div>Blocked</div>
-      <div class="legend-item"><div class="legend-color" style="background:#9b59b6; border-style:dashed;"></div>Orphan</div>
+      <div class="legend-item"><div class="legend-color" style="background:var(--st-done);border-color:var(--st-done);"></div>Done</div>
+      <div class="legend-item"><div class="legend-color" style="background:var(--st-wip);border-color:var(--st-wip);"></div>WIP</div>
+      <div class="legend-item"><div class="legend-color" style="background:var(--st-blocked);border-color:var(--st-blocked);"></div>Blocked</div>
+      <div class="legend-item"><div class="legend-color" style="background:var(--st-orphan); border-style:dashed;"></div>Orphan</div>
     </div>
     
     <div class="legend-divider"></div>
@@ -385,6 +386,7 @@
 
 <!-- Main Application Module -->
 <script type="module" src="js/app.js"></script>
+<script type="module" src="js/phase4.js"></script>
 
 </body>
 </html>
