@@ -1,0 +1,75 @@
+/* Axon Phase 5 — Revision diff (Datum-styled).
+   Copy to Axon/css/phase5.css and link after css/styles.css (and phase4.css). */
+
+/* ---- revisions side panel ---- */
+#ax5Panel{position:fixed;top:110px;right:14px;bottom:14px;width:320px;z-index:60;background:var(--surface);border:1px solid var(--border-2);border-radius:9px;box-shadow:var(--shadow-pop);display:flex;flex-direction:column;overflow:hidden;animation:ax5-pop .16s cubic-bezier(.2,.7,.3,1)}
+@keyframes ax5-pop{from{transform:scale(.97);opacity:0}to{transform:scale(1);opacity:1}}
+.ax5-head{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--ink)}
+.ax5-head .ax5-n{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--accent-soft);color:var(--accent-2);border-radius:100px;padding:1px 7px;margin-left:6px}
+.ax5-x{border:none;background:transparent;color:var(--ink-3);cursor:pointer;padding:2px}
+.ax5-x:hover{color:var(--ink)}
+.ax5-new{display:grid;grid-template-columns:86px 1fr;gap:6px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+.ax5-new input{height:28px;border:1px solid var(--ctl-border);border-radius:6px;background:var(--ctl);color:var(--ink);font:inherit;font-size:12px;padding:0 8px}
+.ax5-new input#ax5Label{font-family:'IBM Plex Mono',monospace}
+.ax5-new input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.ax5-new button{grid-column:1/-1;height:28px;border:none;border-radius:6px;background:var(--accent);color:var(--on-accent);font:inherit;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+.ax5-new button:hover{background:var(--accent-2)}
+.ax5-new button:active{transform:translateY(1px)}
+.ax5-body{flex:1;overflow-y:auto;padding:8px}
+.ax5-empty{padding:26px 12px;text-align:center;color:var(--ink-3);font-size:12.5px}
+.ax5-row{display:flex;align-items:center;gap:9px;width:100%;padding:8px;border:1px solid transparent;background:transparent;border-radius:7px;cursor:pointer;text-align:left;font:inherit;color:var(--ink)}
+.ax5-row:hover{background:var(--ctl-hover)}
+.ax5-row.ax5-sel{background:var(--accent-soft);border-color:var(--accent)}
+.ax5-row .ax5-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:var(--accent-2);background:var(--accent-soft);border-radius:6px;padding:2px 7px;flex-shrink:0}
+.ax5-row.ax5-local .ax5-tag{color:var(--ink-3);background:var(--surface-3)}
+.ax5-row .ax5-meta{flex:1;min-width:0}
+.ax5-row .ax5-when{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-3)}
+.ax5-row .ax5-note{font-size:11.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ax5-row .ax5-del{border:none;background:transparent;color:var(--ink-3);cursor:pointer;padding:2px;opacity:0;flex-shrink:0}
+.ax5-row:hover .ax5-del{opacity:1}
+.ax5-row .ax5-del:hover{color:var(--st-blocked)}
+.ax5-foot{padding:9px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--ink-3)}
+.ax5-foot button{width:100%;height:28px;border:1px solid var(--ctl-border);border-radius:6px;background:var(--ctl);color:var(--ink);font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.ax5-foot button:hover{background:var(--ctl-hover)}
+.ax5-foot .ax5-hint{display:block;text-align:center;padding:2px 0}
+.ax5-localwarn{margin:8px;padding:8px 10px;border:1px solid var(--border-2);border-radius:7px;background:var(--surface-2);font-size:11px;color:var(--ink-2)}
+
+/* ---- diff modal ---- */
+.ax5-scrim{position:fixed;inset:0;z-index:95;display:flex;justify-content:center;align-items:flex-start;padding-top:8vh;background:color-mix(in srgb,var(--ink) 32%,transparent);backdrop-filter:blur(3px)}
+.ax5-modal{width:100%;max-width:660px;max-height:80vh;background:var(--surface);border:1px solid var(--border-2);border-radius:14px;box-shadow:var(--shadow-pop);display:flex;flex-direction:column;overflow:hidden;animation:ax5-pop .16s cubic-bezier(.2,.7,.3,1)}
+.ax5-mhead{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border)}
+.ax5-mhead .ax5-vs{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+.ax5-mhead .ax5-vs .arrow{color:var(--ink-3)}
+.ax5-mhead .ax5-vs .live{color:var(--accent-2)}
+.ax5-mhead .sp{flex:1}
+.ax5-chips{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.ax5-chip{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;border-radius:100px;padding:2px 9px}
+.ax5-chip.add{color:var(--st-done);background:color-mix(in srgb,var(--st-done) 12%,transparent)}
+.ax5-chip.rem{color:var(--st-blocked);background:color-mix(in srgb,var(--st-blocked) 10%,transparent)}
+.ax5-chip.chg{color:var(--st-wip);background:color-mix(in srgb,var(--st-wip) 14%,transparent)}
+.ax5-chip.same{color:var(--ink-3);background:var(--surface-2)}
+.ax5-mbody{flex:1;overflow-y:auto;padding:8px 10px}
+.ax5-sec{margin-bottom:10px}
+.ax5-sechead{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:7px 6px 3px;display:flex;justify-content:space-between}
+.ax5-sechead span{font-family:'IBM Plex Mono',monospace}
+.ax5-drow{display:flex;align-items:center;gap:9px;width:100%;padding:7px 8px;border:none;background:transparent;border-radius:6px;text-align:left;font:inherit;color:var(--ink)}
+button.ax5-drow{cursor:pointer}
+button.ax5-drow:hover{background:var(--ctl-hover)}
+.ax5-drow .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ax5-drow.add .dot{background:var(--st-done)}
+.ax5-drow.rem .dot{background:var(--st-blocked)}
+.ax5-drow.chg .dot{background:var(--st-wip)}
+.ax5-drow .nm{font-size:12.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ax5-drow.rem .nm{text-decoration:line-through;color:var(--ink-2)}
+.ax5-drow .pn{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-3);flex-shrink:0}
+.ax5-drow .chgtxt{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-2);flex-shrink:0;display:flex;align-items:center;gap:5px}
+.ax5-drow .chgtxt .to{color:var(--ink)}
+.ax5-drow .chgtxt .arrow{color:var(--ink-3)}
+.ax5-mfoot{display:flex;gap:6px;align-items:center;padding:9px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--ink-3)}
+.ax5-mfoot .swatch{width:9px;height:9px;border-radius:3px;display:inline-block;margin:0 3px -1px 8px}
+
+/* ---- live-tree diff highlighting (only when comparing vs live) ---- */
+#treeSvg g.node.ax5-added rect:first-of-type{stroke:var(--st-done) !important;stroke-width:2.5px}
+#treeSvg g.node.ax5-changed rect:first-of-type{stroke:var(--st-wip) !important;stroke-width:2.5px;stroke-dasharray:5 3}
+#treeSvg g.node.ax5-jump rect:first-of-type{stroke:var(--accent) !important;stroke-width:3px;filter:drop-shadow(0 0 8px color-mix(in srgb,var(--accent) 70%,transparent));animation:ax5-jump-pulse 1.2s ease-in-out 2}
+@keyframes ax5-jump-pulse{50%{filter:drop-shadow(0 0 2px transparent)}}
