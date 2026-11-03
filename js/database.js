@@ -6,6 +6,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 
 // Create Supabase client
 export const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if (window.AkatsukiBroadcast) window.AkatsukiBroadcast(db, 'axon').start();
 
 // Test connection
 export async function testConnection() {
