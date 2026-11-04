@@ -46,6 +46,7 @@
   --lv2-bar:oklch(0.58 0.15 300); --lv2-fill:oklch(0.95 0.045 300);
   --lv3-bar:oklch(0.58 0.14 245); --lv3-fill:oklch(0.95 0.045 245);
   --lv4-bar:oklch(0.60 0.11 190); --lv4-fill:oklch(0.95 0.045 190);
+  --tl-weekend:rgba(16,23,32,.035); --tl-grid:rgba(16,23,32,.06);
 }
 [data-theme="dark"] {
   --bg:#0c1119; --canvas:#0e141d; --surface:#141c28; --surface-2:#1a2433; --surface-3:#22303f;
@@ -61,6 +62,7 @@
   --lv2-fill:oklch(0.30 0.06 300); --lv2-bar:oklch(0.70 0.16 300);
   --lv3-fill:oklch(0.30 0.06 245); --lv3-bar:oklch(0.72 0.15 245);
   --lv4-fill:oklch(0.30 0.05 190); --lv4-bar:oklch(0.72 0.12 190);
+  --tl-weekend:rgba(255,255,255,.025); --tl-grid:rgba(255,255,255,.05);
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -322,6 +324,66 @@ textarea.mono { font-family:var(--font-mono); font-size:12.5px; line-height:1.6;
 .radios label:has(input:checked) { border-color:var(--accent); background:var(--accent-soft); }
 .radios input { margin-top:3px; }
 
+/* ---------- timeline (Gantt) ---------- */
+.tl { display:grid; grid-template-columns:260px minmax(0, 1fr); border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden; }
+.tl-left { border-right:1px solid var(--border); background:var(--surface); min-width:0; }
+.tl-head-l { height:50px; display:flex; align-items:flex-end; padding:0 12px 8px; font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); border-bottom:1px solid var(--border); }
+.tl-row { height:var(--row); display:flex; align-items:center; gap:8px; padding:0 12px; border-bottom:1px solid var(--border); font-size:12.5px; min-width:0; }
+.tl-row.t { cursor:pointer; } .tl-row.t:hover { background:var(--surface-2); } .tl-row.sel { background:var(--accent-soft); }
+.tl-row.g { background:var(--surface-2); font-weight:600; color:var(--ink); }
+.tl-row.g[data-view] { cursor:pointer; }
+.tl-gdot { width:10px; height:10px; border-radius:3px; background:var(--c); flex:none; }
+.tl-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tl-name.done { color:var(--ink-3); text-decoration:line-through; }
+.tl-rng { font-family:var(--font-mono); font-size:10.5px; font-weight:400; color:var(--ink-3); white-space:nowrap; }
+.tl-wait { color:var(--pr-3); display:inline-flex; }
+.tl-right { overflow-x:auto; overflow-y:hidden; min-width:0; }
+.tl-canvas { position:relative; }
+.tl-head { height:50px; position:relative; border-bottom:1px solid var(--border); background:var(--surface); }
+.tl-months { position:relative; height:22px; border-bottom:1px solid var(--border); }
+.tl-m { position:absolute; top:0; height:22px; line-height:22px; padding-left:8px; font-size:11px; font-weight:600; color:var(--ink-2); border-left:1px solid var(--border); white-space:nowrap; overflow:hidden; }
+.tl-ticks { position:relative; height:27px; }
+.tl-d, .tl-w { position:absolute; top:0; height:27px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:10.5px; color:var(--ink-2); line-height:1.1; }
+.tl-d i { font-style:normal; font-size:9px; color:var(--ink-3); }
+.tl-d.we { color:var(--ink-3); background:var(--tl-weekend); }
+.tl-d.today { color:var(--accent); font-weight:700; } .tl-d.today i { color:var(--accent); }
+.tl-w { align-items:flex-start; padding-left:5px; border-left:1px solid var(--border); }
+.tl-body { position:relative; background-color:var(--tree-bg);
+  background-image:repeating-linear-gradient(to bottom, transparent 0 calc(var(--row) - 1px), var(--border) calc(var(--row) - 1px) var(--row)); }
+.tl-body.tl-day { background-image:repeating-linear-gradient(to bottom, transparent 0 calc(var(--row) - 1px), var(--border) calc(var(--row) - 1px) var(--row)),
+  repeating-linear-gradient(90deg, transparent 0 calc(var(--ppd) * 5), var(--tl-weekend) calc(var(--ppd) * 5) calc(var(--ppd) * 7)),
+  repeating-linear-gradient(90deg, var(--tl-grid) 0 1px, transparent 1px var(--ppd)); }
+.tl-body.tl-week { background-image:repeating-linear-gradient(to bottom, transparent 0 calc(var(--row) - 1px), var(--border) calc(var(--row) - 1px) var(--row)),
+  repeating-linear-gradient(90deg, transparent 0 calc(var(--ppd) * 5), var(--tl-weekend) calc(var(--ppd) * 5) calc(var(--ppd) * 7)),
+  repeating-linear-gradient(90deg, var(--tl-grid) 0 1px, transparent 1px calc(var(--ppd) * 7)); }
+.tl-gbar { position:absolute; height:9px; border-radius:3px; background:color-mix(in srgb, var(--c) 55%, transparent); border:1px solid var(--c); }
+.tl-bar { position:absolute; height:22px; border-radius:6px; border:1px solid var(--c); background:color-mix(in srgb, var(--c) 16%, var(--node-fill)); cursor:grab; overflow:hidden; display:flex; align-items:center; box-shadow:0 1px 2px rgba(16,23,32,.06); touch-action:none; user-select:none; z-index:2; }
+.tl-bar.st-todo { --c:var(--lv3-bar); }
+.tl-bar.dragging { cursor:grabbing; opacity:.85; box-shadow:var(--shadow-pop); z-index:5; }
+.tl-bar.sel { outline:2px solid var(--accent); outline-offset:1px; }
+.tl-bar.waiting { border-style:dashed; border-color:var(--pr-3); }
+.tl-bar.over { box-shadow:inset -3px 0 0 var(--danger); }
+.tl-bar.conflict { border-color:var(--danger); border-style:solid; }
+.tl-bar.st-done { opacity:.7; }
+.tl-prog { position:absolute; left:0; top:0; bottom:0; background:color-mix(in srgb, var(--c) 45%, transparent); pointer-events:none; }
+.tl-lab { position:relative; padding:0 9px; font-size:11.5px; font-weight:600; color:var(--node-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }
+.tl-out { position:absolute; height:22px; line-height:22px; font-size:11.5px; color:var(--ink-2); white-space:nowrap; pointer-events:none; z-index:1; }
+.tl-out.conflict, .tl-bar.conflict .tl-lab { color:var(--danger); }
+.tl-h { position:absolute; top:0; bottom:0; width:8px; cursor:ew-resize; z-index:1; }
+.tl-h.l { left:0; } .tl-h.r { right:0; }
+.tl-bar:hover .tl-h::after { content:''; position:absolute; top:6px; bottom:6px; left:3px; width:2px; border-radius:1px; background:var(--c); }
+.tl-set { position:absolute; height:22px; padding:0 9px; border:1px dashed var(--border-2); border-radius:6px; background:var(--surface); color:var(--ink-3); font-size:11.5px; cursor:pointer; z-index:2; }
+.tl-set:hover { border-color:var(--accent); color:var(--accent); }
+.tl-deps { position:absolute; left:0; top:0; pointer-events:none; z-index:3; overflow:visible; }
+.tl-dep { fill:none; stroke:var(--pr-3); stroke-width:1.5; stroke-linejoin:round; }
+.tl-dep.done { stroke:var(--st-done); opacity:.6; } .tl-dep.bad { stroke:var(--danger); stroke-width:1.8; }
+.tl-head-a { fill:var(--pr-3); } .tl-head-a.bad { fill:var(--danger); }
+.tl-today { position:absolute; top:0; bottom:0; width:0; border-left:2px solid var(--accent); z-index:4; pointer-events:none; }
+.tl-today span { position:absolute; top:-46px; left:-1px; transform:translateX(-50%); font-size:9.5px; font-weight:700; color:#fff; background:var(--accent); border-radius:4px; padding:1px 5px; white-space:nowrap; }
+.tl-hint { margin-top:8px; font-size:11.5px; color:var(--ink-3); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.tl-key { display:inline-block; width:18px; height:0; border-top:2px solid var(--danger); }
+@media (max-width: 760px) { .tl { grid-template-columns:130px minmax(0, 1fr); } .tl-rng { display:none; } }
+
 /* ---------- tree view (Axon node style) ---------- */
 .tree-wrap { position:relative; display:flex; flex-direction:column; border:1px solid var(--border); border-radius:var(--radius); background:var(--tree-bg); overflow:hidden; min-height:360px; }
 #treeSvg { display:block; width:100%; flex:1; min-height:0; cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none; }
@@ -445,6 +507,7 @@ const ICON = {
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2.5v2 M12 19.5v2 M2.5 12h2 M19.5 12h2 M5 5l1.4 1.4 M17.6 17.6 19 19 M19 5l-1.4 1.4 M6.4 17.6 5 19',
   moon: 'M20 13.5A8 8 0 0 1 10.5 4 8 8 0 1 0 20 13.5z',
   menu: 'M4 7h16 M4 12h16 M4 17h16',
+  gantt: 'M4 4v16h16 M7 7h6 M10 11h7 M8 15h5',
   link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
   checklist: 'M10 6h10 M10 12h10 M10 18h10 M3.5 6l1.5 1.5 2.5-3 M3.5 12l1.5 1.5 2.5-3 M3.5 18l1.5 1.5 2.5-3',
   back: 'M19 12H5 M11 6l-6 6 6 6',
@@ -508,6 +571,7 @@ function normalizeTask(t) {
     notes: String(t.notes || ''),
     status: STATUSES.some(s => s.id === t.status) ? t.status : 'todo',
     priority: Math.min(4, Math.max(0, Number(t.priority) || 0)),
+    start: /^\d{4}-\d{2}-\d{2}$/.test(t.start || '') ? t.start : null,   // timeline start (added later)
     due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null,
     tags: Array.isArray(t.tags) ? t.tags.map(String).filter(Boolean) : [],
     // ids of tasks that must be done before this one can start (added later; older saves have none)
@@ -618,7 +682,7 @@ const ui = {
   // Arrow is project-first: on launch open the last project, else the Projects overview.
   // Today / Upcoming / Inbox / All tasks are helper views and aren't restored on launch.
   view: String(db.settings.view || '').startsWith('project:') ? db.settings.view : 'projects',  // projects | project:<id> | today | upcoming | inbox | all
-  layout: ['list', 'board', 'tree'].includes(db.settings.layout) ? db.settings.layout : 'list',  // list | board | tree
+  layout: ['list', 'board', 'tree', 'timeline'].includes(db.settings.layout) ? db.settings.layout : 'list',  // list | board | tree | timeline
   search: '',
   showDone: false,
   priority: 'any',
@@ -1009,6 +1073,7 @@ function renderTopbar() {
         <button data-layout="list" class="${ui.layout === 'list' ? 'on' : ''}" title="List view">${ic('list')}List</button>
         <button data-layout="board" class="${ui.layout === 'board' ? 'on' : ''}" title="Board view">${ic('board')}Board</button>
         <button data-layout="tree" class="${ui.layout === 'tree' ? 'on' : ''}" title="Tree view">${ic('tree')}Tree</button>
+        <button data-layout="timeline" class="${ui.layout === 'timeline' ? 'on' : ''}" title="Timeline (Gantt) view">${ic('gantt')}Timeline</button>
       </div>
       ${ui.layout === 'list' ? `
         <select class="input" id="groupSel" title="Group by">
@@ -1021,6 +1086,8 @@ function renderTopbar() {
         <option value="any">Any priority</option>
         ${PRIORITIES.map((l, i) => `<option value="${i}" ${String(ui.priority) === String(i) ? 'selected' : ''}>${l}</option>`).join('')}
       </select>
+      ${ui.layout === 'timeline' ? `<div class="seg">${[['day', 'Days'], ['week', 'Weeks'], ['month', 'Months']].map(([v, l]) => `<button data-tl-scale="${v}" class="${ui.tl.scale === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+      <button class="btn" data-act="tl-today" title="Scroll to today">Today</button>` : ''}
       ${ui.layout === 'tree' ? `<div class="cluster">
         <button class="ib" data-act="tree-expand" title="Expand all">${ic('expand')}</button>
         <button class="ib" data-act="tree-collapse" title="Collapse all tasks">${ic('collapse')}</button>
@@ -1116,6 +1183,7 @@ function metaHtml(t, { showProject = true } = {}) {
   const ph = phaseOf(t);
   if (ph && !(ui.layout === 'list' && (ui.group || defaultGroup()) === 'phase')) parts.push(`<span class="phase-chip" title="Phase">${ic('layers', 'style="width:11px;height:11px"')}${esc(ph.name)}</span>`);
   if (showProject && p && !currentProject() && !(ui.layout === 'list' && (ui.group || defaultGroup()) === 'project')) parts.push(`<span class="chip"><span class="dot" style="background:${esc(p.color)};width:8px;height:8px"></span><span>${esc(p.name)}</span></span>`);
+  if (t.start && t.start > todayStr() && t.status === 'todo') parts.push(`<span class="due">starts ${esc(fmtDue(t.start))}</span>`);
   if (t.due) {
     const diff = daysBetween(todayStr(), t.due);
     const cls = t.status !== 'done' && diff < 0 ? 'over' : diff === 0 ? 'today' : '';
@@ -1191,6 +1259,10 @@ function renderContent() {
     el.innerHTML = projectsOverviewHtml();
   } else if (ui.view === 'templates') {
     el.innerHTML = templatesHtml();
+  } else if (ui.layout === 'timeline') {
+    const tasks = visibleTasks(false);
+    el.innerHTML = quickHtml() + (tasks.length ? timelineHtml(tasks) : emptyHtml());
+    wireTimeline();
   } else if (ui.layout === 'tree') {
     const tasks = visibleTasks(false);
     el.innerHTML = quickHtml() + (tasks.length ? treeHtml(tasks) : emptyHtml());
@@ -1521,6 +1593,186 @@ function wireTree() {
 window.addEventListener('resize', () => { if (ui.layout === 'tree') sizeTree(); });
 
 // ============================================================
+// RENDER: TIMELINE (Gantt): bars from start to due, grouped by phase / project
+// ============================================================
+const TL_SCALE = { day: 34, week: 14, month: 4.5 };   // pixels per day
+const TL_ROW = 34;
+ui.tl = { scale: 'day', scrolledFor: null, left: 0, dragEnd: 0 };
+
+function tlSpan(t) {
+  const a = t.start || t.due, b = t.due || t.start;
+  return a ? (a <= b ? [a, b] : [b, a]) : null;
+}
+const fmtShort = s => parseYmd(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+function timelineRows(tasks) {
+  const p = currentProject(), rows = [];
+  const byStart = (a, b) => {
+    const A = tlSpan(a), B = tlSpan(b);
+    if (!A || !B) return (!A) - (!B);
+    return A[0] < B[0] ? -1 : A[0] > B[0] ? 1 : SORTS.due(a, b);
+  };
+  const group = (label, color, list, extra) => {
+    if (!list.length) return;
+    const spans = list.map(tlSpan).filter(Boolean);
+    rows.push({ type: 'group', label, color, ...extra, span: spans.length ? [spans.map(x => x[0]).sort()[0], spans.map(x => x[1]).sort().pop()] : null });
+    list.slice().sort(byStart).forEach(t => rows.push({ type: 'task', task: t }));
+  };
+  if (p && p.phases.length) {
+    p.phases.forEach((ph, i) => group(`${i + 1}. ${ph.name}`, 'var(--lv2-bar)', tasks.filter(t => t.phaseId === ph.id), {}));
+    group('No phase', 'var(--ink-3)', tasks.filter(t => !t.phaseId), {});
+  } else if (p) {
+    tasks.slice().sort(byStart).forEach(t => rows.push({ type: 'task', task: t }));
+  } else {
+    db.projects.map(x => x.id).concat(['']).forEach(k => group(k ? projectById(k).name : 'Inbox (no project)', k ? projectById(k).color : 'var(--ink-3)', tasks.filter(t => (t.projectId || '') === k), { pid: k }));
+  }
+  return rows;
+}
+
+function timelineHtml(tasks) {
+  const rows = timelineRows(tasks);
+  const scale = ui.tl.scale, ppd = TL_SCALE[scale], today = todayStr();
+  const dates = [today];
+  tasks.forEach(t => { const sp = tlSpan(t); if (sp) dates.push(sp[0], sp[1]); });
+  dates.sort();
+  let from = addDays(dates[0], scale === 'day' ? -3 : -10);
+  from = addDays(from, -((parseYmd(from).getDay() + 6) % 7));                 // start on a Monday
+  let to = addDays(dates[dates.length - 1], scale === 'day' ? 10 : scale === 'week' ? 28 : 60);
+  const minDays = { day: 42, week: 112, month: 240 }[scale];
+  if (daysBetween(from, to) < minDays) to = addDays(from, minDays);
+  const days = daysBetween(from, to) + 1, W = days * ppd, H = rows.length * TL_ROW;
+  const X = d => daysBetween(from, d) * ppd;
+  ui.tl.from = from;
+
+  // header: months, then days / weeks
+  let months = '', ticks = '';
+  for (let i = 0; i < days; i++) {
+    const ds = addDays(from, i), d = parseYmd(ds);
+    if (i === 0 || d.getDate() === 1) {
+      let len = 0;
+      while (i + len < days && (len === 0 || parseYmd(addDays(from, i + len)).getDate() !== 1)) len++;
+      const wide = len * ppd > 110;
+      months += `<span class="tl-m" style="left:${i * ppd}px;width:${len * ppd}px">${d.toLocaleDateString(undefined, wide ? { month: 'long', year: 'numeric' } : { month: 'short' })}</span>`;
+    }
+    const dow = d.getDay(), cls = `${dow === 0 || dow === 6 ? 'we' : ''} ${ds === today ? 'today' : ''}`;
+    if (scale === 'day') ticks += `<span class="tl-d ${cls}" style="left:${i * ppd}px;width:${ppd}px"><i>${'SMTWTFS'[dow]}</i>${d.getDate()}</span>`;
+    else if (scale === 'week' && dow === 1) ticks += `<span class="tl-w" style="left:${i * ppd}px;width:${7 * ppd}px">${d.getDate()}</span>`;
+  }
+
+  // rows: left labels + bars
+  const index = new Map();
+  rows.forEach((r, i) => { if (r.type === 'task') index.set(r.task.id, i); });
+  let labels = '', bars = '';
+  rows.forEach((r, i) => {
+    const top = i * TL_ROW;
+    if (r.type === 'group') {
+      labels += `<div class="tl-row g" style="--c:${r.color}" ${r.pid !== undefined && r.pid ? `data-view="project:${esc(r.pid)}" title="Open project"` : ''}><span class="tl-gdot"></span><span class="tl-name">${esc(r.label)}</span>${r.span ? `<span class="tl-rng">${esc(fmtShort(r.span[0]))} – ${esc(fmtShort(r.span[1]))}</span>` : ''}</div>`;
+      if (r.span) bars += `<div class="tl-gbar" style="--c:${r.color};left:${X(r.span[0])}px;top:${top + 12}px;width:${(daysBetween(r.span[0], r.span[1]) + 1) * ppd - 2}px"></div>`;
+      return;
+    }
+    const t = r.task, sp = tlSpan(t), wait = t.status === 'done' ? [] : openDeps(t);
+    labels += `<div class="tl-row t ${ui.openTask === t.id ? 'sel' : ''}" data-task="${esc(t.id)}"><span class="pill st-${t.status}"></span><span class="tl-name ${t.status === 'done' ? 'done' : ''}">${esc(t.title)}</span>${wait.length ? `<span class="tl-wait" title="Waiting on ${esc(wait.map(d => d.title).join(', '))}">${ic('link', 'style="width:12px;height:12px"')}</span>` : ''}</div>`;
+    if (!sp) {
+      bars += `<button class="tl-set" data-act="tl-set" data-task="${esc(t.id)}" style="left:${X(today)}px;top:${top + 6}px" title="Give this task dates starting today">+ Set dates</button>`;
+      return;
+    }
+    const left = X(sp[0]), width = (daysBetween(sp[0], sp[1]) + 1) * ppd - 2;
+    const prog = t.status === 'done' ? 100 : t.subtasks.length ? Math.round(t.subtasks.filter(x => x.done).length / t.subtasks.length * 100) : 0;
+    const conflicts = depsOf(t).filter(d => { const ds = tlSpan(d); return ds && d.status !== 'done' && sp[0] < ds[1]; });
+    const over = t.status !== 'done' && sp[1] < today;
+    const tip = `${t.title}\n${fmtShort(sp[0])} → ${fmtShort(sp[1])} (${daysBetween(sp[0], sp[1]) + 1} day${sp[0] === sp[1] ? '' : 's'})${conflicts.length ? `\n⚠ starts before ${conflicts.map(d => d.title).join(', ')} is due` : ''}${over ? '\nOverdue' : ''}`;
+    const inside = width > 90;
+    bars += `<div class="tl-bar st-${t.status} ${wait.length ? 'waiting' : ''} ${conflicts.length ? 'conflict' : ''} ${over ? 'over' : ''} ${ui.openTask === t.id ? 'sel' : ''}" data-tl data-task="${esc(t.id)}" style="left:${left}px;top:${top + 6}px;width:${width}px" title="${esc(tip)}">
+        <span class="tl-prog" style="width:${prog}%"></span>
+        ${inside ? `<span class="tl-lab">${conflicts.length ? '⚠ ' : ''}${esc(t.title)}</span>` : ''}
+        <span class="tl-h l" data-tl-edge="l"></span><span class="tl-h r" data-tl-edge="r"></span>
+      </div>${inside ? '' : `<span class="tl-out ${conflicts.length ? 'conflict' : ''}" style="left:${left + width + 6}px;top:${top + 6}px">${conflicts.length ? '⚠ ' : ''}${esc(t.title)}</span>`}`;
+  });
+
+  // dependency arrows: prerequisite's end → dependent's start
+  let arrows = '';
+  rows.forEach(r => {
+    if (r.type !== 'task') return;
+    const t = r.task, sp = tlSpan(t);
+    if (!sp) return;
+    t.dependsOn.forEach(id => {
+      const d = taskById(id), di = index.get(id), dsp = d && tlSpan(d);
+      if (di === undefined || !dsp) return;
+      const xe = X(dsp[1]) + ppd - 2, ye = di * TL_ROW + 17, xs = X(sp[0]), ys = index.get(t.id) * TL_ROW + 17;
+      const bad = d.status !== 'done' && sp[0] < dsp[1];
+      // drop down just after the prerequisite ends, then run along the dependent's (empty) row into its start
+      const path = xs - 8 >= xe + 6
+        ? `M${xe} ${ye}H${xe + 6}V${ys}H${xs - 1}`
+        : `M${xe} ${ye}H${xe + 8}V${index.get(t.id) * TL_ROW + (ys > ye ? 1 : TL_ROW - 1)}H${xs - 10}V${ys}H${xs - 1}`;
+      arrows += `<path d="${path}" class="tl-dep ${bad ? 'bad' : d.status === 'done' ? 'done' : ''}" marker-end="url(#${bad ? 'tlArrowBad' : 'tlArrow'})"/>`;
+    });
+  });
+
+  return `<div class="tl" id="tl" style="--ppd:${ppd}px;--row:${TL_ROW}px">
+    <div class="tl-left"><div class="tl-head-l">Task</div>${labels}</div>
+    <div class="tl-right" id="tlScroll"><div class="tl-canvas" id="tlCanvas" style="width:${W}px">
+      <div class="tl-head"><div class="tl-months">${months}</div><div class="tl-ticks">${ticks}</div></div>
+      <div class="tl-body tl-${scale}" style="height:${H}px">
+        ${bars}
+        <svg class="tl-deps" width="${W}" height="${H}"><defs>
+          <marker id="tlArrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 1L9 5L0 9z" class="tl-head-a"/></marker>
+          <marker id="tlArrowBad" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 1L9 5L0 9z" class="tl-head-a bad"/></marker></defs>${arrows}</svg>
+        <div class="tl-today" style="left:${X(today) + ppd / 2}px"><span>Today</span></div>
+      </div>
+    </div></div>
+  </div>
+  <div class="tl-hint">Drag a bar to move it · drag its ends to change the start or due date · click to open · <span class="tl-key bad"></span> starts before its prerequisite is due</div>`;
+}
+
+function scrollTimelineToToday() {
+  const sc = $('tlScroll');
+  if (!sc || !ui.tl.from) return;
+  sc.scrollLeft = Math.max(0, daysBetween(ui.tl.from, todayStr()) * TL_SCALE[ui.tl.scale] - 140);
+}
+function wireTimeline() {
+  const sc = $('tlScroll'), canvas = $('tlCanvas');
+  if (!sc) return;
+  const key = ui.view + '|' + ui.tl.scale;
+  if (ui.tl.scrolledFor !== key) { ui.tl.scrolledFor = key; scrollTimelineToToday(); } else sc.scrollLeft = ui.tl.left;
+  sc.addEventListener('scroll', () => { ui.tl.left = sc.scrollLeft; });
+  const ppd = TL_SCALE[ui.tl.scale];
+  let drag = null;
+  canvas.addEventListener('pointerdown', e => {
+    const bar = e.target.closest('[data-tl]');
+    if (!bar || e.button !== 0) return;
+    const t = taskById(bar.dataset.task);
+    drag = { bar, t, sp: tlSpan(t), edge: e.target.dataset.tlEdge || 'move', sx: e.clientX, left: parseFloat(bar.style.left), width: parseFloat(bar.style.width), moved: false, dd: 0 };
+    bar.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.sx;
+    if (!drag.moved && Math.abs(dx) > 4) { drag.moved = true; drag.bar.classList.add('dragging'); }
+    if (!drag.moved) return;
+    const n = Math.round(dx / ppd), span = daysBetween(drag.sp[0], drag.sp[1]);
+    if (drag.edge === 'move') { drag.dd = n; drag.bar.style.left = drag.left + n * ppd + 'px'; }
+    else if (drag.edge === 'r') { drag.dd = Math.max(-span, n); drag.bar.style.width = drag.width + drag.dd * ppd + 'px'; }
+    else { drag.dd = Math.min(span, n); drag.bar.style.left = drag.left + drag.dd * ppd + 'px'; drag.bar.style.width = drag.width - drag.dd * ppd + 'px'; }
+  });
+  const end = () => {
+    if (!drag) return;
+    const { t, sp, edge, dd, moved } = drag;
+    drag = null;
+    if (!moved) return;                                   // a plain click opens the task (handled by the click listener)
+    ui.tl.dragEnd = Date.now();
+    if (!dd) { renderContent(); return; }
+    const start = edge === 'r' ? sp[0] : addDays(sp[0], dd), due = edge === 'l' ? sp[1] : addDays(sp[1], dd);
+    updateTask(t.id, { start, due });
+    refreshBehindDrawer();
+    if (ui.openTask === t.id) renderDrawer();
+    toast(`${t.title}: ${fmtShort(start)} → ${fmtShort(due)}`);
+  };
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+}
+
+// ============================================================
 // RENDER: DRAWER (task details)
 // ============================================================
 function openDrawer(id) {
@@ -1557,6 +1809,7 @@ function renderDrawer() {
       <div class="grid2">
         <div><label class="lbl">Status</label><select class="input" id="dStatus">${STATUSES.map(s => `<option value="${s.id}" ${s.id === t.status ? 'selected' : ''}>${s.label}</option>`).join('')}</select></div>
         <div><label class="lbl">Priority</label><select class="input" id="dPriority">${PRIORITIES.map((l, i) => `<option value="${i}" ${i === t.priority ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div><label class="lbl">Start date</label><input class="input" type="date" id="dStart" value="${t.start || ''}"></div>
         <div><label class="lbl">Due date</label><input class="input" type="date" id="dDue" value="${t.due || ''}"></div>
         <div><label class="lbl">Project</label><select class="input" id="dProject">${projOpts.join('')}</select></div>
         ${(() => { const tp = t.projectId ? projectById(t.projectId) : null; return tp && tp.phases.length ? `<div><label class="lbl">Phase</label><select class="input" id="dPhase">
@@ -1831,6 +2084,9 @@ function render() {
 }
 
 document.addEventListener('click', e => {
+  if (Date.now() - ui.tl.dragEnd < 350 && e.target.closest('.tl')) return;   // the click that ends a bar drag
+  const scaleBtn = e.target.closest('[data-tl-scale]');
+  if (scaleBtn) { ui.tl.scale = scaleBtn.dataset.tlScale; ui.tl.scrolledFor = null; renderTopbar(); renderContent(); return; }
   const viewBtn = e.target.closest('[data-view]');
   if (viewBtn) { setView(viewBtn.dataset.view); return; }
 
@@ -1860,6 +2116,12 @@ document.addEventListener('click', e => {
       const t = taskById(taskEl.dataset.task), sid = actEl.dataset.sub;
       updateTask(t.id, { subtasks: t.subtasks.map(s => (s.id === sid ? { ...s, done: !s.done } : s)) });
       renderContent(); if (ui.openTask === t.id) renderDrawer(); return;
+    }
+    case 'tl-today': scrollTimelineToToday(); return;
+    case 'tl-set': {
+      updateTask(taskEl.dataset.task, { start: todayStr(), due: addDays(todayStr(), 2) });
+      refreshBehindDrawer(); if (ui.openTask === taskEl.dataset.task) renderDrawer();
+      toast('Scheduled from today — drag the bar to move it, or its ends to resize'); return;
     }
     case 'tree-zoom-in': zoomTree(1.25); return;
     case 'tree-zoom-out': zoomTree(0.8); return;
@@ -1967,7 +2229,18 @@ document.addEventListener('change', e => {
     if (tpl) { const n = loadChecklist(t, tpl); renderDrawer(); refreshBehindDrawer(); toast(n ? `Loaded ${n} checklist item${n === 1 ? '' : 's'} from "${tpl.name}"` : 'All those items are already on this task'); }
   }
   else if (id === 'dPriority') { updateTask(t.id, { priority: Number(e.target.value) }); refreshBehindDrawer(); }
-  else if (id === 'dDue') { updateTask(t.id, { due: e.target.value || null }); refreshBehindDrawer(); }
+  else if (id === 'dDue') {
+    const due = e.target.value || null;
+    if (due && t.start && due < t.start) { updateTask(t.id, { due, start: due }); renderDrawer(); toast('Start moved to match the due date'); }
+    else updateTask(t.id, { due });
+    refreshBehindDrawer();
+  }
+  else if (id === 'dStart') {
+    const start = e.target.value || null;
+    if (start && t.due && start > t.due) { updateTask(t.id, { start, due: start }); renderDrawer(); toast('Due date moved to match the start'); }
+    else updateTask(t.id, { start });
+    refreshBehindDrawer();
+  }
   else if (id === 'dProject') { updateTask(t.id, { projectId: e.target.value || null, phaseId: null }); renderDrawer(); refreshBehindDrawer(); }
   else if (id === 'dPhase') { updateTask(t.id, { phaseId: e.target.value || null }); refreshBehindDrawer(); }
 });
@@ -2001,7 +2274,7 @@ document.addEventListener('keydown', e => {
   if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === 'n' || e.key === 'N') { e.preventDefault(); $('quickInput') ? $('quickInput').focus() : ui.view === 'templates' ? templateModal(null) : projectModal(null); }
   else if (e.key === '/') { if ($('searchInput')) { e.preventDefault(); $('searchInput').focus(); } }
-  else if (e.key === 'b' || e.key === 'B') { ui.layout = { list: 'board', board: 'tree', tree: 'list' }[ui.layout]; db.settings.layout = ui.layout; save(); renderTopbar(); renderContent(); }
+  else if (e.key === 'b' || e.key === 'B') { ui.layout = { list: 'board', board: 'tree', tree: 'timeline', timeline: 'list' }[ui.layout]; db.settings.layout = ui.layout; save(); renderTopbar(); renderContent(); }
 });
 
 // Board drag & drop: dropping a card on a column sets its status.

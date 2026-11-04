@@ -2,6 +2,7 @@ const { chromium } = require('playwright-core');
 const path_ = require('path');
 const APP_URL = 'file://' + path_.resolve(__dirname, '..', 'index.html');
 const OUT = process.env.SHOT_DIR || require('os').tmpdir();
+const addDaysNode = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); const t = new Date(y, m - 1, d + n); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 860 }, acceptDownloads: true });
@@ -144,7 +145,9 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   await page.click('[data-view=all]');
   assert(await page.locator('#treeSvg').count() === 1, 'tree layout remembered after reload');
   await page.keyboard.press('b');
-  assert(await page.locator('.content .row').count() > 0, 'B cycles tree -> list');
+  assert(await page.locator('#tl').count() === 1, 'B cycles tree -> timeline');
+  await page.keyboard.press('b');
+  assert(await page.locator('.content .row').count() > 0, 'B cycles timeline -> list');
   await page.keyboard.press('b'); await page.keyboard.press('b');
   assert(await page.locator('#treeSvg').count() === 1, 'B cycles list -> board -> tree');
   await page.click('[data-layout=list]');
@@ -271,6 +274,39 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   await page.waitForTimeout(250);
   assert((await page.textContent('#toast')).includes('Ready to start: Assemble frame'), 'finishing a prerequisite announces what is now ready');
   assert(await page.locator('.row.waiting:has-text("Assemble frame")').count() === 0, 'task is no longer waiting once its dependency is done');
+
+  // timeline (Gantt)
+  await page.click('.brand'); await page.click(`.pcard[data-view="project:${pidT}"]`);
+  await page.click('[data-layout=timeline]');
+  assert(await page.locator('#tl .tl-row.g').count() >= 4 && await page.locator('#tl .tl-today').count() === 1, 'timeline shows phase groups and today line');
+  const hf = (await getDb()).tasks.find(t => t.title === 'Assemble frame');
+  await page.click(`.tl-set[data-task="${hf.id}"]`).catch(async () => {});
+  await page.waitForTimeout(250);
+  let hf2 = (await getDb()).tasks.find(t => t.id === hf.id);
+  assert(hf2.start && hf2.due && hf2.start <= hf2.due, 'unscheduled task gets dates from "+ Set dates" (or already had them)');
+  const bar = page.locator(`.tl-bar[data-task="${hf.id}"]`);
+  const bb = await bar.boundingBox();
+  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await page.mouse.down();
+  await page.mouse.move(bb.x + bb.width / 2 + 34 * 2 + 3, bb.y + bb.height / 2, { steps: 6 }); await page.mouse.up();
+  await page.waitForTimeout(300);
+  const hf3 = (await getDb()).tasks.find(t => t.id === hf.id);
+  assert(hf3.start === addDaysNode(hf2.start, 2) && hf3.due === addDaysNode(hf2.due, 2) && await page.locator('#drawer.open').count() === 0, 'dragging a bar moves both dates (and does not open it)');
+  const bar2 = page.locator(`.tl-bar[data-task="${hf.id}"] .tl-h.r`);
+  const rb = await bar2.boundingBox();
+  await page.mouse.move(rb.x + rb.width / 2, rb.y + rb.height / 2); await page.mouse.down();
+  await page.mouse.move(rb.x + rb.width / 2 + 34 * 3 + 2, rb.y + rb.height / 2, { steps: 6 }); await page.mouse.up();
+  await page.waitForTimeout(300);
+  const hf4 = (await getDb()).tasks.find(t => t.id === hf.id);
+  assert(hf4.start === hf3.start && hf4.due === addDaysNode(hf3.due, 3), 'dragging the right end changes only the due date');
+  await page.waitForTimeout(400);
+  await page.locator(`.tl-bar[data-task="${hf.id}"]`).click();
+  assert(await page.locator('#drawer.open').count() === 1 && await page.locator('#dStart').inputValue() === hf4.start, 'clicking a bar opens the task, with its start date');
+  await page.click('[data-act=close-drawer]');
+  await page.click('[data-tl-scale=week]');
+  assert(await page.locator('.tl-w').count() > 4, 'week scale');
+  await page.click('[data-tl-scale=month]');
+  await page.click('[data-tl-scale=day]');
+  await page.click('[data-layout=list]');
 
   // dark + mobile
   await page.click('[data-act=theme]');

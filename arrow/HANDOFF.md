@@ -112,6 +112,14 @@ new features consistent with this.
   unticked subtasks. Drawer section `depsHtml`; list/board `.wait` chip;
   tree `depLinks` draws dashed arrows in the gap left of the task column
   (only between tasks that are both visible).
+- **TIMELINE** (Gantt, layout `timeline`): `tlSpan` (start..due, either may
+  be missing), `timelineRows` (phase groups on a project page, project groups
+  in helper views), `timelineHtml` (HTML bars on a CSS-gradient day grid,
+  an SVG overlay for dependency arrows, today line), `wireTimeline` (drag to
+  move / resize by whole days, scroll memory per view+scale). Scale in
+  `ui.tl.scale` (`TL_SCALE` px/day). A drag sets `ui.tl.dragEnd` so the
+  click that follows is ignored. Drawer has `#dStart`; start/due are kept in
+  order. Conflict = dependent starts before an unfinished prerequisite's due.
 - **Tree direction**: right-to-left like Axon (`layoutTree` mirrors the
   columns; links run from a child's right edge to its parent's left edge;
   the collapse handle sits on the parent's left edge).
@@ -127,9 +135,9 @@ new features consistent with this.
 { version: 1,
   projects: [{ id, name, color, description, archived, phases: [{ id, name }] /*ordered*/, createdAt }],
   templates: [{ id, name, text /*one item per line; indented = sub-item*/, createdAt }],
-  tasks: [{ id, projectId|null, phaseId|null /*one of its project's phases*/, dependsOn: [taskId] /*must be done first*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
+  tasks: [{ id, projectId|null, phaseId|null /*one of its project's phases*/, dependsOn: [taskId] /*must be done first*/, start /*YYYY-MM-DD|null*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
             tags: [string], subtasks: [{ id, title, done }], createdAt, updatedAt, completedAt|null }],
-  settings: { theme: 'light'|'dark'|null, view /*'projects'|'project:<id>'|helper*/, layout: 'list'|'board'|'tree',
+  settings: { theme: 'light'|'dark'|null, view /*'projects'|'project:<id>'|helper*/, layout: 'list'|'board'|'tree'|'timeline',
               lastBackup /*ISO|null*/, lastProject /*id|''|null*/ } }
 ```
 

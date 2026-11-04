@@ -63,6 +63,21 @@ remove them (or use the Design · Purchase · Build · Test preset).
 - A template can create phases: **From template → A phase for each section**.
 - Project cards show which phase you're in.
 
+## Timeline (Gantt)
+Switch a project (or a helper view) to **Timeline**. Each task is a bar from
+its **start date** to its **due date** (set both in the task details; a task
+with only one date is a one-day bar).
+
+- Grouped by phase on a project page (with a summary bar per phase), by
+  project in the helper views. **Days / Weeks / Months** zoom; **Today**
+  scrolls to today (blue line). Weekends are shaded.
+- **Drag a bar** to move it, **drag its ends** to change the start or due
+  date, **click** it to open the task. Tasks without dates get a
+  **+ Set dates** button.
+- Bars show status colour and checklist progress; a red right edge means
+  overdue. Dependency arrows join the bars and turn **red with ⚠** when a
+  task is scheduled to start before its prerequisite is due.
+
 ## Dependencies
 Some tasks can't start until others are done. Open a task and use
 **Depends on → + Add a task this depends on…** (any task, in any project).
@@ -113,4 +128,4 @@ Type in the "Add a task" box:
 Example: `Order fasteners #purchasing !high @fri`
 
 ## Keyboard
-`N` new task · `/` search · `B` switch list → board → tree · `Esc` close panel
+`N` new task · `/` search · `B` switch list → board → tree → timeline · `Esc` close panel
