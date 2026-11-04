@@ -112,6 +112,13 @@ new features consistent with this.
   unticked subtasks. Drawer section `depsHtml`; list/board `.wait` chip;
   tree `depLinks` draws dashed arrows in the gap left of the task column
   (only between tasks that are both visible).
+- **EFFORT**: `task.estimate` / `task.spent` in hours. `parseHours` accepts
+  4h, 1.5, 30m, 90 min, 2d (8h/day, `HOURS_PER_DAY`), 1d 4h; `fmtH` prints
+  them. `effortOf(tasks)` → { est, done, left (open est − spent, ≥0), spent,
+  over, counted, pct }; used by `effortLine` (project head), phase strip,
+  phase tree nodes, project cards, helper-view heads and timeline groups.
+  Quick add `~4h`; template lines may end in `~3h` (`splitEstimate`).
+  `SORTS.effort`.
 - **TIMELINE** (Gantt, layout `timeline`): `tlSpan` (start..due, either may
   be missing), `timelineRows` (phase groups on a project page, project groups
   in helper views), `timelineHtml` (HTML bars on a CSS-gradient day grid,
@@ -135,7 +142,7 @@ new features consistent with this.
 { version: 1,
   projects: [{ id, name, color, description, archived, phases: [{ id, name }] /*ordered*/, createdAt }],
   templates: [{ id, name, text /*one item per line; indented = sub-item*/, createdAt }],
-  tasks: [{ id, projectId|null, phaseId|null /*one of its project's phases*/, dependsOn: [taskId] /*must be done first*/, start /*YYYY-MM-DD|null*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
+  tasks: [{ id, projectId|null, phaseId|null /*one of its project's phases*/, dependsOn: [taskId] /*must be done first*/, start /*YYYY-MM-DD|null*/, estimate /*hours|null*/, spent /*hours|null*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
             tags: [string], subtasks: [{ id, title, done }], createdAt, updatedAt, completedAt|null }],
   settings: { theme: 'light'|'dark'|null, view /*'projects'|'project:<id>'|helper*/, layout: 'list'|'board'|'tree'|'timeline',
               lastBackup /*ISO|null*/, lastProject /*id|''|null*/ } }

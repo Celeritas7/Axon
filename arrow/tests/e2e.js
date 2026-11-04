@@ -308,6 +308,33 @@ const addDaysNode = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); 
   await page.click('[data-tl-scale=day]');
   await page.click('[data-layout=list]');
 
+  // effort estimates
+  await page.click('.brand'); await page.click(`.pcard[data-view="project:${pidT}"]`);
+  await page.click('.ph[data-phase=""]').catch(() => {});
+  await page.fill('#quickInput', 'Bench test ~2.5h');
+  await page.press('#quickInput', 'Enter');
+  await page.waitForTimeout(300);
+  const bt = (await getDb()).tasks.find(t => t.title === 'Bench test');
+  assert(bt && bt.estimate === 2.5, 'quick add ~2.5h sets the estimate');
+  await page.click('.row:has-text("Bench test") .row-title');
+  await page.fill('#dEst', '1d 2h'); await page.press('#dEst', 'Tab');
+  await page.fill('#dSpent', '90 min'); await page.press('#dSpent', 'Tab');
+  await page.waitForTimeout(300);
+  let bt2 = (await getDb()).tasks.find(t => t.id === bt.id);
+  assert(bt2.estimate === 10 && bt2.spent === 1.5, 'estimate and spent accept 1d 2h / 90 min');
+  assert(await page.locator('#dEst').inputValue() === '10h', 'estimate shown back as hours');
+  await page.fill('#dEst', 'lots'); await page.press('#dEst', 'Tab');
+  await page.waitForTimeout(250);
+  assert((await getDb()).tasks.find(t => t.id === bt.id).estimate === 10, 'nonsense estimate is rejected, value kept');
+  await page.click('[data-act=close-drawer]');
+  assert(await page.locator('.row:has-text("Bench test") .eff').innerText() === '1.5h/10h', 'list shows spent/estimate');
+  assert((await page.textContent('.effline')).includes('8.5h left'), 'project head shows effort left');
+  await page.selectOption('#sortSel', 'effort');
+  assert((await page.locator('.content .row .row-title').first().innerText()).startsWith('Bench test'), 'sort by effort puts the biggest first');
+  await page.selectOption('#sortSel', 'due');
+  await page.click('.brand');
+  assert((await page.textContent(`.pcard[data-view="project:${pidT}"] .pc-meta`)).includes('left'), 'project card shows hours left');
+
   // dark + mobile
   await page.click('[data-act=theme]');
   await page.click('[data-view=today]');

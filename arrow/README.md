@@ -63,6 +63,21 @@ remove them (or use the Design · Purchase · Build · Test preset).
 - A template can create phases: **From template → A phase for each section**.
 - Project cards show which phase you're in.
 
+## Effort
+Give tasks an **Estimate** and log time **Spent** in the task details. Type
+hours however is natural: `4h`, `1.5`, `30m`, `90 min`, `2d`, `1d 4h`
+(a day = 8 hours). In quick add, `~4h` sets the estimate; in templates, end a
+line with `~3h`.
+
+- Tasks show `spent/estimate` (red when over).
+- The project head shows **done of total hours, % and hours left**, plus time
+  spent and how many tasks ran over. Each phase in the phase strip shows its
+  hours left; project cards show hours left.
+- Today / Upcoming / All tasks show the estimated work left in what's listed,
+  so you can see if a day is overloaded.
+- **Sort: Effort** puts the biggest tasks first. The tree and timeline show
+  hours too.
+
 ## Timeline (Gantt)
 Switch a project (or a helper view) to **Timeline**. Each task is a bar from
 its **start date** to its **due date** (set both in the task details; a task
