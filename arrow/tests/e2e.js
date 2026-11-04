@@ -23,7 +23,8 @@ const addDaysNode = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); 
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => m.type() === 'error' && errs.push('console: ' + m.text()));
   let dismissNext = false;
-  page.on('dialog', d => { if (dismissNext) { dismissNext = false; d.dismiss(); } else d.accept(); });
+  let promptAnswer = null;
+  page.on('dialog', d => { if (dismissNext) { dismissNext = false; d.dismiss(); } else if (d.type() === 'prompt' && promptAnswer != null) { d.accept(promptAnswer); promptAnswer = null; } else d.accept(); });
   await page.goto(APP_URL);
   const assert = (c, m) => { if (!c) { throw new Error('FAIL: ' + m); } console.log('ok -', m); };
 
@@ -550,7 +551,7 @@ const addDaysNode = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); 
     else if (c === '"') q = true; else if (c === ',') { row.push(cell); cell = ''; } else if (c === '\n') { row.push(cell.replace(/\r$/, '')); rows.push(row); row = []; cell = ''; } else cell += c; }
     return rows; };
   const rows = parse(raw.slice(1));
-  assert(rows[0][2] === 'Task' && rows[0].length === 17 && rows.length - 1 === shownN, 'header plus one row per shown task');
+  assert(rows[0][2] === 'Task' && rows[0].length === 18 && rows.length - 1 === shownN, 'header plus one row per shown task');
   const bench = rows.find(r => r[2] === 'Bench test');
   assert(bench && bench[14] === 'Line one, with a comma\n"quoted" line two' && bench[7] === '10' && bench[8] === '1.5', 'commas, quotes, line breaks and hours survive');
   assert(rows.some(r => r[2] === "'=SUM(A1) trick"), 'a formula-looking title is made safe');
@@ -632,6 +633,101 @@ const addDaysNode = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); 
   await page.click('#toast button');
   await page.waitForTimeout(250);
   assert((await getDb()).projects.length === nP, 'undo the merge');
+
+  // attachments
+  await page.click('.brand'); await page.click(`.pcard[data-view="project:${pidT}"]`);
+  await page.click('.ph[data-phase=""]').catch(() => {});
+  await page.click('.row:has-text("Bench test") .row-title');
+  await page.setInputFiles('#attInput', [path_.join(FIX, 'drawing.png'), path_.join(FIX, 'bracket.dwg')]);
+  await page.waitForTimeout(600);
+  let bt3 = (await getDb()).tasks.find(t => t.title === 'Bench test');
+  assert(bt3.attachments.length === 2 && bt3.attachments[0].name === 'drawing.png' && bt3.attachments[0].type === 'image/png', 'attach files from the task panel');
+  assert((await page.getAttribute('.att.img img', 'src') || '').startsWith('blob:') && await page.locator('.att.file .att-ic', { hasText: 'DWG' }).count() === 1, 'image thumbnail and file tile shown');
+  assert(await page.locator('.row:has-text("Bench test") [title*="2 attachments"]').count() === 1, 'list shows the attachment count');
+  await page.click('.att.img');
+  await page.waitForTimeout(200);
+  assert((await page.getAttribute('.lightbox img', 'src') || '').startsWith('blob:'), 'clicking an image opens it large');
+  await page.click('.lightbox [data-act=cancel-modal]');
+  await page.hover('.att.file'); await page.click('.att.file .att-x');
+  await page.waitForTimeout(200);
+  assert((await getDb()).tasks.find(t => t.id === bt3.id).attachments.length === 1, 'remove an attachment');
+  await page.click('#toast button'); await page.waitForTimeout(200);
+  assert((await getDb()).tasks.find(t => t.id === bt3.id).attachments.length === 2, 'undo brings it back');
+  await page.evaluate(() => { const dt = new DataTransfer(); dt.items.add(new File([new Uint8Array([137, 80, 78, 71])], 'screenshot.png', { type: 'image/png' })); document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true })); });
+  await page.waitForTimeout(500);
+  assert((await getDb()).tasks.find(t => t.id === bt3.id).attachments.some(a => a.name === 'screenshot.png'), 'paste a screenshot to attach it');
+  await page.click('[data-act=close-drawer]');
+  const [bk2] = await Promise.all([page.waitForEvent('download'), page.click('.cluster [data-act=export]')]);
+  const bk2Path = path_.join(require('os').tmpdir(), 'arrow-att-backup.json');
+  await bk2.saveAs(bk2Path);
+  const bkJson = JSON.parse(require('fs').readFileSync(bk2Path, 'utf8'));
+  const pngId = bt3.attachments[0].id;
+  assert(bkJson.files && bkJson.files[pngId] && Buffer.from(bkJson.files[pngId].data, 'base64').length === require('fs').statSync(path_.join(FIX, 'drawing.png')).size, 'backups carry the files');
+  // a fresh browser restores the backup with its files
+  const ctx2 = await browser.newContext();
+  const p2 = await ctx2.newPage();
+  p2.on('dialog', d => d.accept());
+  await p2.goto(APP_URL);
+  await p2.setInputFiles('#importInput', bk2Path);
+  await p2.waitForTimeout(500);
+  await p2.click(`.pcard:has-text("Compressor build")`);
+  await p2.click('.ph[data-phase=""]').catch(() => {});
+  await p2.click('.row:has-text("Bench test") .row-title');
+  await p2.waitForTimeout(400);
+  assert((await p2.getAttribute('.att.img img', 'src') || '').startsWith('blob:'), 'restored in another browser, attachments open');
+  await ctx2.close();
+  // the data file carries them too
+  await page.click('.savepill'); await page.click('.modal [data-act=fs-create]');
+  await page.waitForTimeout(500);
+  assert((await page.evaluate(id => !!JSON.parse(window.__files['arrow-data.json'].text).files[id], pngId)), 'the data file carries the files');
+  await page.click('.savepill'); await page.click('.modal [data-act=fs-disconnect]');
+
+  // timer
+  await page.click('.row:has-text("Bench test") .row-title');
+  const spent0 = (await getDb()).tasks.find(t => t.id === bt3.id).spent || 0;
+  await page.click('[data-act=timer-start]');
+  await page.waitForTimeout(300);
+  let tdb = await getDb();
+  assert(tdb.timer && tdb.timer.taskId === bt3.id && await page.locator('.timer-pill').count() === 1, 'timer starts and shows in the top bar');
+  await page.evaluate(() => { db.timer.startedAt = new Date(Date.now() - 25 * 60000).toISOString(); });
+  await page.waitForTimeout(1100);
+  assert((await page.textContent('.timer-pill .tp-c')).startsWith('0:25:'), 'timer ticks');
+  await page.click('.timer-pill [data-act=timer-stop]');
+  await page.waitForTimeout(300);
+  tdb = await getDb();
+  let btt = tdb.tasks.find(t => t.id === bt3.id);
+  assert(!tdb.timer && Math.abs(btt.spent - spent0 - 0.42) < 0.02 && btt.time.length === 1, 'stopping adds the time to Spent and logs it');
+  // switching tasks stops the first timer
+  await page.click('[data-act=timer-start]');
+  await page.evaluate(() => { db.timer.startedAt = new Date(Date.now() - 10 * 60000).toISOString(); });
+  await page.click('[data-act=close-drawer]');
+  await page.click('.row:has-text("Call supplier") .row-title').catch(async () => { await page.click('#showDone'); await page.click('.row:has-text("Call supplier") .row-title'); });
+  await page.click('[data-act=timer-start]');
+  await page.waitForTimeout(300);
+  tdb = await getDb();
+  assert(tdb.timer.taskId === tdb.tasks.find(t => t.title === 'Call supplier').id && tdb.tasks.find(t => t.id === bt3.id).time.length === 2, 'starting another timer stops and logs the first');
+  // a timer left running overnight asks first
+  await page.evaluate(() => { db.timer.startedAt = new Date(Date.now() - 14 * 3600000).toISOString(); save(true); });
+  await page.waitForTimeout(400);
+  await page.reload();
+  assert(await page.locator('.timer-pill').count() === 1, 'timer keeps running after a reload');
+  dismissNext = true;
+  await page.click('.timer-pill [data-act=timer-stop]');
+  await page.waitForTimeout(200);
+  assert((await getDb()).timer, 'cancelling the long-timer question keeps it running');
+  promptAnswer = '2h';
+  await page.click('.timer-pill [data-act=timer-stop]');
+  await page.waitForTimeout(300);
+  tdb = await getDb();
+  const cs3 = tdb.tasks.find(t => t.title === 'Call supplier');
+  assert(!tdb.timer && cs3.time.slice(-1)[0].h === 2, 'long timer: log the hours you type');
+  await page.click('[data-act=timer-open]').catch(() => {});
+  await page.evaluate(id => openDrawer(id), cs3.id);
+  const sp = cs3.spent;
+  await page.hover('.tlog-r'); await page.click('.tlog-r [data-act=tlog-del]');
+  await page.waitForTimeout(250);
+  assert(Math.abs(((await getDb()).tasks.find(t => t.id === cs3.id).spent || 0) - (sp - 2)) < 0.01, 'removing a time entry takes it off Spent');
+  await page.click('[data-act=close-drawer]');
 
   // dark + mobile
   await page.click('[data-act=theme]');

@@ -273,6 +273,39 @@ label.lbl { display:block; font-size:10px; font-weight:600; letter-spacing:.06em
 .inbox-note u { color:var(--accent); }
 .sec-h { font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin:26px 0 10px; }
 .quick-proj { max-width:200px; flex:none; height:34px; }
+/* attachments */
+.att-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); gap:8px; }
+.att { position:relative; height:96px; border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; cursor:pointer; background:var(--surface-2); display:flex; flex-direction:column; }
+.att:hover { border-color:var(--accent); }
+.att img { width:100%; flex:1; min-height:0; object-fit:cover; display:block; background:var(--surface-3); }
+.att.file .att-ic { flex:1; display:grid; place-items:center; font-family:var(--font-mono); font-weight:700; font-size:13px; color:var(--accent); background:var(--accent-soft); }
+.att-n { font-size:11px; padding:3px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:var(--surface); border-top:1px solid var(--border); }
+.att.missing { opacity:.5; }
+.att-x { position:absolute; top:4px; right:4px; width:22px; height:22px; border-radius:50%; border:0; background:rgba(16,23,32,.6); color:#fff; display:grid; place-items:center; cursor:pointer; opacity:0; }
+.att-x svg { width:12px; height:12px; }
+.att:hover .att-x { opacity:1; }
+.att-add { height:96px; border:1.5px dashed var(--border-2); border-radius:var(--radius-sm); background:none; color:var(--ink-2); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:12px; }
+.att-add:hover { border-color:var(--accent); color:var(--accent); }
+.att-hint { font-size:10.5px; color:var(--ink-3); }
+.drawer.file-over { box-shadow:inset 0 0 0 3px var(--accent); }
+.lightbox { max-width:min(1100px, 96vw); padding:12px; gap:10px; }
+a.btn { text-decoration:none; color:inherit; }
+.lb-head { display:flex; align-items:center; gap:10px; }
+.lightbox img { max-width:100%; max-height:78vh; object-fit:contain; border-radius:var(--radius-sm); background:var(--surface-2); }
+/* timer */
+.timer-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.timer-row.on { padding:8px 10px; border-radius:var(--radius-sm); background:color-mix(in srgb, var(--st-doing) 12%, transparent); border:1px solid color-mix(in srgb, var(--st-doing) 35%, transparent); }
+.tclock { font-family:var(--font-mono); font-size:16px; font-weight:600; }
+.tlog { display:flex; flex-direction:column; gap:2px; margin-top:-4px; }
+.tlog-r { display:flex; align-items:center; gap:10px; font-size:12px; color:var(--ink-2); }
+.tlog-r b { margin-left:auto; font-family:var(--font-mono); color:var(--ink); font-weight:600; }
+.tlog-r .x { opacity:0; } .tlog-r:hover .x { opacity:1; }
+.timer-pill > button:first-child { gap:7px; max-width:280px; color:var(--ink); }
+.tp-dot { width:8px; height:8px; border-radius:50%; background:var(--danger); animation:tp 1.2s infinite; flex:none; }
+@keyframes tp { 50% { opacity:.25; } }
+.tp-t { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:150px; }
+.tp-c { font-family:var(--font-mono); font-weight:600; }
+.tmr { display:inline-flex; align-items:center; gap:4px; color:var(--st-doing); font-family:var(--font-mono); font-weight:600; }
 .tools .spacer { flex:1; }
 .csv-opts { display:flex; flex-direction:column; gap:10px; }
 .imp-col { display:inline-block; font-size:11.5px; background:var(--surface-3); border-radius:4px; padding:1px 6px; margin:2px 2px 0 0; color:var(--ink-2); }
@@ -528,7 +561,7 @@ textarea.mono { font-family:var(--font-mono); font-size:12.5px; line-height:1.6;
 @media (max-width: 760px) {
   .appbar { gap:8px; padding:0 10px; }
   .brand .word, .appbar .vsep, .crumbs .hide-sm, .cluster .lbl-sm { display:none; }
-  .savepill { display:none; } .cluster > button.nag::after { display:block; }
+  .savepill { display:none; } .tp-t { display:none; } .cluster > button.nag::after { display:block; }
   .seg .lbl-sm { display:none; } .seg button { padding:0 9px; }
   .cluster .n { display:none; } .cluster > button { padding:0 7px; } .cluster > button.ib { width:28px; }
   .topbar, .content { padding-left:16px; padding-right:16px; }
@@ -554,6 +587,7 @@ textarea.mono { font-family:var(--font-mono); font-size:12.5px; line-height:1.6;
 <div class="backdrop" id="modal"></div>
 <div class="toast" id="toast"></div>
 <input type="file" id="importInput" accept=".json,application/json" hidden>
+<input type="file" id="attInput" multiple hidden>
 <input type="file" id="importAnyInput" accept=".csv,.tsv,.txt,.xlsx,.json,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
 
 <script>
@@ -594,6 +628,9 @@ const ICON = {
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2.5v2 M12 19.5v2 M2.5 12h2 M19.5 12h2 M5 5l1.4 1.4 M17.6 17.6 19 19 M19 5l-1.4 1.4 M6.4 17.6 5 19',
   moon: 'M20 13.5A8 8 0 0 1 10.5 4 8 8 0 1 0 20 13.5z',
   menu: 'M4 7h16 M4 12h16 M4 17h16',
+  clip: 'M20 11.5l-7.8 7.8a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.8 16.9a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4',
+  play: 'M7 5l12 7-12 7z',
+  stop: 'M7 7h10v10H7z',
   sheet: 'M4 4h16v16H4z M4 9h16 M4 14h16 M10 4v16',
   grip: 'M9 6h.01 M15 6h.01 M9 12h.01 M15 12h.01 M9 18h.01 M15 18h.01',
   repeat: 'M17 2l3 3-3 3 M4 11V9a4 4 0 0 1 4-4h12 M7 22l-3-3 3-3 M20 13v2a4 4 0 0 1-4 4H4',
@@ -678,6 +715,10 @@ function normalizeTask(t) {
     repeat: normalizeRepeat(t.repeat),                                                         // added later; null = one-off
     nextId: t.nextId ? String(t.nextId) : null,                                                // the occurrence made when this one was done
     order: t.order == null || !Number.isFinite(Number(t.order)) ? null : Number(t.order),      // manual position (added later)
+    // files kept in IndexedDB (only their details live here), added later
+    attachments: Array.isArray(t.attachments) ? t.attachments.filter(a => a && a.id).map(a => ({ id: String(a.id), name: String(a.name || 'file'), type: String(a.type || ''), size: Number(a.size) || 0, addedAt: a.addedAt || nowIso() })) : [],
+    // timer entries: when it started and how many hours were logged
+    time: Array.isArray(t.time) ? t.time.filter(x => x && Number(x.h) > 0).map(x => ({ at: String(x.at || nowIso()), h: Math.round(Number(x.h) * 100) / 100 })) : [],
     due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null,
     tags: Array.isArray(t.tags) ? t.tags.map(String).filter(Boolean) : [],
     // ids of tasks that must be done before this one can start (added later; older saves have none)
@@ -717,6 +758,9 @@ function normalizeDb(raw) {
   base.templates = Array.isArray(raw.templates) ? raw.templates.map(normalizeTemplate) : [normalizeTemplate({ name: 'Work quality checklist', text: SAMPLE_TEMPLATE })];
   base.settings = { ...base.settings, ...(raw.settings || {}) };
   base.savedAt = typeof raw.savedAt === 'string' ? raw.savedAt : null;   // when the data last changed (used to sync with a data file)
+  // the running timer, if any (added later)
+  base.timer = raw.timer && raw.timer.taskId && !Number.isNaN(Date.parse(raw.timer.startedAt)) && base.tasks.some(t => t.id === String(raw.timer.taskId))
+    ? { taskId: String(raw.timer.taskId), startedAt: String(raw.timer.startedAt) } : null;
   return base;
 }
 
@@ -1222,6 +1266,7 @@ function renderSidebar() {
     <div class="cluster" title="Helper views across all projects">
       ${helperBtn('today', 'Today', 'today')}${helperBtn('upcoming', 'Upcoming', 'upcoming')}${helperBtn('inbox', 'Inbox', 'inbox')}${helperBtn('all', 'All tasks', 'all')}
     </div>
+    ${db.timer && taskById(db.timer.taskId) ? `<div class="cluster timer-pill"><button data-act="timer-open" title="Timer running on: ${esc(taskById(db.timer.taskId).title)}"><span class="tp-dot"></span><span class="tp-t">${esc(taskById(db.timer.taskId).title)}</span><span class="tp-c" data-timer-clock>${fmtClock(timerMs())}</span></button><button class="ib" data-act="timer-stop" title="Stop the timer and log the time">${ic('stop')}</button></div>` : ''}
     <div class="cluster"><button class="${ui.view === 'templates' ? 'on' : ''}" data-view="templates" title="Checklist templates">${ic('checklist')}<span class="lbl-sm">Templates</span></button></div>
     <span id="sidebarFoot" style="display:contents"></span>`;
   renderFoot();
@@ -1481,6 +1526,8 @@ function metaHtml(t, { showProject = true } = {}) {
     const overrun = t.estimate && (t.spent || 0) > t.estimate;
     parts.push(`<span class="eff ${overrun ? 'over' : ''}" title="${t.spent ? `Spent ${fmtH(t.spent)}` : ''}${t.spent && t.estimate ? ' of ' : ''}${t.estimate ? `Estimate ${fmtH(t.estimate)}` : ''}">${ic('clock', 'style="width:12px;height:12px"')}${t.spent ? fmtH(t.spent) + (t.estimate ? '/' : '') : ''}${t.estimate ? fmtH(t.estimate) : ''}</span>`);
   }
+  if (db.timer && db.timer.taskId === t.id) parts.push(`<span class="tmr" title="Timer running">${ic('play', 'style="width:11px;height:11px"')}<span data-timer-clock>${fmtClock(timerMs())}</span></span>`);
+  if (t.attachments.length) parts.push(`<span title="${t.attachments.length} attachment${t.attachments.length === 1 ? '' : 's'}: ${esc(t.attachments.map(a => a.name).join(', '))}">${ic('clip', 'style="width:12px;height:12px"')} ${t.attachments.length}</span>`);
   if (t.subtasks.length) parts.push(`<span class="mono">${ic('check', 'style="width:12px;height:12px"')} ${t.subtasks.filter(s => s.done).length}/${t.subtasks.length}</span>`);
   if (t.notes.trim()) parts.push('<span title="Has notes">≡ notes</span>');
   t.tags.forEach(g => parts.push(`<span class="tag">#${esc(g)}</span>`));
@@ -1890,6 +1937,213 @@ function wireTree() {
 window.addEventListener('resize', () => { if (ui.layout === 'tree') sizeTree(); });
 
 // ============================================================
+// ATTACHMENTS: files live in IndexedDB ('arrow-blobs'); tasks keep { id, name, type, size }.
+// Backups and the data file carry them as base64 under "files".
+// ============================================================
+const MAX_FILE_MB = 25, SHRINK_PHOTO_MB = 3, PHOTO_MAX_PX = 2560;
+function blobDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('arrow-blobs', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('b');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function blobOp(mode, fn) {
+  const d = await blobDb();
+  return new Promise((resolve, reject) => {
+    const tx = d.transaction('b', mode), st = tx.objectStore('b');
+    const r = fn(st);
+    tx.oncomplete = () => resolve(r && 'result' in r ? r.result : undefined);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+const blobPut = (id, blob) => blobOp('readwrite', st => st.put(blob, id));
+const blobGet = id => blobOp('readonly', st => st.get(id));
+const blobDel = id => blobOp('readwrite', st => st.delete(id));
+const blobKeys = () => blobOp('readonly', st => st.getAllKeys());
+const b64Cache = new Map(), urlCache = new Map();
+function blobToB64(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1] || '');
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+function b64ToBlob(data, type) {
+  const bin = atob(data), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: type || 'application/octet-stream' });
+}
+const allAttachments = d => { const m = new Map(); (d || db).tasks.forEach(t => t.attachments.forEach(a => m.set(a.id, a))); return m; };
+// { id: { type, data } } for every file the data uses (for backups and the data file)
+async function filesPayload() {
+  const out = {};
+  for (const [id, a] of allAttachments()) {
+    if (!b64Cache.has(id)) {
+      let blob = null;
+      try { blob = await blobGet(id); } catch (e) { /* missing */ }
+      if (!blob) continue;
+      b64Cache.set(id, await blobToB64(blob));
+    }
+    out[id] = { type: a.type, data: b64Cache.get(id) };
+  }
+  return out;
+}
+// files arriving with a backup / data file
+async function storeFiles(files) {
+  if (!files || typeof files !== 'object') return;
+  let have = [];
+  try { have = await blobKeys(); } catch (e) { return; }
+  for (const [id, f] of Object.entries(files)) {
+    if (!f || typeof f.data !== 'string' || have.includes(id)) continue;
+    try { await blobPut(id, b64ToBlob(f.data, f.type)); b64Cache.set(id, f.data); } catch (e) { console.error('Could not store file', id, e); }
+  }
+}
+// on start: drop stored files no task refers to any more
+async function cleanupBlobs() {
+  try {
+    const used = allAttachments();
+    for (const k of await blobKeys()) if (!used.has(k)) await blobDel(k);
+  } catch (e) { /* IndexedDB unavailable: nothing to clean */ }
+}
+async function attachmentUrl(a) {
+  if (urlCache.has(a.id)) return urlCache.get(a.id);
+  const blob = await blobGet(a.id);
+  if (!blob) return null;
+  const u = URL.createObjectURL(blob);
+  urlCache.set(a.id, u);
+  return u;
+}
+const fmtBytes = n => (n < 1024 ? n + ' B' : n < 1048576 ? Math.round(n / 1024) + ' KB' : (n / 1048576).toFixed(1) + ' MB');
+const isImage = a => /^image\/(png|jpe?g|gif|webp|bmp|svg\+xml)$/i.test(a.type);
+const extOf = name => ((name.match(/\.([a-z0-9]{1,5})$/i) || [])[1] || 'file').toUpperCase();
+// big phone photos are shrunk; drawings (PNG), PDFs and other files are kept as they are
+async function maybeShrink(file) {
+  if (!/^image\/jpe?g$/i.test(file.type) || file.size < SHRINK_PHOTO_MB * 1048576 || typeof createImageBitmap !== 'function') return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, PHOTO_MAX_PX / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const out = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
+    return out && out.size < file.size ? out : file;
+  } catch (e) { return file; }
+}
+async function addAttachments(t, files) {
+  const list = [...files];
+  if (!list.length || !t) return;
+  const added = [];
+  let shrunk = 0;
+  for (const f of list) {
+    if (f.size > MAX_FILE_MB * 1048576) { toast(`"${f.name || 'file'}" is over ${MAX_FILE_MB} MB; not added`); continue; }
+    const blob = await maybeShrink(f);
+    if (blob !== f) shrunk++;
+    const id = 'f' + uid();
+    try { await blobPut(id, blob); } catch (e) { toast('Could not store the file: ' + ((e && e.message) || e)); continue; }
+    const name = f.name || `pasted-${todayStr()}.${(blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}`;
+    added.push({ id, name, type: blob.type || f.type || '', size: blob.size, addedAt: nowIso() });
+  }
+  if (!added.length) return;
+  updateTask(t.id, { attachments: [...t.attachments, ...added] });
+  if (ui.openTask === t.id) renderDrawer();
+  refreshBehindDrawer();
+  toast(`Attached ${added.length} file${added.length === 1 ? '' : 's'}${shrunk ? ` (${shrunk} large photo${shrunk === 1 ? '' : 's'} made smaller)` : ''}`);
+}
+async function hydrateThumbs() {
+  const t = taskById(ui.openTask);
+  if (!t) return;
+  for (const img of document.querySelectorAll('[data-att-thumb]')) {
+    const a = t.attachments.find(x => x.id === img.dataset.attThumb);
+    if (!a) continue;
+    try { const u = await attachmentUrl(a); if (u) img.src = u; else img.closest('.att').classList.add('missing'); } catch (e) { /* ignore */ }
+  }
+}
+async function openAttachment(t, a) {
+  let u = null;
+  try { u = await attachmentUrl(a); } catch (e) { /* ignore */ }
+  if (!u) { toast('That file is not stored in this browser (it may still be in a backup or the data file)'); return; }
+  if (isImage(a)) {
+    const m = $('modal');
+    m.innerHTML = `<div class="modal lightbox"><div class="lb-head"><b>${esc(a.name)}</b><span class="head-sub">${fmtBytes(a.size)}</span><span style="flex:1"></span>
+        <a class="btn sm" href="${u}" download="${esc(a.name)}">${ic('download')}Download</a><button class="btn sm icon" data-act="cancel-modal" title="Close">${ic('close')}</button></div>
+      <img src="${u}" alt="${esc(a.name)}"></div>`;
+    m.classList.add('open');
+    return;
+  }
+  const link = document.createElement('a');
+  link.href = u;
+  if (/pdf|^text\//i.test(a.type)) link.target = '_blank'; else link.download = a.name;
+  document.body.appendChild(link); link.click(); link.remove();
+}
+function attachmentsHtml(t) {
+  const items = t.attachments.map(a => `<div class="att ${isImage(a) ? 'img' : 'file'}" data-act="att-open" data-att="${esc(a.id)}" title="${esc(a.name)} · ${fmtBytes(a.size)}">
+      ${isImage(a) ? `<img data-att-thumb="${esc(a.id)}" alt="">` : `<span class="att-ic">${esc(extOf(a.name))}</span>`}
+      <span class="att-n">${esc(a.name)}</span>
+      <button class="att-x" data-act="att-del" data-att="${esc(a.id)}" title="Remove">${ic('close')}</button>
+    </div>`).join('');
+  return `<div><label class="lbl">Attachments ${t.attachments.length ? `<span class="mono" style="color:var(--ink-3)">${t.attachments.length}</span>` : ''}</label>
+    <div class="att-grid" id="attDrop">${items}
+      <button class="att-add" data-act="att-add" title="Add drawings, photos, PDFs or any file">${ic('plus')}<span>Add files</span><span class="att-hint">or drop here / paste</span></button>
+    </div></div>`;
+}
+
+// ============================================================
+// TIMER: one at a time; stopping adds the time to Spent and logs an entry
+// ============================================================
+const LONG_TIMER_H = 12;
+const timerMs = () => (db.timer ? Math.max(0, Date.now() - Date.parse(db.timer.startedAt)) : 0);
+function fmtClock(ms) {
+  const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return `${h}:${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+function startTimer(t) {
+  if (db.timer && db.timer.taskId === t.id) return;
+  if (db.timer && !stopTimer(true)) return;
+  db.timer = { taskId: t.id, startedAt: nowIso() };
+  if (t.status === 'todo') updateTask(t.id, { status: 'doing' });
+  save(); render();
+  toast(`Timer started on "${t.title}"`);
+}
+// returns false if the person cancelled
+function stopTimer(quiet) {
+  if (!db.timer) return true;
+  const t = taskById(db.timer.taskId), started = db.timer.startedAt;
+  let h = timerMs() / 3600000;
+  if (t && h > LONG_TIMER_H) {
+    const ans = prompt(`The timer on "${t.title}" ran for ${fmtH(h)} (maybe it was left on).\n\nHow many hours should be logged? (e.g. 3h, 1.5, 45m; 0 = none)`, fmtH(h));
+    if (ans === null) return false;
+    const v = parseHours(ans);
+    if (Number.isNaN(v)) { toast('Not a number of hours; the timer is still running'); return false; }
+    h = v || 0;
+  }
+  db.timer = null;
+  h = Math.round(h * 100) / 100;
+  if (!t || h < 1 / 60) { save(); render(); if (!quiet && t) toast('Under a minute, nothing logged'); return true; }
+  const before = { spent: t.spent, time: t.time };
+  updateTask(t.id, { spent: Math.round(((t.spent || 0) + h) * 100) / 100, time: [...t.time, { at: started, h }] });
+  render();
+  if (!quiet) toast(`Logged ${fmtH(h)} on "${t.title}" (${fmtH(t.spent)} in total)`, 'Undo', () => { updateTask(t.id, before); render(); });
+  return true;
+}
+function timerHtml(t) {
+  const on = db.timer && db.timer.taskId === t.id, other = db.timer && !on ? taskById(db.timer.taskId) : null;
+  const log = t.time.slice().reverse();
+  return `<div class="timer-row ${on ? 'on' : ''}">
+      ${on ? `<button class="btn primary sm" data-act="timer-stop">${ic('stop')}Stop</button><span class="tclock" data-timer-clock>${fmtClock(timerMs())}</span><span class="head-sub">since ${new Date(db.timer.startedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>`
+        : `<button class="btn sm" data-act="timer-start" title="${other ? `Stops the timer on "${esc(other.title)}" first` : 'Track time on this task'}">${ic('play')}Start timer</button>${other ? `<span class="head-sub">running on: ${esc(other.title)}</span>` : ''}`}
+    </div>
+    ${log.length ? `<div class="tlog">${log.slice(0, 5).map((x, i) => `<div class="tlog-r"><span class="mono">${esc(new Date(x.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }))} · ${esc(new Date(x.at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }))}</span><b>${fmtH(x.h)}</b><button class="btn ghost sm icon x" data-act="tlog-del" data-i="${t.time.length - 1 - i}" title="Remove this entry (also takes it off Spent)">${ic('close')}</button></div>`).join('')}${log.length > 5 ? `<div class="head-sub">+ ${log.length - 5} earlier · ${fmtH(t.time.reduce((a, x) => a + x.h, 0))} tracked in all</div>` : ''}</div>` : ''}`;
+}
+setInterval(() => {
+  if (!db.timer) return;
+  const txt = fmtClock(timerMs());
+  document.querySelectorAll('[data-timer-clock]').forEach(el => { el.textContent = txt; });
+}, 1000);
+
+// ============================================================
 // RENDER: TIMELINE (Gantt): bars from start to due, grouped by phase / project
 // ============================================================
 const TL_SCALE = { day: 34, week: 14, month: 4.5 };   // pixels per day
@@ -2182,6 +2436,7 @@ function renderDrawer() {
         ${(() => { const tp = t.projectId ? projectById(t.projectId) : null; return tp && tp.phases.length ? `<div><label class="lbl">Phase</label><select class="input" id="dPhase">
           <option value="">No phase</option>${tp.phases.map((ph, i) => `<option value="${esc(ph.id)}" ${ph.id === t.phaseId ? 'selected' : ''}>${i + 1}. ${esc(ph.name)}</option>`).join('')}</select></div>` : ''; })()}
       </div>
+      ${timerHtml(t)}
       ${repeatHtml(t)}
       <div><label class="lbl">Tags <span style="color:var(--ink-3);font-weight:400">(comma separated)</span></label><input class="input" style="width:100%" id="dTags" value="${esc(t.tags.join(', '))}" placeholder="e.g. purchasing, design"></div>
       <div>
@@ -2204,9 +2459,11 @@ function renderDrawer() {
       </div>
       ${depsHtml(t)}
       <div><label class="lbl">Notes</label><textarea class="input" id="dNotes" rows="6" placeholder="Details, links, decisions…">${esc(t.notes)}</textarea></div>
+      ${attachmentsHtml(t)}
       <div class="stamp">Created ${esc(fmtStamp(t.createdAt))}<br>Updated ${esc(fmtStamp(t.updatedAt))}${t.completedAt ? `<br>Completed ${esc(fmtStamp(t.completedAt))}` : ''}</div>
     </div>`;
   autoGrow($('dTitle'));
+  hydrateThumbs();
 }
 function repeatHtml(t) {
   const r = t.repeat, d = parseYmd(t.due || todayStr()), key = presetKey(t);
@@ -2423,7 +2680,7 @@ function csvCell(v) {
   if (/^[=+\-@\t\r]/.test(x)) x = "'" + x;
   return /[",\r\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x;
 }
-const CSV_COLUMNS = ['Project', 'Phase', 'Task', 'Status', 'Priority', 'Start', 'Due', 'Estimate (h)', 'Spent (h)', 'Tags', 'Repeats', 'Depends on', 'Checklist done', 'Checklist', 'Notes', 'Created', 'Completed'];
+const CSV_COLUMNS = ['Project', 'Phase', 'Task', 'Status', 'Priority', 'Start', 'Due', 'Estimate (h)', 'Spent (h)', 'Tags', 'Repeats', 'Depends on', 'Checklist done', 'Checklist', 'Notes', 'Attachments', 'Created', 'Completed'];
 function csvRows(tasks) {
   const projIndex = new Map(db.projects.map((x, i) => [x.id, i]));
   const sorted = tasks.slice().sort((a, b) => {
@@ -2440,7 +2697,7 @@ function csvRows(tasks) {
       p ? p.name : 'Inbox', ph ? ph.name : '', t.title, STATUSES.find(x => x.id === t.status).label, t.priority ? PRIORITIES[t.priority] : '',
       t.start || '', t.due || '', num(t.estimate), num(t.spent), t.tags.join(', '), t.repeat ? repeatLabel(t.repeat) : '',
       depsOf(t).map(d => d.title).join('; '), t.subtasks.length ? `${t.subtasks.filter(x => x.done).length}/${t.subtasks.length}` : '',
-      t.subtasks.map(x => (x.done ? '[x] ' : '[ ] ') + x.title).join('\n'), t.notes, localDay(t.createdAt) || '', localDay(t.completedAt) || ''
+      t.subtasks.map(x => (x.done ? '[x] ' : '[ ] ') + x.title).join('\n'), t.notes, t.attachments.map(a => a.name).join('; '), localDay(t.createdAt) || '', localDay(t.completedAt) || ''
     ];
   });
 }
@@ -2806,6 +3063,7 @@ function arrowJsonModal(next, name, raw) {
     e.preventDefault();
     const mode = m.querySelector('input[name=ajMode]:checked').value;
     closeModal();
+    storeFiles(raw.files);
     if (mode === 'replace') {
       const prev = db;
       db = next; ui.view = 'projects'; ui.openTask = null;
@@ -2867,9 +3125,11 @@ function sheetImportModal(headers, body, name, base) {
   show();
 }
 
-function exportBackup() {
+async function exportBackup() {
   db.settings.lastBackup = nowIso();
-  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+  let files = {};
+  try { files = await filesPayload(); } catch (e) { console.error('Attachments not included', e); }
+  const blob = new Blob([JSON.stringify({ ...db, files }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `arrow-backup-${todayStr()}.json`;
@@ -2881,11 +3141,12 @@ function exportBackup() {
 
 function importBackup(file) {
   const reader = new FileReader();
-  reader.onload = () => {
-    let next;
-    try { next = normalizeDb(JSON.parse(reader.result)); } catch (e) { next = null; }
+  reader.onload = async () => {
+    let next, raw;
+    try { raw = JSON.parse(reader.result); next = normalizeDb(raw); } catch (e) { next = null; }
     if (!next) { toast('That file is not an Arrow backup'); return; }
     if (!confirm(`Replace everything with this backup?\n\n${next.projects.length} projects, ${next.tasks.length} tasks.\nYour current data will be overwritten.`)) return;
+    await storeFiles(raw.files);
     const prev = db;
     db = next;
     db.settings.lastBackup = db.settings.lastBackup || nowIso();
@@ -2930,7 +3191,7 @@ async function readFileDb() {
   let raw;
   try { raw = JSON.parse(text); } catch (e) { return { bad: true }; }
   const next = normalizeDb(raw);
-  return next ? { db: next, savedAt: next.savedAt } : { bad: true };
+  return next ? { db: next, savedAt: next.savedAt, files: raw.files } : { bad: true };
 }
 let fsTimer = null;
 function scheduleFileWrite() {
@@ -2947,7 +3208,7 @@ async function writeFile(force) {
     }
     fs.state = 'saving'; renderFoot();
     const w = await fs.handle.createWritable();
-    await w.write(JSON.stringify(db, null, 2));
+    await w.write(JSON.stringify({ ...db, files: await filesPayload() }, null, 2));
     await w.close();
     fsKnown.set(db.savedAt);
     Object.assign(fs, { state: 'ok', last: new Date(), error: '' });
@@ -2985,6 +3246,7 @@ async function fileOpen() {
 }
 function loadFromFile(cur, automatic) {
   const prev = db;
+  storeFiles(cur.files).then(() => { if (ui.openTask) hydrateThumbs(); });
   db = cur.db;
   lastBody = bodyOf(db);
   fsKnown.set(cur.savedAt);
@@ -3124,7 +3386,7 @@ document.addEventListener('click', e => {
   const layoutBtn = e.target.closest('[data-layout]');
   if (layoutBtn) { ui.layout = layoutBtn.dataset.layout; db.settings.layout = ui.layout; save(); renderTopbar(); renderContent(); return; }
 
-  const actEl = e.target.closest('[data-act]');
+  const actEl = e.target.closest('.att-x') || e.target.closest('[data-act]');
   const act = actEl && actEl.dataset.act;
   const taskEl = e.target.closest('[data-task]');
   const p = currentProject();
@@ -3194,6 +3456,25 @@ document.addEventListener('click', e => {
     case 'toggle-archived': ui.showArchived = !ui.showArchived; renderSidebar(); return;
     case 'export': exportBackup(); return;
     case 'csv': csvModal(); return;
+    case 'att-add': $('attInput').click(); return;
+    case 'att-open': { const t = taskById(ui.openTask), a = t && t.attachments.find(x => x.id === actEl.dataset.att); if (a) openAttachment(t, a); return; }
+    case 'att-del': {
+      e.stopPropagation();
+      const t = taskById(ui.openTask), prev = t.attachments, a = prev.find(x => x.id === actEl.dataset.att);
+      updateTask(t.id, { attachments: prev.filter(x => x.id !== actEl.dataset.att) });
+      renderDrawer(); refreshBehindDrawer();
+      toast(`Removed "${a ? a.name : 'file'}"`, 'Undo', () => { updateTask(t.id, { attachments: prev }); if (ui.openTask === t.id) renderDrawer(); refreshBehindDrawer(); });
+      return;
+    }
+    case 'timer-start': startTimer(taskById(ui.openTask)); return;
+    case 'timer-stop': stopTimer(false); return;
+    case 'timer-open': if (db.timer) openDrawer(db.timer.taskId); return;
+    case 'tlog-del': {
+      const t = taskById(ui.openTask), i = Number(actEl.dataset.i), x = t.time[i];
+      if (!x) return;
+      updateTask(t.id, { time: t.time.filter((_, j) => j !== i), spent: Math.max(0, Math.round(((t.spent || 0) - x.h) * 100) / 100) || null });
+      renderDrawer(); refreshBehindDrawer(); return;
+    }
     case 'import-any': $('importAnyInput').click(); return;
     case 'storage': storageModal(); return;
     case 'fs-create': fileCreate(); return;
@@ -3212,7 +3493,7 @@ document.addEventListener('click', e => {
     case 'drawer-done': toggleDone(ui.openTask); renderDrawer(); return;
     case 'duplicate': {
       const t = taskById(ui.openTask);
-      const c = createTask({ ...t, id: null, title: t.title + ' (copy)', status: 'todo', completedAt: null, subtasks: t.subtasks.map(s => ({ title: s.title, done: false })) });
+      const c = createTask({ ...t, id: null, title: t.title + ' (copy)', status: 'todo', completedAt: null, spent: null, time: [], nextId: null, subtasks: t.subtasks.map(s => ({ title: s.title, done: false })) });
       openDrawer(c.id); refreshBehindDrawer(); toast('Task duplicated'); return;
     }
     case 'delete-task': deleteTask(ui.openTask); return;
@@ -3257,6 +3538,7 @@ document.addEventListener('change', e => {
   if (id === 'quickPhase') { ui.quickPhase[currentProject().id] = e.target.value; $('quickInput').focus(); return; }
   if (id === 'quickProj') { db.settings.lastProject = e.target.value; save(); renderContent(); $('quickInput').focus(); return; }
   if (id === 'importInput') { if (e.target.files[0]) importBackup(e.target.files[0]); e.target.value = ''; return; }
+  if (id === 'attInput') { const t = taskById(ui.openTask); if (t && e.target.files.length) addAttachments(t, e.target.files).then(() => { e.target.value = ''; }); return; }
   if (id === 'importAnyInput') { if (e.target.files[0]) importAnyFile(e.target.files[0]); e.target.value = ''; return; }
   const t = ui.openTask && taskById(ui.openTask);
   if (!t) return;
@@ -3383,6 +3665,12 @@ document.addEventListener('dragstart', e => {
 });
 document.addEventListener('dragend', () => { dragId = null; clearDropMarks(); document.querySelectorAll('.dragging, .col.drop, .cal-day.drop').forEach(x => x.classList.remove('dragging', 'drop')); });
 document.addEventListener('dragover', e => {
+  // files from the computer dropped on the task panel → attachments
+  if (!dragId && e.dataTransfer && [...e.dataTransfer.types].includes('Files') && e.target.closest('#drawer.open')) {
+    e.preventDefault();
+    $('drawer').classList.add('file-over');
+    return;
+  }
   const over = dragId && e.target.closest('.rows .row, .col .card');
   if (over && over.dataset.task !== dragId) {
     e.preventDefault();
@@ -3406,7 +3694,14 @@ document.addEventListener('dragover', e => {
   document.querySelectorAll('.col.drop').forEach(x => x !== col && x.classList.remove('drop'));
   col.classList.add('drop');
 });
+document.addEventListener('dragleave', e => { if (e.target === $('drawer') || !e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('#drawer')) $('drawer').classList.remove('file-over'); });
 document.addEventListener('drop', e => {
+  if (!dragId && e.dataTransfer && e.dataTransfer.files.length && e.target.closest('#drawer.open')) {
+    e.preventDefault();
+    $('drawer').classList.remove('file-over');
+    addAttachments(taskById(ui.openTask), e.dataTransfer.files);
+    return;
+  }
   // list: drop on a row → put the dragged task before/after it (and into its group)
   const row = dragId && e.target.closest('.rows .row');
   if (row) {
@@ -3476,6 +3771,15 @@ window.addEventListener('storage', e => {
   if (next) { db = next; render(); }
 });
 
+// Pasting a screenshot / copied image while a task is open attaches it.
+document.addEventListener('paste', e => {
+  const t = ui.openTask && taskById(ui.openTask);
+  const files = e.clipboardData ? [...e.clipboardData.files] : [];
+  if (!t || !files.length || $('modal').classList.contains('open')) return;
+  e.preventDefault();
+  addAttachments(t, files);
+});
+
 // Re-render at midnight so Today / Overdue stay correct if the app is left open.
 let lastDay = todayStr();
 setInterval(() => { if (todayStr() !== lastDay) { lastDay = todayStr(); render(); } }, 60000);
@@ -3484,6 +3788,7 @@ applyTheme();
 save();
 render();
 fsStartup();
+cleanupBlobs();
 </script>
 </body>
 </html>

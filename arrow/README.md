@@ -127,6 +127,28 @@ into another group moves it there too (e.g. Group: Status → into "In
 progress"; also phase, priority and project). New tasks go to the end. The
 tree follows the same order.
 
+## Attachments (drawings, photos, any file)
+In a task's details, **Attachments → Add files**, or drag files from your
+computer onto the panel, or **paste** a screenshot / copied image (Ctrl+V).
+Images show as thumbnails (click for full size); PDFs open in a new tab;
+other files (DWG, STEP, Excel…) download when clicked. Up to 25 MB per file;
+phone photos over 3 MB are made smaller (drawings, PNGs and PDFs are kept
+exactly as they are). List rows show a 📎 count.
+
+Files are stored in the browser (IndexedDB) and included in **backups** and
+in your **data file**, so they move to another computer with them. A file you
+remove can be brought back with Undo until you close the app.
+
+## Timer
+In a task's details press **▶ Start timer**. A red-dot pill in the top bar
+shows the running task and time (click it to open the task, ■ to stop); the
+task row shows it ticking too. **Stop** adds the time to **Spent** and logs an
+entry (date, start time, hours) under the timer; remove an entry with × and
+it comes off Spent. Only one timer runs at a time: starting another stops and
+logs the first. A To do task moves to In progress when you start it. The
+timer keeps running through reloads and restarts; if it ran more than 12
+hours, Arrow asks how much to log. You can still type Spent by hand.
+
 ## Recurring tasks
 Open a task and choose **Repeat**: every day, every weekday, weekly, every 2
 weeks, monthly, yearly, or **Custom…** (every N days / weeks / months / years,

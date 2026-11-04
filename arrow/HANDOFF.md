@@ -129,6 +129,20 @@ new features consistent with this.
   by project order, phase, then the current sort), `csvCell` (RFC 4180
   quoting; leading = + - @ tab CR get a ' to stop formula injection),
   `exportCsv` (UTF-8 BOM, CRLF). Columns in `CSV_COLUMNS`.
+- **ATTACHMENTS**: bytes in IndexedDB `arrow-blobs` / store `b`, key = the
+  attachment id (`blobPut/Get/Del/Keys`); tasks keep only metadata, so
+  localStorage stays small. `filesPayload()` → `{ id: { type, data(base64) } }`
+  is added as `files` to backups and the data file (cached in `b64Cache`);
+  `storeFiles` puts them back on restore / merge / load-from-file.
+  `cleanupBlobs()` on start deletes bytes no task refers to (that's why
+  remove has session-only undo). `addAttachments` (25 MB cap, `maybeShrink`
+  JPEGs over 3 MB to 2560 px), `attachmentsHtml`, `hydrateThumbs`
+  (object URLs in `urlCache`), `openAttachment` (lightbox / new tab /
+  download). Input `#attInput`, drop on `#drawer`, document `paste`.
+- **TIMER**: `db.timer` persists the running timer (one at a time).
+  `startTimer`, `stopTimer` (adds to `spent`, appends to `time`, asks above
+  `LONG_TIMER_H`), `timerHtml` (drawer row + log), app-bar `.timer-pill`; a
+  1 s interval updates `[data-timer-clock]` without re-rendering.
 - **MANUAL ORDER**: `task.order` + `SORTS.manual` (unplaced tasks after,
   oldest first). Rows (`.rows .row`, grip handle) and board cards use the
   shared HTML5 drag handlers: drop on a row/card → `placeIn` the visible ids
@@ -193,8 +207,10 @@ new features consistent with this.
   templates: [{ id, name, text /*one item per line; indented = sub-item*/, createdAt }],
   tasks: [{ id, projectId|null, phaseId|null /*one of its project's phases*/, dependsOn: [taskId] /*must be done first*/, start /*YYYY-MM-DD|null*/, estimate /*hours|null*/, spent /*hours|null*/,
             repeat: { every, unit: 'day'|'week'|'month'|'year', weekdays: [0-6], monthDay, from: 'due'|'done' }|null,
-            nextId /*occurrence created when this was done*/, order /*manual position|null*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
+            nextId /*occurrence created when this was done*/, order /*manual position|null*/,
+            attachments: [{ id, name, type, size, addedAt }] /*bytes in IndexedDB*/, time: [{ at, h }] /*timer log*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
             tags: [string], subtasks: [{ id, title, done }], createdAt, updatedAt, completedAt|null }],
+  timer: { taskId, startedAt }|null,
   settings: { theme: 'light'|'dark'|null, sort /*remembered*/, view /*'projects'|'project:<id>'|helper*/, layout: 'list'|'board'|'tree'|'timeline'|'calendar',
               lastBackup /*ISO|null*/, lastProject /*id|''|null*/ } }
 ```
@@ -218,15 +234,17 @@ changes. Extend the test whenever you add a feature.
   protection against the browser's site data being cleared.
 - Data-file sync is "last saved wins with a prompt", not a merge: if two
   computers both change things, the owner picks one side.
-- No reminders, notifications or attachments. Effort is
-  entered by hand (no timer).
+- No reminders or notifications. Attachments live in the browser
+  (IndexedDB) plus backups/data file; large libraries of files make the data
+  file big (it is rewritten on every change).
 - `confirm()` dialogs are used for destructive actions (good enough for a
   personal tool).
 
 ## Ideas backlog (check with the owner before building)
 Built since the first handoff: tree view, project-first layout, Axon look,
 checklist templates, phases, dependencies, timeline, effort, save to a file,
-recurring tasks, calendar, manual ordering, CSV export, import (Excel/CSV/JSON/Axon files).
+recurring tasks, calendar, manual ordering, CSV export, import (Excel/CSV/JSON/Axon files),
+attachments, timer.
 Still open:
 - Optional live import of projects straight from the online Axon app
   (Supabase); for now, export a CSV from Axon and import that file.
