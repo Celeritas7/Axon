@@ -95,6 +95,15 @@ new features consistent with this.
   `normalizeDb`). `confirmDone(t)` asks before marking a task done while
   subtasks are unticked; it is used by toggle, the drawer status select and
   board drops.
+- **PHASES**: `project.phases` (ordered) and `task.phaseId`; `normalizeDb`
+  clears a phaseId that isn't in the task's project. Helpers `phaseOf`,
+  `phaseStats`, `currentPhase` (first phase with open work). UI:
+  `phaseStripHtml` (filter chips; `ui.phase` = null | 'none' | id, reset by
+  `setView`), `phasesModal` (add/rename/reorder/remove; removed phases leave
+  their tasks with no phase), drawer `#dPhase`, quick-add `#quickPhase`
+  (remembered per project in `ui.quickPhase`), list group mode `phase`
+  (default on a project with phases), tree level `phase` on project pages
+  only (helper-view trees stay project → task), template mode `phases`.
 - **Tree direction**: right-to-left like Axon (`layoutTree` mirrors the
   columns; links run from a child's right edge to its parent's left edge;
   the collapse handle sits on the parent's left edge).
@@ -108,9 +117,9 @@ new features consistent with this.
 ## Data model (localStorage `axonTasks.v1`, and the backup JSON)
 ```js
 { version: 1,
-  projects: [{ id, name, color, description, archived, createdAt }],
+  projects: [{ id, name, color, description, archived, phases: [{ id, name }] /*ordered*/, createdAt }],
   templates: [{ id, name, text /*one item per line; indented = sub-item*/, createdAt }],
-  tasks: [{ id, projectId|null, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
+  tasks: [{ id, projectId|null, phaseId|null /*one of its project's phases*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
             tags: [string], subtasks: [{ id, title, done }], createdAt, updatedAt, completedAt|null }],
   settings: { theme: 'light'|'dark'|null, view /*'projects'|'project:<id>'|helper*/, layout: 'list'|'board'|'tree',
               lastBackup /*ISO|null*/, lastProject /*id|''|null*/ } }

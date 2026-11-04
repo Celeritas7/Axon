@@ -45,6 +45,7 @@
   --lv1-bar:oklch(0.60 0.13 150); --lv1-fill:oklch(0.95 0.045 150);
   --lv2-bar:oklch(0.58 0.15 300); --lv2-fill:oklch(0.95 0.045 300);
   --lv3-bar:oklch(0.58 0.14 245); --lv3-fill:oklch(0.95 0.045 245);
+  --lv4-bar:oklch(0.60 0.11 190); --lv4-fill:oklch(0.95 0.045 190);
 }
 [data-theme="dark"] {
   --bg:#0c1119; --canvas:#0e141d; --surface:#141c28; --surface-2:#1a2433; --surface-3:#22303f;
@@ -59,6 +60,7 @@
   --lv1-fill:oklch(0.30 0.06 150); --lv1-bar:oklch(0.70 0.15 150);
   --lv2-fill:oklch(0.30 0.06 300); --lv2-bar:oklch(0.70 0.16 300);
   --lv3-fill:oklch(0.30 0.06 245); --lv3-bar:oklch(0.72 0.15 245);
+  --lv4-fill:oklch(0.30 0.05 190); --lv4-bar:oklch(0.72 0.12 190);
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -268,6 +270,26 @@ label.lbl { display:block; font-size:10px; font-weight:600; letter-spacing:.06em
 .inbox-note u { color:var(--accent); }
 .sec-h { font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin:26px 0 10px; }
 .quick-proj { max-width:200px; flex:none; height:34px; }
+.phases { display:flex; align-items:center; gap:6px; overflow-x:auto; padding:2px 0 4px; scrollbar-width:thin; }
+.ph { display:inline-flex; align-items:center; gap:9px; height:40px; padding:0 12px 0 8px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface); cursor:pointer; color:var(--ink-2); flex:none; box-shadow:0 1px 2px rgba(16,23,32,.04); }
+.ph:hover { border-color:var(--border-2); color:var(--ink); }
+.ph.on { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); color:var(--ink); }
+.ph.all, .ph.none { padding:0 12px; font-size:12.5px; }
+.ph-n { width:22px; height:22px; border-radius:50%; display:grid; place-items:center; font-family:var(--font-mono); font-size:11px; font-weight:600; background:var(--surface-3); color:var(--ink-2); flex:none; }
+.ph.cur .ph-n { background:var(--accent); color:#fff; }
+.ph.done .ph-n { background:var(--st-done); color:#fff; }
+.ph.blocked:not(.done) .ph-n { background:color-mix(in srgb, var(--st-blocked) 15%, transparent); color:var(--st-blocked); }
+.ph-body { display:flex; flex-direction:column; gap:4px; min-width:70px; }
+.ph-name { font-size:12.5px; font-weight:600; color:var(--ink); white-space:nowrap; text-align:left; }
+.ph-bar { display:block; height:3px; border-radius:2px; background:var(--surface-3); overflow:hidden; }
+.ph-bar > span { display:block; height:100%; background:var(--st-done); }
+.ph-c { font-family:var(--font-mono); font-size:11px; color:var(--ink-3); }
+.ph-arrow { color:var(--ink-3); display:inline-flex; flex:none; } .ph-arrow svg { width:13px; height:13px; }
+.phase-chip { display:inline-flex; align-items:center; gap:4px; color:var(--lv2-bar); font-weight:500; }
+.ph-rows { display:flex; flex-direction:column; gap:6px; }
+.ph-row { display:flex; align-items:center; gap:6px; } .ph-row .input { flex:1; }
+.ph-add { display:flex; gap:8px; } .ph-add .input { flex:1; }
+.btn:disabled { opacity:.35; cursor:default; }
 .tcard { min-height:150px; }
 .tcard .pc-tile { background:var(--accent-soft); border-color:color-mix(in srgb, var(--accent) 25%, var(--border)); color:var(--accent); }
 .tpl-prev { list-style:none; display:flex; flex-direction:column; gap:5px; font-size:12.5px; color:var(--ink-2); }
@@ -292,7 +314,7 @@ textarea.mono { font-family:var(--font-mono); font-size:12.5px; line-height:1.6;
 .tree-legend .lg-h { font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin-left:6px; }
 .tree-legend .lg-h:first-child { margin-left:0; }
 .tree-legend i { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:6px; vertical-align:-2px; background:var(--c); }
-.tree-legend i.lv1 { background:var(--lv1-bar); } .tree-legend i.lv2 { background:var(--lv2-bar); } .tree-legend i.lv3 { background:var(--lv3-bar); }
+.tree-legend i.lv1 { background:var(--lv1-bar); } .tree-legend i.lv2 { background:var(--lv2-bar); } .tree-legend i.lv3 { background:var(--lv3-bar); } .tree-legend i.lv4 { background:var(--lv4-bar); }
 .tree-legend .hint-k { margin-left:auto; color:var(--ink-3); }
 .tree-zoom { position:absolute; left:12px; bottom:12px; display:flex; flex-direction:column; background:var(--surface); border:1px solid var(--border-2); border-radius:var(--radius-sm); box-shadow:var(--shadow-card); overflow:hidden; }
 .tree-zoom button { width:32px; height:32px; border:0; background:none; color:var(--ink-2); cursor:pointer; display:grid; place-items:center; }
@@ -325,7 +347,9 @@ textarea.mono { font-family:var(--font-mono); font-size:12.5px; line-height:1.6;
 .tdot .d { fill:var(--c); stroke:var(--node-fill); stroke-width:1.2; }
 .tdot:hover .d { r:5.5; }
 .tdot:hover .hit { fill:color-mix(in srgb, var(--c) 14%, transparent); }
-.tseq circle { fill:var(--accent); stroke:var(--tree-bg); stroke-width:1.5; }
+.tseq rect { fill:var(--accent); stroke:var(--tree-bg); stroke-width:1.5; }
+.tphase { cursor:default; } .tphase:hover .n-edge { stroke:var(--border-2); }
+.tphase .t1 { font-size:13px; }
 .tseq text { font-size:10px; font-weight:600; fill:#fff; font-family:var(--font-mono); }
 .ttoggle { cursor:pointer; }
 .ttoggle circle { fill:var(--surface); stroke:var(--accent); stroke-width:1.4; }
@@ -461,6 +485,7 @@ function normalizeTask(t) {
   return {
     id: String(t.id || uid()),
     projectId: t.projectId || null,
+    phaseId: t.phaseId ? String(t.phaseId) : null,
     title: String(t.title || 'Untitled'),
     notes: String(t.notes || ''),
     status: STATUSES.some(s => s.id === t.status) ? t.status : 'todo',
@@ -480,6 +505,8 @@ function normalizeProject(p, i) {
     color: p.color || PROJECT_COLORS[i % PROJECT_COLORS.length],
     description: String(p.description || ''),
     archived: !!p.archived,
+    // ordered phases (e.g. Design → Purchase → Build → Test); added later, older saves have none
+    phases: Array.isArray(p.phases) ? p.phases.map(x => ({ id: String(x.id || uid()), name: String(x.name || 'Phase').trim() || 'Phase' })) : [],
     createdAt: p.createdAt || nowIso()
   };
 }
@@ -492,6 +519,8 @@ function normalizeDb(raw) {
   base.projects = raw.projects.map(normalizeProject);
   const ids = new Set(base.projects.map(p => p.id));
   base.tasks = raw.tasks.map(normalizeTask).map(t => (t.projectId && !ids.has(t.projectId) ? { ...t, projectId: null } : t));
+  const phaseIds = new Map(base.projects.map(x => [x.id, new Set(x.phases.map(ph => ph.id))]));
+  base.tasks.forEach(t => { if (t.phaseId && !(t.projectId && phaseIds.get(t.projectId).has(t.phaseId))) t.phaseId = null; });
   // templates were added later: a save without the field gets the sample checklist once
   base.templates = Array.isArray(raw.templates) ? raw.templates.map(normalizeTemplate) : [normalizeTemplate({ name: 'Work quality checklist', text: SAMPLE_TEMPLATE })];
   base.settings = { ...base.settings, ...(raw.settings || {}) };
@@ -574,18 +603,34 @@ const ui = {
   sort: 'due',
   group: null,                           // null = default for view
   openTask: null,
-  showArchived: false
+  showArchived: false,
+  phase: null,                           // phase filter on a project page: null = all, 'none' = no phase, or a phase id
+  quickPhase: {}                         // last phase picked in quick add, per project
 };
 if (ui.view.startsWith('project:') && !projectById(ui.view.slice(8))) ui.view = 'projects';
 
 function projectById(id) { return db.projects.find(p => p.id === id); }
+function phaseOf(t) {
+  const p = t.projectId ? projectById(t.projectId) : null;
+  return p && t.phaseId ? p.phases.find(ph => ph.id === t.phaseId) || null : null;
+}
+function phaseStats(p, ph) {
+  const all = db.tasks.filter(t => t.projectId === p.id && (ph ? t.phaseId === ph.id : !t.phaseId));
+  const done = all.filter(t => t.status === 'done').length;
+  return { total: all.length, done, open: all.length - done, blocked: all.some(t => t.status === 'blocked'), doing: all.some(t => t.status === 'doing') };
+}
+// the phase you are in: the first one that still has open work (or no tasks yet)
+function currentPhase(p) {
+  return p.phases.find(ph => { const st = phaseStats(p, ph); return !st.total || st.open; }) || null;
+}
 function taskById(id) { return db.tasks.find(t => t.id === id); }
 function currentProject() { return ui.view.startsWith('project:') ? projectById(ui.view.slice(8)) : null; }
 function defaultGroup() {
-  return currentProject() ? 'status' : 'project';   // helper views are organised by project
+  const p = currentProject();
+  return p ? (p.phases.length ? 'phase' : 'status') : 'project';   // helper views are organised by project
 }
 function setView(v) {
-  ui.view = v; ui.group = null;
+  ui.view = v; ui.group = null; ui.phase = null;
   db.settings.view = v; save();
   render();
 }
@@ -613,7 +658,8 @@ function matchesFilters(t) {
   const q = ui.search.trim().toLowerCase();
   if (!q) return true;
   const p = t.projectId ? projectById(t.projectId) : null;
-  const hay = [t.title, t.notes, t.tags.map(x => '#' + x).join(' '), p ? p.name : '', t.subtasks.map(s => s.title).join(' ')].join(' ').toLowerCase();
+  const ph = phaseOf(t);
+  const hay = [t.title, t.notes, t.tags.map(x => '#' + x).join(' '), p ? p.name : '', ph ? ph.name : '', t.subtasks.map(s => s.title).join(' ')].join(' ').toLowerCase();
   return q.split(/\s+/).every(w => hay.includes(w));
 }
 
@@ -628,6 +674,7 @@ function visibleTasks(forBoard) {
   return db.tasks
     .filter(t => inView(t, ui.view))
     .filter(t => forBoard || ui.showDone || t.status !== 'done')
+    .filter(t => !ui.phase || !currentProject() || (ui.phase === 'none' ? !t.phaseId : t.phaseId === ui.phase))
     .filter(matchesFilters)
     .sort(SORTS[ui.sort]);
 }
@@ -649,6 +696,11 @@ function groupTasks(tasks, mode) {
     if (mode === 'status') { const i = STATUSES.findIndex(s => s.id === t.status); put(String(i), STATUSES[i].label, t); }
     else if (mode === 'project') { const p = t.projectId ? projectById(t.projectId) : null; put(p ? '1' + p.name.toLowerCase() + p.id : '9', p ? p.name : 'Inbox (no project)', t); }
     else if (mode === 'priority') put(String(9 - t.priority), PRIORITIES[t.priority] + ' priority', t);
+    else if (mode === 'phase') {
+      const p = t.projectId ? projectById(t.projectId) : null;
+      const i = p && t.phaseId ? p.phases.findIndex(ph => ph.id === t.phaseId) : -1;
+      put(i < 0 ? '~' : String(i).padStart(3, '0'), i < 0 ? 'No phase' : `${i + 1}. ${p.phases[i].name}`, t);
+    }
     else if (mode === 'due') { const [k, l] = dueBucket(t); put(k, l, t); }
     else put('0', '', t);
   }
@@ -721,6 +773,17 @@ function loadChecklist(task, tpl) {
   return add.length;
 }
 function applyTemplateToProject(tpl, projectId, mode) {
+  if (mode === 'phases') {
+    const p = projectById(projectId), made = [];
+    for (const i of parseTemplate(tpl.text)) {
+      if (!i.children.length) { made.push(createTask({ projectId, title: i.title })); continue; }
+      let ph = p.phases.find(x => x.name.toLowerCase() === i.title.toLowerCase());
+      if (!ph) { ph = { id: uid(), name: i.title }; p.phases.push(ph); }
+      i.children.forEach(c => made.push(createTask({ projectId, phaseId: ph.id, title: c })));
+    }
+    save();
+    return made;
+  }
   if (mode === 'one') return [createTask({ projectId, title: tpl.name, subtasks: checklistFromTemplate(tpl).map(title => ({ title })) })];
   return parseTemplate(tpl.text).map(i => createTask({ projectId, title: i.title, subtasks: i.children.map(title => ({ title })) }));
 }
@@ -751,9 +814,11 @@ function quickAdd(text) {
   const p = quickTarget();
   if (!q.due && ui.view === 'today') q.due = todayStr();
   if (!q.due && ui.view === 'upcoming') q.due = addDays(todayStr(), 1);
-  const t = createTask({ ...q, projectId: p ? p.id : null });
+  const phEl = $('quickPhase');
+  const t = createTask({ ...q, projectId: p ? p.id : null, phaseId: p && phEl ? phEl.value || null : null });
   render();
-  const where = p ? p.name : 'Inbox';
+  const ph = phaseOf(t);
+  const where = p ? p.name + (ph ? ' › ' + ph.name : '') : 'Inbox';
   toast(`Added to ${where}${q.due ? ' · ' + fmtDue(q.due) : ''}`, 'Open', () => openDrawer(t.id));
 }
 
@@ -814,6 +879,26 @@ function viewTitle() {
   return { projects: 'Projects', templates: 'Templates', today: 'Today', upcoming: 'Upcoming', inbox: 'Inbox', all: 'All tasks' }[ui.view];
 }
 
+function phaseStripHtml(p) {
+  if (!p.phases.length) return '';
+  const cur = currentPhase(p);
+  const none = phaseStats(p, null);
+  const chip = (ph, i) => {
+    const st = phaseStats(p, ph);
+    const pct = st.total ? Math.round(st.done / st.total * 100) : 0;
+    const state = st.total && !st.open ? 'done' : ph === cur ? 'cur' : st.blocked ? 'blocked' : '';
+    return `<button class="ph ${state} ${ui.phase === ph.id ? 'on' : ''}" data-phase="${esc(ph.id)}" title="Show only ${esc(ph.name)}">
+      <span class="ph-n">${state === 'done' ? ic('check', 'style="width:11px;height:11px"') : i + 1}</span>
+      <span class="ph-body"><span class="ph-name">${esc(ph.name)}</span><span class="ph-bar"><span style="width:${pct}%"></span></span></span>
+      <span class="ph-c">${st.done}/${st.total}</span></button>`;
+  };
+  return `<div class="phases">
+    <button class="ph all ${!ui.phase ? 'on' : ''}" data-phase="">All phases</button>
+    ${p.phases.map(chip).join('<span class="ph-arrow">' + ic('chevron') + '</span>')}
+    ${none.total ? `<button class="ph none ${ui.phase === 'none' ? 'on' : ''}" data-phase="none" title="Tasks not in a phase"><span class="ph-body"><span class="ph-name">No phase</span></span><span class="ph-c">${none.done}/${none.total}</span></button>` : ''}
+  </div>`;
+}
+
 function renderTopbar() {
   if (ui.view === 'templates') {
     $('topbar').innerHTML = `
@@ -845,7 +930,8 @@ function renderTopbar() {
     const pct = all.length ? Math.round((done / all.length) * 100) : 0;
     projectExtras = `<div class="head-sub proj-line">
       ${p.description ? `<span class="proj-desc">${esc(p.description)}</span>` : ''}
-      <span class="progress"><span class="bar"><span style="width:${pct}%"></span></span>${done}/${all.length} done · ${pct}%</span></div>`;
+      <span class="progress"><span class="bar"><span style="width:${pct}%"></span></span>${done}/${all.length} done · ${pct}%</span></div>
+      ${phaseStripHtml(p)}`;
   }
   const sub = ui.view === 'today' ? new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '';
   $('topbar').innerHTML = `
@@ -859,6 +945,7 @@ function renderTopbar() {
       ${p ? `<div class="cluster">
         <button data-act="edit-project" title="Edit project">${ic('edit')}<span class="lbl-sm">Edit</span></button>
         <button data-act="archive-project" title="${p.archived ? 'Restore' : 'Archive'} project">${ic('archive')}<span class="lbl-sm">${p.archived ? 'Restore' : 'Archive'}</span></button>
+        <button data-act="phases" title="Add, rename or reorder this project's phases">${ic('layers')}<span class="lbl-sm">Phases</span></button>
         <button data-act="project-template" title="Add tasks from a checklist template">${ic('checklist')}<span class="lbl-sm">From template</span></button>
         <button class="ib" data-act="delete-project" title="Delete project" style="color:var(--danger)">${ic('trash')}</button>
       </div>` : ''}
@@ -873,7 +960,7 @@ function renderTopbar() {
       </div>
       ${ui.layout === 'list' ? `
         <select class="input" id="groupSel" title="Group by">
-          ${[['due', 'Group: Due date'], ['status', 'Group: Status'], ['project', 'Group: Project'], ['priority', 'Group: Priority'], ['none', 'No grouping']].map(([v, l]) => `<option value="${v}" ${group === v ? 'selected' : ''}>${l}</option>`).join('')}
+          ${[...(p && p.phases.length ? [['phase', 'Group: Phase']] : []), ['due', 'Group: Due date'], ['status', 'Group: Status'], ['project', 'Group: Project'], ['priority', 'Group: Priority'], ['none', 'No grouping']].map(([v, l]) => `<option value="${v}" ${group === v ? 'selected' : ''}>${l}</option>`).join('')}
         </select>` : ''}
       <select class="input" id="sortSel" title="Sort by">
         ${[['due', 'Sort: Due date'], ['priority', 'Sort: Priority'], ['created', 'Sort: Newest'], ['title', 'Sort: Title']].map(([v, l]) => `<option value="${v}" ${ui.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
@@ -922,6 +1009,8 @@ function projectCardHtml(p) {
   const meta = [`${st.total} task${st.total === 1 ? '' : 's'}`];
   if (st.open) meta.push(`${st.open} open`);
   if (st.overdue) meta.push(`<span style="color:var(--danger)">${st.overdue} overdue</span>`);
+  const cph = p.phases.length ? currentPhase(p) : null;
+  if (p.phases.length) meta.push(cph ? `phase ${p.phases.indexOf(cph) + 1}/${p.phases.length} · ${esc(cph.name)}` : `${p.phases.length} phases done`);
   const n = st.next;
   const over = n && n.due && n.due < todayStr();
   const foot = n ? `<div class="pc-foot"><span class="lbl">Next</span><span class="tt">${esc(n.title)}</span>${n.due ? `<span class="due ${over ? 'over' : ''}">${esc(fmtDue(n.due))}</span>` : ''}</div>`
@@ -970,6 +1059,8 @@ function projectsOverviewHtml() {
 function metaHtml(t, { showProject = true } = {}) {
   const parts = [];
   const p = t.projectId ? projectById(t.projectId) : null;
+  const ph = phaseOf(t);
+  if (ph && !(ui.layout === 'list' && (ui.group || defaultGroup()) === 'phase')) parts.push(`<span class="phase-chip" title="Phase">${ic('layers', 'style="width:11px;height:11px"')}${esc(ph.name)}</span>`);
   if (showProject && p && !currentProject() && !(ui.layout === 'list' && (ui.group || defaultGroup()) === 'project')) parts.push(`<span class="chip"><span class="dot" style="background:${esc(p.color)};width:8px;height:8px"></span><span>${esc(p.name)}</span></span>`);
   if (t.due) {
     const diff = daysBetween(todayStr(), t.due);
@@ -1018,8 +1109,12 @@ function quickHtml() {
       ${db.projects.filter(x => !x.archived).map(x => `<option value="${esc(x.id)}" ${target && target.id === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
       <option value="" ${!target ? 'selected' : ''}>Inbox (no project)</option>
     </select>`;
+  const phSel = p && p.phases.length ? (ui.phase && ui.phase !== 'none' ? ui.phase : ui.phase === 'none' ? '' : (ui.quickPhase[p.id] ?? (currentPhase(p) || {}).id ?? '')) : null;
+  const phPicker = phSel == null ? '' : `<select class="input quick-proj" id="quickPhase" title="Phase for new tasks">
+      ${p.phases.map((ph, i) => `<option value="${esc(ph.id)}" ${ph.id === phSel ? 'selected' : ''}>${i + 1}. ${esc(ph.name)}</option>`).join('')}
+      <option value="" ${!phSel ? 'selected' : ''}>No phase</option></select>`;
   return `<form class="quick" id="quickForm" autocomplete="off">
-      ${picker}
+      ${picker}${phPicker}
       <input class="input" id="quickInput" placeholder="Add a task to ${esc(target ? target.name : 'Inbox')}${when}…  ( N )">
       <button class="btn primary" type="submit">${ic('plus')}Add</button>
     </form>
@@ -1071,10 +1166,10 @@ function renderContent() {
 // RENDER: TREE (project → tasks → subtasks as a node-link diagram,
 // in the spirit of Axon's tree view; plain SVG, no libraries)
 // ============================================================
-const TREE_NODE = { root: { w: 210, h: 54 }, task: { w: 230, h: 52 }, sub: { w: 200, h: 40 } };
+const TREE_NODE = { root: { w: 210, h: 54 }, phase: { w: 200, h: 50 }, task: { w: 230, h: 52 }, sub: { w: 200, h: 40 } };
 const TREE_COL_GAP = 84;
-const TREE_ROW_GAP = { root: 26, task: 16, sub: 10 };
-const TREE_LEVELS = ['Project', 'Tasks', 'Subtasks'];
+const TREE_ROW_GAP = { root: 26, phase: 24, task: 16, sub: 10 };
+const TREE_LEVEL_NAME = { root: 'Project', phase: 'Phases', task: 'Tasks', sub: 'Subtasks' };
 ui.tree = { k: 1, x: 0, y: 0, fittedFor: null, collapsed: new Set(), moved: false, color: 'level' };
 
 function clip(str, px, fontPx) {
@@ -1086,12 +1181,22 @@ function treeModel(tasks) {
   // Every tree is rooted on a project. Helper views (Today, Upcoming…) show one tree per project.
   // Axon-style sequence tags: tasks 1, 2, 3…; subtasks 1a, 1b…
   const letter = j => (j < 26 ? String.fromCharCode(97 + j) : 'z' + (j - 25));
-  const taskNode = (t, i) => ({
-    kind: 'task', id: 't:' + t.id, task: t, seq: String(i + 1),
-    children: t.subtasks.map((s, j) => ({ kind: 'sub', id: 's:' + t.id + ':' + s.id, task: t, sub: s, seq: (i + 1) + letter(j), children: [] }))
+  // with phases: phase 1, task 1.1, subtask 1.1a
+  const taskNode = (t, i, pre = '') => ({
+    kind: 'task', id: 't:' + t.id, task: t, seq: pre + (i + 1),
+    children: t.subtasks.map((s, j) => ({ kind: 'sub', id: 's:' + t.id + ':' + s.id, task: t, sub: s, seq: pre + (i + 1) + letter(j), children: [] }))
   });
   const p = currentProject();
-  if (p) return [{ kind: 'root', id: 'r:' + p.id, project: p, children: tasks.map(taskNode) }];
+  if (p && p.phases.length) {
+    // project → phases → tasks → subtasks; empty phases still show (it's a plan), unless a filter is narrowing things
+    const narrowing = ui.search || ui.priority !== 'any' || ui.phase;
+    const phases = p.phases.map((ph, i) => ({ kind: 'phase', id: 'ph:' + ph.id, project: p, phase: ph, seq: String(i + 1),
+      children: tasks.filter(t => t.phaseId === ph.id).map((t, j) => taskNode(t, j, (i + 1) + '.')) }));
+    const loose = tasks.filter(t => !t.phaseId);
+    if (loose.length) phases.push({ kind: 'phase', id: 'ph:none', project: p, phase: null, seq: '–', children: loose.map((t, j) => taskNode(t, j, '–.')) });
+    return [{ kind: 'root', id: 'r:' + p.id, project: p, children: narrowing ? phases.filter(x => x.children.length) : phases }];
+  }
+  if (p) return [{ kind: 'root', id: 'r:' + p.id, project: p, children: tasks.map(t => taskNode(t, tasks.indexOf(t))) }];
   const byProject = new Map();
   for (const t of tasks) {
     const key = t.projectId || '';
@@ -1099,7 +1204,7 @@ function treeModel(tasks) {
     byProject.get(key).push(t);
   }
   return db.projects.map(x => x.id).concat(['']).filter(k => byProject.has(k)).map(k => ({
-    kind: 'root', id: 'r:' + (k || 'inbox'), project: k ? projectById(k) : null, children: byProject.get(k).map(taskNode)
+    kind: 'root', id: 'r:' + (k || 'inbox'), project: k ? projectById(k) : null, children: byProject.get(k).map((t, i) => taskNode(t, i))
   }));
 }
 
@@ -1117,7 +1222,7 @@ function layoutTree(roots) {
   let cursor = 0;
   function place(n, d) {
     const { w, h } = TREE_NODE[n.kind];
-    n.w = w; n.h = h; n.x = colX[d] + (colW[d] - w);   // right-align in its column, next to the parent
+    n.w = w; n.h = h; n.d = d; n.x = colX[d] + (colW[d] - w);   // right-align in its column, next to the parent
     const ch = kids(n);
     if (!ch.length) { n.y = cursor; cursor += h + TREE_ROW_GAP[n.kind]; }
     else {
@@ -1136,7 +1241,9 @@ function layoutTree(roots) {
     nodes.push(n);
   }
   roots.forEach((r, i) => { if (i) cursor += 34; place(r, 0); });   // space between project trees
-  return { nodes, links, colX, colW };
+  const kindAt = [];
+  nodes.forEach(n => { kindAt[n.d] = kindAt[n.d] || n.kind; });
+  return { nodes, links, colX, colW, kindAt };
 }
 
 function svgIcon(name, x, y, size, cls = '') {
@@ -1147,8 +1254,13 @@ function svgIcon(name, x, y, size, cls = '') {
 function nodeColors(n) {
   // fill + left bar colour, by the chosen colour mode (Axon: by level / status / group)
   const mode = ui.tree.color;
-  const lv = { root: 1, task: 2, sub: 3 }[n.kind];
-  const p = n.kind === 'root' ? n.project : (n.task.projectId ? projectById(n.task.projectId) : null);
+  const lv = Math.min(4, (n.d || 0) + 1);
+  const p = n.kind === 'root' || n.kind === 'phase' ? n.project : (n.task.projectId ? projectById(n.task.projectId) : null);
+  if (mode === 'status' && n.kind === 'phase') {
+    const st = phaseStats(n.project, n.phase);
+    const c = `var(--st-${st.total && !st.open ? 'done' : st.blocked ? 'blocked' : st.doing || st.done ? 'doing' : 'todo'})`;
+    return [`color-mix(in srgb, ${c} 12%, var(--node-fill))`, c];
+  }
   if (mode === 'project' || (mode === 'status' && n.kind === 'root')) {
     const c = p ? p.color : 'var(--ink-3)';
     return [`color-mix(in srgb, ${c} 11%, var(--node-fill))`, c];
@@ -1175,7 +1287,19 @@ function nodeSvg(n) {
   const toggle = n.children.length && !(n.kind === 'root' && currentProject())
     ? `<g class="ttoggle" data-act="tree-toggle" data-node="${esc(n.id)}" transform="translate(${x},${y + h / 2})"><title>${collapsedKids ? 'Expand' : 'Collapse'}</title>
         <circle r="${collapsedKids ? 10 : 8}"/><text text-anchor="middle" dy="0.35em">${collapsedKids ? '+' + collapsedKids : '−'}</text></g>` : '';
-  const badge = n.seq ? `<g class="tseq" transform="translate(${x + w - 6},${y + 1})"><circle r="${n.seq.length > 2 ? 12 : 10.5}"/><text text-anchor="middle" dy="0.35em">${esc(n.seq)}</text></g>` : '';
+  const bw = n.seq ? Math.max(21, 9 + n.seq.length * 6.4) : 0;
+  const badge = n.seq ? `<g class="tseq" transform="translate(${x + w + 4 - bw / 2},${y + 1})"><rect x="${-bw / 2}" y="-10.5" width="${bw}" height="21" rx="10.5"/><text text-anchor="middle" dy="0.35em">${esc(n.seq)}</text></g>` : '';
+  if (n.kind === 'phase') {
+    const st = phaseStats(n.project, n.phase);
+    const name = n.phase ? n.phase.name : 'No phase';
+    const stc = st.total && !st.open ? 'done' : st.blocked ? 'blocked' : st.doing || st.done ? 'doing' : 'todo';
+    return `<g class="tnode tphase ${st.total && !st.open ? 'done-ph' : ''}" style="${style}">
+      ${cardShape(x, y, w, h)}
+      <text x="${x + 15}" y="${y + 21}" class="t1">${esc(clip(name, w - 40, 12.5))}</text>
+      <text x="${x + 15}" y="${y + 37}" class="t2">${st.done}/${st.total} done${st.open ? ' · ' + st.open + ' open' : ''}</text>
+      <g class="tdot st-${stc}" transform="translate(${x + w - 13},${y + h - 12})"><circle r="3.8" class="d"/></g>
+      ${badge}<title>Phase: ${esc(name)}</title></g>${toggle}`;
+  }
   if (n.kind === 'root') {
     const p = n.project;
     const all = db.tasks.filter(t => (p ? t.projectId === p.id : !t.projectId));
@@ -1224,15 +1348,15 @@ function linkPath(a, b) {
 }
 
 function treeHtml(tasks) {
-  const { nodes, links, colX, colW } = layoutTree(treeModel(tasks));
+  const { nodes, links, colX, colW, kindAt } = layoutTree(treeModel(tasks));
   const y1 = Math.min(...nodes.map(n => n.y));
   const heads = colX.map((cx, d) => `<g class="tlevel" transform="translate(${cx + colW[d] / 2},${y1 - 44})">
-      <rect x="-46" y="-14" width="92" height="28" rx="14"/>${svgIcon('layers', -37, -6, 12)}<text x="6" dy="0.35em" text-anchor="middle">${TREE_LEVELS[d] || 'Level ' + (d + 1)}</text></g>`).join('');
+      <rect x="-46" y="-14" width="92" height="28" rx="14"/>${svgIcon('layers', -37, -6, 12)}<text x="6" dy="0.35em" text-anchor="middle">${TREE_LEVEL_NAME[kindAt[d]] || 'Level ' + (d + 1)}</text></g>`).join('');
   ui.tree.bounds = nodes.reduce((b, n) => ({ x1: Math.min(b.x1, n.x - 14), y1: Math.min(b.y1, n.y), x2: Math.max(b.x2, n.x + n.w + 14), y2: Math.max(b.y2, n.y + n.h) }), { x1: Infinity, y1: y1 - 60, x2: 0, y2: -Infinity });
   const { k, x, y } = ui.tree;
   const sw = (cls, label) => `<span><i class="${cls}"></i>${label}</span>`;
   const legend = ui.tree.color === 'level'
-    ? `<span class="lg-h">Levels</span>${sw('lv1', 'Project')}${sw('lv2', 'Task')}${sw('lv3', 'Subtask')}`
+    ? `<span class="lg-h">Levels</span>${kindAt.map((k, d) => sw('lv' + (d + 1), { root: 'Project', phase: 'Phase', task: 'Task', sub: 'Subtask' }[k])).join('')}`
     : ui.tree.color === 'project' ? `<span class="lg-h">Colour</span><span>by project</span>` : '';
   return `<div class="tree-wrap" id="treeWrap">
     <div class="tree-legend">${legend}<span class="lg-h">Status</span>${STATUSES.map(s => sw('st-' + s.id, s.label)).join('')}
@@ -1359,6 +1483,8 @@ function renderDrawer() {
         <div><label class="lbl">Priority</label><select class="input" id="dPriority">${PRIORITIES.map((l, i) => `<option value="${i}" ${i === t.priority ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         <div><label class="lbl">Due date</label><input class="input" type="date" id="dDue" value="${t.due || ''}"></div>
         <div><label class="lbl">Project</label><select class="input" id="dProject">${projOpts.join('')}</select></div>
+        ${(() => { const tp = t.projectId ? projectById(t.projectId) : null; return tp && tp.phases.length ? `<div><label class="lbl">Phase</label><select class="input" id="dPhase">
+          <option value="">No phase</option>${tp.phases.map((ph, i) => `<option value="${esc(ph.id)}" ${ph.id === t.phaseId ? 'selected' : ''}>${i + 1}. ${esc(ph.name)}</option>`).join('')}</select></div>` : ''; })()}
       </div>
       <div><label class="lbl">Tags <span style="color:var(--ink-3);font-weight:400">(comma separated)</span></label><input class="input" style="width:100%" id="dTags" value="${esc(t.tags.join(', '))}" placeholder="e.g. purchasing, design"></div>
       <div>
@@ -1458,6 +1584,60 @@ function templateModal(tpl, presetText) {
   });
 }
 
+function phasesModal(p) {
+  const m = $('modal');
+  let rows = p.phases.map(ph => ({ id: ph.id, name: ph.name }));
+  const draw = () => {
+    m.innerHTML = `<form class="modal" id="phForm" autocomplete="off">
+      <h2>Phases of ${esc(p.name)}</h2>
+      <p class="head-sub">Split the project into stages done in order. Each task can belong to one phase.</p>
+      <div class="ph-rows">${rows.map((r, i) => `
+        <div class="ph-row" data-i="${i}">
+          <span class="ph-n">${i + 1}</span>
+          <input class="input" data-ph-name value="${esc(r.name)}" maxlength="60">
+          <button type="button" class="btn sm icon ghost" data-ph-move="-1" title="Move up" ${i ? '' : 'disabled'}>${ic('chevron', 'style="transform:rotate(-90deg)"')}</button>
+          <button type="button" class="btn sm icon ghost" data-ph-move="1" title="Move down" ${i < rows.length - 1 ? '' : 'disabled'}>${ic('chevron', 'style="transform:rotate(90deg)"')}</button>
+          <button type="button" class="btn sm icon ghost danger" data-ph-del title="Remove">${ic('close')}</button>
+        </div>`).join('') || '<div class="head-sub">No phases yet.</div>'}
+      </div>
+      <div class="ph-add"><input class="input" id="phNew" placeholder="+ Add a phase, e.g. Design" maxlength="60">
+        ${rows.length ? '' : '<button type="button" class="btn sm" data-ph-preset>Use Design · Purchase · Build · Test</button>'}</div>
+      <div class="actions"><button type="button" class="btn" data-act="cancel-modal">Cancel</button><button class="btn primary" type="submit">Save phases</button></div>
+    </form>`;
+    const f = $('phForm');
+    f.querySelectorAll('[data-ph-name]').forEach(inp => inp.addEventListener('input', () => { rows[+inp.closest('.ph-row').dataset.i].name = inp.value; }));
+    f.querySelectorAll('[data-ph-move]').forEach(b => b.addEventListener('click', () => {
+      const i = +b.closest('.ph-row').dataset.i, j = i + Number(b.dataset.phMove);
+      [rows[i], rows[j]] = [rows[j], rows[i]]; draw();
+    }));
+    f.querySelectorAll('[data-ph-del]').forEach(b => b.addEventListener('click', () => { rows.splice(+b.closest('.ph-row').dataset.i, 1); draw(); }));
+    const pre = f.querySelector('[data-ph-preset]');
+    if (pre) pre.addEventListener('click', () => { rows = ['Design', 'Purchase', 'Build', 'Test'].map(name => ({ id: uid(), name })); draw(); });
+    $('phNew').addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const v = e.target.value.trim();
+      if (v) { rows.push({ id: uid(), name: v }); draw(); $('phNew').focus(); }
+    });
+    f.addEventListener('submit', e => {
+      e.preventDefault();
+      const extra = $('phNew').value.trim();
+      if (extra) rows.push({ id: uid(), name: extra });
+      const keep = new Set(rows.map(r => r.id));
+      const orphaned = db.tasks.filter(t => t.projectId === p.id && t.phaseId && !keep.has(t.phaseId));
+      if (orphaned.length && !confirm(`${orphaned.length} task${orphaned.length === 1 ? '' : 's'} belong to a removed phase.\nThey stay in the project with no phase.\n\nSave?`)) return;
+      orphaned.forEach(t => { t.phaseId = null; });
+      p.phases = rows.map(r => ({ id: r.id, name: r.name.trim() || 'Phase' }));
+      if (ui.phase && ui.phase !== 'none' && !keep.has(ui.phase)) ui.phase = null;
+      save(); closeModal(); render();
+      toast(p.phases.length ? `${p.phases.length} phase${p.phases.length === 1 ? '' : 's'} saved` : 'Phases removed');
+    });
+  };
+  draw();
+  m.classList.add('open');
+  $('phNew').focus();
+}
+
 function useTemplateModal(p) {
   const m = $('modal');
   if (!db.templates.length) {
@@ -1471,6 +1651,7 @@ function useTemplateModal(p) {
       <div class="radios">
         <label><input type="radio" name="uMode" value="one" checked> <span><b>One task with this checklist</b><br><span class="head-sub">A task named after the template; every item becomes a subtask to tick off.</span></span></label>
         <label><input type="radio" name="uMode" value="many"> <span><b>A task for each section</b><br><span class="head-sub">Each top-level line becomes a task; its indented lines become that task's subtasks.</span></span></label>
+        <label><input type="radio" name="uMode" value="phases"> <span><b>A phase for each section</b><br><span class="head-sub">Each top-level line becomes a phase of the project; its indented lines become tasks in that phase.</span></span></label>
       </div>
       <div class="actions"><button type="button" class="btn" data-act="cancel-modal">Cancel</button><button class="btn primary" type="submit">Add to ${esc(p.name)}</button></div>
     </form>`;
@@ -1481,7 +1662,7 @@ function useTemplateModal(p) {
     const mode = m.querySelector('input[name=uMode]:checked').value;
     const made = applyTemplateToProject(tpl, p.id, mode);
     closeModal(); render();
-    if (made.length === 1) openDrawer(made[0].id);
+    if (made.length === 1 && mode !== 'phases') openDrawer(made[0].id);
     toast(`Added ${made.length} task${made.length === 1 ? '' : 's'} from "${tpl.name}"`);
   });
 }
@@ -1548,6 +1729,9 @@ document.addEventListener('click', e => {
   const viewBtn = e.target.closest('[data-view]');
   if (viewBtn) { setView(viewBtn.dataset.view); return; }
 
+  const phaseBtn = e.target.closest('[data-phase]');
+  if (phaseBtn) { ui.phase = phaseBtn.dataset.phase || null; renderTopbar(); renderContent(); return; }
+
   const layoutBtn = e.target.closest('[data-layout]');
   if (layoutBtn) { ui.layout = layoutBtn.dataset.layout; db.settings.layout = ui.layout; save(); renderTopbar(); renderContent(); return; }
 
@@ -1585,6 +1769,7 @@ document.addEventListener('click', e => {
       toast(`Deleted "${gone.name}"`, 'Undo', () => { db.templates.splice(i, 0, gone); save(); render(); }); return;
     }
     case 'project-template': useTemplateModal(p); return;
+    case 'phases': phasesModal(p); return;
     case 'save-template': {
       const t = taskById(ui.openTask);
       templateModal(null, t.subtasks.map(x => x.title).join('\n'));
@@ -1651,6 +1836,7 @@ document.addEventListener('change', e => {
   if (id === 'prioSel') { ui.priority = e.target.value; renderContent(); return; }
   if (id === 'showDone') { ui.showDone = e.target.checked; renderContent(); return; }
   if (id === 'treeColor') { ui.tree.color = e.target.value; renderContent(); return; }
+  if (id === 'quickPhase') { ui.quickPhase[currentProject().id] = e.target.value; $('quickInput').focus(); return; }
   if (id === 'quickProj') { db.settings.lastProject = e.target.value; save(); renderContent(); $('quickInput').focus(); return; }
   if (id === 'importInput') { if (e.target.files[0]) importBackup(e.target.files[0]); e.target.value = ''; return; }
   const t = ui.openTask && taskById(ui.openTask);
@@ -1665,7 +1851,8 @@ document.addEventListener('change', e => {
   }
   else if (id === 'dPriority') { updateTask(t.id, { priority: Number(e.target.value) }); refreshBehindDrawer(); }
   else if (id === 'dDue') { updateTask(t.id, { due: e.target.value || null }); refreshBehindDrawer(); }
-  else if (id === 'dProject') { updateTask(t.id, { projectId: e.target.value || null }); refreshBehindDrawer(); }
+  else if (id === 'dProject') { updateTask(t.id, { projectId: e.target.value || null, phaseId: null }); renderDrawer(); refreshBehindDrawer(); }
+  else if (id === 'dPhase') { updateTask(t.id, { phaseId: e.target.value || null }); refreshBehindDrawer(); }
 });
 
 document.addEventListener('submit', e => {

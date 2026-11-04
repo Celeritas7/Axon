@@ -49,6 +49,20 @@ there, pick its project in the box next to it (Arrow remembers your choice).
 - Search across titles, notes, tags, projects and subtasks; filter by priority.
 - Light and dark theme.
 
+## Phases
+Split a project into stages done in order, e.g. **Design → Purchase → Build
+→ Test**. On a project page click **Phases** to add, rename, reorder or
+remove them (or use the Design · Purchase · Build · Test preset).
+
+- The **phase strip** under the project title shows each phase's progress;
+  the current phase is highlighted. Click a phase to show only its tasks.
+- New tasks go into the phase picked next to the add box; move a task with
+  **Phase** in its details.
+- The list groups by phase, and the **tree** gets a Phases level between the
+  project and its tasks (numbered 1, 1.1, 1.1a…).
+- A template can create phases: **From template → A phase for each section**.
+- Project cards show which phase you're in.
+
 ## Checklist templates
 Keep the things you must always check as **templates** (top bar →
 **Templates**). Write one item per line; indent a line (Tab or 2 spaces) to
