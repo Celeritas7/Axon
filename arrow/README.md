@@ -1,4 +1,4 @@
-# Axon Tasks
+# Arrow
 
 An offline project and task manager for one computer. It's a single file
 (`index.html`) with no internet connection, account, install or server needed.
@@ -16,9 +16,10 @@ In this browser's local storage on this computer. It survives restarts, but
 **clearing browsing data / site data for files deletes it**. So:
 
 - Click **Backup** in the sidebar now and then. It downloads
-  `axon-tasks-backup-YYYY-MM-DD.json`. The sidebar turns red after 7 days
+  `arrow-backup-YYYY-MM-DD.json`. The sidebar turns red after 7 days
   without a backup.
-- **Restore** loads a backup file. It replaces the current data, and you can
+- **Restore** loads a backup file (older `axon-tasks-backup-…` files from
+  before the rename work too). It replaces the current data, and you can
   undo it from the message that appears.
 
 ## Features

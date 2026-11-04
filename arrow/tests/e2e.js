@@ -13,6 +13,7 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   await page.goto(APP_URL);
   const assert = (c, m) => { if (!c) { throw new Error('FAIL: ' + m); } console.log('ok -', m); };
 
+  assert(await page.title() === 'Arrow', 'app is named Arrow');
   assert(await page.locator('.row').count() >= 1, 'seed tasks shown in Today');
   await page.screenshot({ path: OUT + '/shot-today.png' });
 
@@ -79,6 +80,7 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   const path = await dl.path();
   const data = JSON.parse(require('fs').readFileSync(path, 'utf8'));
   assert(data.tasks.length === 7 && data.projects.length === 2, 'backup contains all data');
+  assert(/^arrow-backup-\d{4}-\d{2}-\d{2}\.json$/.test(dl.suggestedFilename()), 'backup file named arrow-backup-<date>.json');
 
   // restore
   await page.evaluate(() => { localStorage.clear(); });
@@ -101,6 +103,7 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   await page.click('[data-view=today]');
   await page.screenshot({ path: OUT + '/shot-dark.png' });
   await page.setViewportSize({ width: 390, height: 800 });
+  await page.waitForTimeout(600); // let the sidebar finish sliding closed
   await page.screenshot({ path: OUT + '/shot-mobile.png' });
   const sw = await page.evaluate(() => document.documentElement.scrollWidth);
   assert(sw <= 390, 'no horizontal page scroll on phone width');

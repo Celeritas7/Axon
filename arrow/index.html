@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Axon Tasks</title>
-<!-- Axon Tasks — offline project & task manager.
+<title>Arrow</title>
+<!-- Arrow — offline project & task manager.
      One self-contained file: no network, no build step. Data lives in this
      browser's localStorage; use Export backup for a file copy. -->
 <style>
@@ -231,7 +231,7 @@ label.lbl { display:block; font-size:12px; font-weight:500; color:var(--ink-2); 
 // ============================================================
 // CONSTANTS
 // ============================================================
-const STORE_KEY = 'axonTasks.v1';
+const STORE_KEY = 'axonTasks.v1'; // kept from when the app was called Axon Tasks: changing it would hide existing data
 const STATUSES = [
   { id: 'todo', label: 'To do' },
   { id: 'doing', label: 'In progress' },
@@ -571,7 +571,7 @@ function renderSidebar() {
   const active = db.projects.filter(p => !p.archived);
   const archived = db.projects.filter(p => p.archived);
   $('sidebar').innerHTML = `
-    <div class="brand"><span class="logo">${ic('check')}</span>Axon Tasks</div>
+    <div class="brand"><span class="logo">${ic('check')}</span>Arrow</div>
     <nav class="nav">
       ${navItem('today', ic('today'), 'Today')}
       ${navItem('upcoming', ic('upcoming'), 'Upcoming')}
@@ -848,7 +848,7 @@ function exportBackup() {
   const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `axon-tasks-backup-${todayStr()}.json`;
+  a.download = `arrow-backup-${todayStr()}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   save(); renderFoot();
@@ -860,7 +860,7 @@ function importBackup(file) {
   reader.onload = () => {
     let next;
     try { next = normalizeDb(JSON.parse(reader.result)); } catch (e) { next = null; }
-    if (!next) { toast('That file is not an Axon Tasks backup'); return; }
+    if (!next) { toast('That file is not an Arrow backup'); return; }
     if (!confirm(`Replace everything with this backup?\n\n${next.projects.length} projects, ${next.tasks.length} tasks.\nYour current data will be overwritten.`)) return;
     const prev = db;
     db = next;

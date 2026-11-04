@@ -1,8 +1,12 @@
-# Axon Tasks — developer handoff
+# Arrow — developer handoff
 
 Read this before continuing development in a new chat or session.
 
 ## What it is and why
+- **Name:** Arrow (formerly "Axon Tasks"; renamed at the owner's request, and
+  the folder moved from `axon-tasks/` to `arrow/`). The localStorage key is
+  still `axonTasks.v1` on purpose: renaming it would make existing data
+  disappear. Don't change it without a migration that copies the old key.
 - A **separate offline app** for managing the owner's projects and tasks on
   **one computer**. It is **not** the Axon BOM tree builder (the repo root),
   doesn't replace it, and doesn't switch modes with it. It has no BOM fields.
@@ -31,7 +35,7 @@ Read this before continuing development in a new chat or session.
 4. Escape all user text with `esc()` before putting it in HTML.
 
 ## Architecture (`index.html` script, in order)
-- **CONSTANTS**: `STORE_KEY = 'axonTasks.v1'`, `STATUSES`
+- **CONSTANTS**: `STORE_KEY = 'axonTasks.v1'` (kept from the old name; do not rename), `STATUSES`
   (todo/doing/blocked/done), `PRIORITIES` (0 None … 4 Urgent),
   `PROJECT_COLORS`, `ICON` paths with the `ic()` helper.
 - **HELPERS**: local-date helpers (dates are stored as local `YYYY-MM-DD`
@@ -71,10 +75,10 @@ Read this before continuing development in a new chat or session.
 ## Testing
 ```bash
 npm i playwright-core@1          # in a scratch directory, not the repo
-NODE_PATH=<scratch>/node_modules CHROME_PATH=<chromium binary> SHOT_DIR=<scratch> node axon-tasks/tests/e2e.js
+NODE_PATH=<scratch>/node_modules CHROME_PATH=<chromium binary> SHOT_DIR=<scratch> node arrow/tests/e2e.js
 ```
-In Claude Code cloud sessions, Chromium is at
-`/opt/pw-browsers/chromium-*/chrome-linux/chrome`. The test covers projects,
+In Claude Code cloud sessions, use `CHROME_PATH=/opt/pw-browsers/chromium`
+(the versioned folder names under `/opt/pw-browsers/` change between images). The test covers projects,
 quick-add parsing, drawer edits, subtasks, board drag, show-done, search,
 reload persistence, backup and restore, undo delete, dark mode, and phone
 width. It also writes screenshots to `SHOT_DIR`; look at them after UI
