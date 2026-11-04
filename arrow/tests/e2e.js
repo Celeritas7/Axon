@@ -14,7 +14,7 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   const assert = (c, m) => { if (!c) { throw new Error('FAIL: ' + m); } console.log('ok -', m); };
 
   assert(await page.title() === 'Arrow', 'app is named Arrow');
-  assert(await page.locator('.brand .logo svg #logoGrad').count() === 1, 'logo is the check-arrow mark');
+  assert(await page.locator('.brand .logo svg #logoGrad').count() === 1, 'logo is the fletched-arrow mark');
   assert(/^data:image\/svg\+xml,/.test(await page.getAttribute('link[rel=icon]', 'href')), 'favicon is inline (no network)');
   assert(await page.locator('.row').count() >= 1, 'seed tasks shown in Today');
   await page.screenshot({ path: OUT + '/shot-today.png' });

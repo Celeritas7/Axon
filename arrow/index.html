@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Arrow</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='logoGrad' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%233b82f6'/%3E%3Cstop offset='1' stop-color='%236d28d9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url%28%23logoGrad%29'/%3E%3Cpath d='M7.5 16.5l5 5L24 10 M17.5 9.5H24.5V16.5' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='logoGrad' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%231d4ed8'/%3E%3Cstop offset='1' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url%28%23logoGrad%29'/%3E%3Cpath d='M9.2 22.8L22 10' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M25.5 6.5l-1.6 7.2-5.6-5.6z' fill='%23fff' stroke='%23fff' stroke-width='1.2' stroke-linejoin='round'/%3E%3Cpath d='M13.8 18.2L8.2 19.2 5.2 22.2 9.2 22.8z' fill='%23fff' stroke='%23fff' stroke-width='.8' stroke-linejoin='round'/%3E%3Cpath d='M13.8 18.2L12.8 23.8 9.8 26.8 9.2 22.8z' fill='%23fff' fill-opacity='.72' stroke='%23fff' stroke-opacity='.72' stroke-width='.8' stroke-linejoin='round'/%3E%3C/svg%3E">
 <!-- Arrow — offline project & task manager.
      One self-contained file: no network, no build step. Data lives in this
      browser's localStorage; use Export backup for a file copy. -->
@@ -54,7 +54,7 @@ svg.i { width:16px; height:16px; flex:none; vertical-align:middle; }
 /* ---------- sidebar ---------- */
 .sidebar { width:260px; flex:none; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; min-height:0; }
 .brand { display:flex; align-items:center; gap:8px; padding:16px 16px 12px; font-weight:700; font-size:16px; }
-.brand .logo { width:26px; height:26px; display:block; flex:none; filter:drop-shadow(0 1px 2px rgba(60,40,160,.25)); }
+.brand .logo { width:26px; height:26px; display:block; flex:none; filter:drop-shadow(0 1px 2px rgba(20,60,160,.25)); }
 .brand .logo svg { display:block; }
 .nav { padding:4px 8px; overflow-y:auto; flex:1; min-height:0; }
 .nav-sec { display:flex; align-items:center; justify-content:space-between; padding:14px 8px 6px; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); }
@@ -268,8 +268,8 @@ const ICON = {
   chevron: 'M9 5l7 7-7 7',
   chevdown: 'M5 9l7 7 7-7'
 };
-// Logo: a check mark whose long stroke turns into an arrow ("done, and moving forward").
-const LOGO_SVG = '<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><defs><linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#6d28d9"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#logoGrad)"/><path d="M7.5 16.5l5 5L24 10 M17.5 9.5H24.5V16.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// Logo: a fletched arrow in flight (feathers swept back, away from the tip).
+const LOGO_SVG = '<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><defs><linearGradient id="logoGrad" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#1d4ed8"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#logoGrad)"/><path d="M9.2 22.8L22 10" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><path d="M25.5 6.5l-1.6 7.2-5.6-5.6z" fill="#fff" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/><path d="M13.8 18.2L8.2 19.2 5.2 22.2 9.2 22.8z" fill="#fff" stroke="#fff" stroke-width=".8" stroke-linejoin="round"/><path d="M13.8 18.2L12.8 23.8 9.8 26.8 9.2 22.8z" fill="#fff" fill-opacity=".72" stroke="#fff" stroke-opacity=".72" stroke-width=".8" stroke-linejoin="round"/></svg>';
 const ic = (name, extra = '') => `<svg class="i" ${extra} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[name]}"/></svg>`;
 
 // ============================================================
