@@ -96,6 +96,8 @@ svg.i { width:16px; height:16px; flex:none; vertical-align:middle; }
 .savepill::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; }
 .savepill.warn { color:var(--danger); border-color:color-mix(in srgb, var(--danger) 35%, transparent); background:color-mix(in srgb, var(--danger) 9%, transparent); }
 .dot { width:10px; height:10px; border-radius:3px; flex:none; }
+.cluster > button.nag { position:relative; }
+.cluster > button.nag::after { content:''; position:absolute; top:5px; right:5px; width:6px; height:6px; border-radius:50%; background:var(--danger); display:none; }
 .body { flex:1; display:flex; min-height:0; }
 
 /* ---------- controls ---------- */
@@ -196,11 +198,12 @@ label.lbl { display:block; font-size:10px; font-weight:600; letter-spacing:.06em
 .empty .big { font-size:15px; color:var(--ink-2); margin-bottom:6px; }
 
 /* ---------- drawer ---------- */
-.drawer { width:400px; flex:none; background:var(--surface); border-left:1px solid var(--border); display:none; flex-direction:column; min-height:0; }
+.drawer { width:400px; flex:none; overflow:hidden; background:var(--surface); border-left:1px solid var(--border); display:none; flex-direction:column; min-height:0; }
 .drawer.open { display:flex; }
 .drawer-h { display:flex; align-items:center; gap:6px; padding:12px 14px; border-bottom:1px solid var(--border); }
 .drawer-h .spacer { flex:1; }
 .drawer-b { padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:14px; }
+.drawer-b > * { flex-shrink:0; }   /* long checklists scroll instead of squashing the title */
 .title-input { width:100%; font-size:17px; font-weight:600; border:1px solid transparent; background:none; border-radius:var(--radius-sm); padding:5px 7px; margin:-5px -7px 0; outline:none; resize:none; line-height:1.35; }
 .title-input:hover { border-color:var(--ctl-border); }
 .title-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
@@ -265,6 +268,20 @@ label.lbl { display:block; font-size:10px; font-weight:600; letter-spacing:.06em
 .inbox-note u { color:var(--accent); }
 .sec-h { font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin:26px 0 10px; }
 .quick-proj { max-width:200px; flex:none; height:34px; }
+.tcard { min-height:150px; }
+.tcard .pc-tile { background:var(--accent-soft); border-color:color-mix(in srgb, var(--accent) 25%, var(--border)); color:var(--accent); }
+.tpl-prev { list-style:none; display:flex; flex-direction:column; gap:5px; font-size:12.5px; color:var(--ink-2); }
+.tpl-prev li { display:flex; gap:8px; align-items:baseline; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.tpl-prev li::before { content:''; width:10px; height:10px; border:1.4px solid var(--border-2); border-radius:3px; flex:none; transform:translateY(1px); }
+.tpl-prev li.more { color:var(--ink-3); } .tpl-prev li.more::before { display:none; }
+.tpl-row { display:flex; gap:8px; margin-top:8px; } .tpl-row select { flex:1; min-width:0; }
+.modal.wide { max-width:600px; }
+textarea.mono { font-family:var(--font-mono); font-size:12.5px; line-height:1.6; }
+.lbl-note { text-transform:none; letter-spacing:0; font-weight:400; color:var(--ink-3); margin-left:6px; }
+.radios { display:flex; flex-direction:column; gap:10px; }
+.radios label { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; font-size:13px; }
+.radios label:has(input:checked) { border-color:var(--accent); background:var(--accent-soft); }
+.radios input { margin-top:3px; }
 
 /* ---------- tree view (Axon node style) ---------- */
 .tree-wrap { position:relative; display:flex; flex-direction:column; border:1px solid var(--border); border-radius:var(--radius); background:var(--tree-bg); overflow:hidden; min-height:360px; }
@@ -323,8 +340,8 @@ label.lbl { display:block; font-size:10px; font-weight:600; letter-spacing:.06em
 @media (max-width: 760px) {
   .appbar { gap:8px; padding:0 10px; }
   .brand .word, .appbar .vsep, .crumbs .hide-sm, .cluster .lbl-sm { display:none; }
-  .cluster > button { padding:0 8px; }
-  .savepill .txt { display:none; } .savepill { padding:0 8px; }
+  .savepill { display:none; } .cluster > button.nag::after { display:block; }
+  .cluster .n { display:none; } .cluster > button { padding:0 7px; } .cluster > button.ib { width:28px; }
   .topbar, .content { padding-left:16px; padding-right:16px; }
   .tools .search { max-width:none; flex-basis:100%; }
   .hint { display:none; }
@@ -387,6 +404,7 @@ const ICON = {
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2.5v2 M12 19.5v2 M2.5 12h2 M19.5 12h2 M5 5l1.4 1.4 M17.6 17.6 19 19 M19 5l-1.4 1.4 M6.4 17.6 5 19',
   moon: 'M20 13.5A8 8 0 0 1 10.5 4 8 8 0 1 0 20 13.5z',
   menu: 'M4 7h16 M4 12h16 M4 17h16',
+  checklist: 'M10 6h10 M10 12h10 M10 18h10 M3.5 6l1.5 1.5 2.5-3 M3.5 12l1.5 1.5 2.5-3 M3.5 18l1.5 1.5 2.5-3',
   back: 'M19 12H5 M11 6l-6 6 6 6',
   zoomin: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.5-4.5 M8 11h6 M11 8v6',
   zoomout: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.5-4.5 M8 11h6',
@@ -436,7 +454,7 @@ function fmtStamp(iso) {
 // STORE
 // ============================================================
 function emptyDb() {
-  return { version: 1, projects: [], tasks: [], settings: { theme: null, view: 'projects', layout: 'list', lastBackup: null, lastProject: null } };
+  return { version: 1, projects: [], tasks: [], templates: [], settings: { theme: null, view: 'projects', layout: 'list', lastBackup: null, lastProject: null } };
 }
 
 function normalizeTask(t) {
@@ -465,18 +483,36 @@ function normalizeProject(p, i) {
     createdAt: p.createdAt || nowIso()
   };
 }
+function normalizeTemplate(t) {
+  return { id: String(t.id || uid()), name: String(t.name || 'Untitled template'), text: String(t.text || ''), createdAt: t.createdAt || nowIso() };
+}
 function normalizeDb(raw) {
   const base = emptyDb();
   if (!raw || !Array.isArray(raw.tasks) || !Array.isArray(raw.projects)) return null;
   base.projects = raw.projects.map(normalizeProject);
   const ids = new Set(base.projects.map(p => p.id));
   base.tasks = raw.tasks.map(normalizeTask).map(t => (t.projectId && !ids.has(t.projectId) ? { ...t, projectId: null } : t));
+  // templates were added later: a save without the field gets the sample checklist once
+  base.templates = Array.isArray(raw.templates) ? raw.templates.map(normalizeTemplate) : [normalizeTemplate({ name: 'Work quality checklist', text: SAMPLE_TEMPLATE })];
   base.settings = { ...base.settings, ...(raw.settings || {}) };
   return base;
 }
 
+const SAMPLE_TEMPLATE = `Before starting
+  Requirement and drawing revision confirmed
+  Parts and materials available
+  Tools and test equipment ready
+During the work
+  Measurements double-checked
+  Photos of key steps taken
+Before closing
+  Self-review done
+  Tested / inspected against the requirement
+  Documents and BOM updated
+  Work area cleaned up`;
 function seedDb() {
   const db = emptyDb();
+  db.templates.push(normalizeTemplate({ name: 'Work quality checklist', text: SAMPLE_TEMPLATE }));
   const p = normalizeProject({ name: 'Getting started', color: PROJECT_COLORS[0], description: 'A sample project. Delete it whenever you like.' }, 0);
   db.projects.push(p);
   const t = todayStr();
@@ -645,11 +681,48 @@ function deleteTask(id) {
   save(); render();
   toast(`Deleted "${removed.title}"`, 'Undo', () => { db.tasks.splice(i, 0, removed); save(); render(); });
 }
+// Marking a task done with unticked checklist items asks first, so nothing is missed.
+function confirmDone(t) {
+  const open = t.subtasks.filter(s => !s.done);
+  if (!open.length) return true;
+  const list = open.slice(0, 8).map(s => '•  ' + s.title).join('\n') + (open.length > 8 ? `\n…and ${open.length - 8} more` : '');
+  return confirm(`"${t.title}" still has ${open.length} unchecked item${open.length === 1 ? '' : 's'}:\n\n${list}\n\nMark it done anyway?`);
+}
 function toggleDone(id) {
   const t = taskById(id);
   if (!t) return;
+  if (t.status !== 'done' && !confirmDone(t)) return;
   updateTask(id, { status: t.status === 'done' ? 'todo' : 'done' });
   render();
+}
+
+// Template text: one item per line; indented lines are sub-items of the line above.
+function parseTemplate(text) {
+  const items = [];
+  for (const raw of String(text).split(/\r?\n/)) {
+    if (!raw.trim()) continue;
+    const indented = /^(\s{2,}|\t)/.test(raw);
+    const title = raw.trim().replace(/^([-*•]|\[ ?\]|\d+[.)])\s+/, '').trim();
+    if (!title) continue;
+    if (indented && items.length) items[items.length - 1].children.push(title);
+    else items.push({ title, children: [] });
+  }
+  return items;
+}
+function templateCount(t) { return checklistFromTemplate(t).length; }   // tickable items (section headings with sub-items don't count)
+function checklistFromTemplate(tpl) {
+  // a task's checklist: every line; sub-items are prefixed with their section
+  return parseTemplate(tpl.text).flatMap(i => (i.children.length ? i.children.map(c => `${i.title} › ${c}`) : [i.title]));
+}
+function loadChecklist(task, tpl) {
+  const have = new Set(task.subtasks.map(s => s.title.toLowerCase()));
+  const add = checklistFromTemplate(tpl).filter(x => !have.has(x.toLowerCase())).map(title => ({ id: uid(), title, done: false }));
+  updateTask(task.id, { subtasks: [...task.subtasks, ...add] });
+  return add.length;
+}
+function applyTemplateToProject(tpl, projectId, mode) {
+  if (mode === 'one') return [createTask({ projectId, title: tpl.name, subtasks: checklistFromTemplate(tpl).map(title => ({ title })) })];
+  return parseTemplate(tpl.text).map(i => createTask({ projectId, title: i.title, subtasks: i.children.map(title => ({ title })) }));
 }
 
 // Quick add syntax: #tag  !low|!med|!high|!urgent|!1-4  @today|@tomorrow|@mon..@sun|@YYYY-MM-DD|@+3
@@ -708,6 +781,7 @@ function renderSidebar() {
     <div class="cluster" title="Helper views across all projects">
       ${helperBtn('today', 'Today', 'today')}${helperBtn('upcoming', 'Upcoming', 'upcoming')}${helperBtn('inbox', 'Inbox', 'inbox')}${helperBtn('all', 'All tasks', 'all')}
     </div>
+    <div class="cluster"><button class="${ui.view === 'templates' ? 'on' : ''}" data-view="templates" title="Checklist templates">${ic('checklist')}<span class="lbl-sm">Templates</span></button></div>
     <span id="sidebarFoot" style="display:contents"></span>`;
   renderFoot();
 }
@@ -725,7 +799,7 @@ function renderFoot() {
   el.innerHTML = `
     <button class="savepill ${pill[0]}" data-act="export" title="${esc(pill[2])}"><span class="txt">${pill[1]}</span></button>
     <div class="cluster">
-      <button class="ib" data-act="export" title="Backup: download all data as a file">${ic('download')}</button>
+      <button class="ib ${pill[0] ? 'nag' : ''}" data-act="export" title="Backup: download all data as a file">${ic('download')}</button>
       <button class="ib" data-act="import" title="Restore from a backup file">${ic('upload')}</button>
       <button class="ib" data-act="theme" title="Toggle dark mode">${ic(dark ? 'sun' : 'moon')}</button>
     </div>`;
@@ -737,10 +811,18 @@ function renderFoot() {
 function viewTitle() {
   const p = currentProject();
   if (p) return p.name;
-  return { projects: 'Projects', today: 'Today', upcoming: 'Upcoming', inbox: 'Inbox', all: 'All tasks' }[ui.view];
+  return { projects: 'Projects', templates: 'Templates', today: 'Today', upcoming: 'Upcoming', inbox: 'Inbox', all: 'All tasks' }[ui.view];
 }
 
 function renderTopbar() {
+  if (ui.view === 'templates') {
+    $('topbar').innerHTML = `
+      <div class="eyebrow">Workspace</div>
+      <div class="title-row"><h1>Templates</h1><span class="spacer"></span>
+        <button class="btn primary" data-act="new-template">${ic('plus')}<span>New template</span></button></div>
+      <div class="head-sub">Checklists of the things you always check. Load one into a task, or create a project's tasks from it.</div>`;
+    return;
+  }
   if (ui.view === 'projects') {
     const act = db.projects.filter(x => !x.archived);
     const open = db.tasks.filter(t => t.status !== 'done' && t.projectId && act.some(x => x.id === t.projectId)).length;
@@ -777,6 +859,7 @@ function renderTopbar() {
       ${p ? `<div class="cluster">
         <button data-act="edit-project" title="Edit project">${ic('edit')}<span class="lbl-sm">Edit</span></button>
         <button data-act="archive-project" title="${p.archived ? 'Restore' : 'Archive'} project">${ic('archive')}<span class="lbl-sm">${p.archived ? 'Restore' : 'Archive'}</span></button>
+        <button data-act="project-template" title="Add tasks from a checklist template">${ic('checklist')}<span class="lbl-sm">From template</span></button>
         <button class="ib" data-act="delete-project" title="Delete project" style="color:var(--danger)">${ic('trash')}</button>
       </div>` : ''}
     </div>
@@ -853,6 +936,21 @@ function projectCardHtml(p) {
     <div class="pc-prog"><div class="bar"><span style="width:${pct}%"></span></div><span class="pct">${pct}%</span></div>
     ${foot}
   </button>`;
+}
+function templatesHtml() {
+  const card = t => {
+    const items = parseTemplate(t.text);
+    const subs = items.reduce((a, i) => a + i.children.length, 0);
+    const n = templateCount(t);
+    const preview = checklistFromTemplate(t).slice(0, 4);
+    return `<button class="pcard tcard" data-act="edit-template" data-tpl="${esc(t.id)}" style="--pc:var(--accent);--sc:var(--accent)">
+      <div class="pc-top"><span class="pc-tile">${ic('checklist')}</span>
+        <div class="pc-id"><div class="pc-name">${esc(t.name)}</div><div class="pc-meta">${n} items${subs ? ` · ${items.length} sections` : ''}</div></div></div>
+      <ul class="tpl-prev">${preview.map(x => `<li>${esc(x)}</li>`).join('')}${n > 4 ? `<li class="more">+ ${n - 4} more</li>` : ''}</ul>
+    </button>`;
+  };
+  return `<div class="pgrid">${db.templates.map(card).join('')}
+    <button class="pcard pnew" data-act="new-template"><span class="plus">${ic('plus')}</span><span>New template</span></button></div>`;
 }
 function projectsOverviewHtml() {
   const active = db.projects.filter(p => !p.archived);
@@ -942,6 +1040,8 @@ function renderContent() {
   const keepQuick = document.activeElement && document.activeElement.id === 'quickInput';
   if (ui.view === 'projects') {
     el.innerHTML = projectsOverviewHtml();
+  } else if (ui.view === 'templates') {
+    el.innerHTML = templatesHtml();
   } else if (ui.layout === 'tree') {
     const tasks = visibleTasks(false);
     el.innerHTML = quickHtml() + (tasks.length ? treeHtml(tasks) : emptyHtml());
@@ -1008,12 +1108,16 @@ function layoutTree(roots) {
   const colW = [];
   const widths = (n, d) => { colW[d] = Math.max(colW[d] || 0, TREE_NODE[n.kind].w); kids(n).forEach(c => widths(c, d + 1)); };
   roots.forEach(r => widths(r, 0));
-  const colX = colW.map((_, d) => colW.slice(0, d).reduce((a, w) => a + w + TREE_COL_GAP, 0));
+  // Like Axon, the tree reads right-to-left: the project (level 1) is the rightmost column
+  // and each deeper level sits one column further left.
+  const fwd = colW.map((_, d) => colW.slice(0, d).reduce((a, w) => a + w + TREE_COL_GAP, 0));
+  const total = fwd[fwd.length - 1] + colW[colW.length - 1];
+  const colX = fwd.map((x, d) => total - x - colW[d]);
   function kids(n) { return ui.tree.collapsed.has(n.id) ? [] : n.children; }
   let cursor = 0;
   function place(n, d) {
     const { w, h } = TREE_NODE[n.kind];
-    n.w = w; n.h = h; n.x = colX[d];
+    n.w = w; n.h = h; n.x = colX[d] + (colW[d] - w);   // right-align in its column, next to the parent
     const ch = kids(n);
     if (!ch.length) { n.y = cursor; cursor += h + TREE_ROW_GAP[n.kind]; }
     else {
@@ -1069,7 +1173,7 @@ function nodeSvg(n) {
   const style = `--fill:${fill};--bar:${bar}`;
   const collapsedKids = ui.tree.collapsed.has(n.id) ? n.children.length : 0;
   const toggle = n.children.length && !(n.kind === 'root' && currentProject())
-    ? `<g class="ttoggle" data-act="tree-toggle" data-node="${esc(n.id)}" transform="translate(${x + w},${y + h / 2})"><title>${collapsedKids ? 'Expand' : 'Collapse'}</title>
+    ? `<g class="ttoggle" data-act="tree-toggle" data-node="${esc(n.id)}" transform="translate(${x},${y + h / 2})"><title>${collapsedKids ? 'Expand' : 'Collapse'}</title>
         <circle r="${collapsedKids ? 10 : 8}"/><text text-anchor="middle" dy="0.35em">${collapsedKids ? '+' + collapsedKids : '−'}</text></g>` : '';
   const badge = n.seq ? `<g class="tseq" transform="translate(${x + w - 6},${y + 1})"><circle r="${n.seq.length > 2 ? 12 : 10.5}"/><text text-anchor="middle" dy="0.35em">${esc(n.seq)}</text></g>` : '';
   if (n.kind === 'root') {
@@ -1112,8 +1216,9 @@ function nodeSvg(n) {
 }
 
 function linkPath(a, b) {
-  const x1 = a.x + a.w, y1 = a.y + a.h / 2;
-  const x2 = b.x, y2 = b.y + b.h / 2;
+  // child's right edge -> parent's left edge
+  const x1 = b.x + b.w, y1 = b.y + b.h / 2;
+  const x2 = a.x, y2 = a.y + a.h / 2;
   const dx = (x2 - x1) * 0.5;
   return `M${x1} ${y1}C${x1 + dx} ${y1} ${x2 - dx} ${y2} ${x2} ${y2}`;
 }
@@ -1123,7 +1228,7 @@ function treeHtml(tasks) {
   const y1 = Math.min(...nodes.map(n => n.y));
   const heads = colX.map((cx, d) => `<g class="tlevel" transform="translate(${cx + colW[d] / 2},${y1 - 44})">
       <rect x="-46" y="-14" width="92" height="28" rx="14"/>${svgIcon('layers', -37, -6, 12)}<text x="6" dy="0.35em" text-anchor="middle">${TREE_LEVELS[d] || 'Level ' + (d + 1)}</text></g>`).join('');
-  ui.tree.bounds = nodes.reduce((b, n) => ({ x1: Math.min(b.x1, n.x), y1: Math.min(b.y1, n.y), x2: Math.max(b.x2, n.x + n.w + 14), y2: Math.max(b.y2, n.y + n.h) }), { x1: 0, y1: y1 - 60, x2: 0, y2: -Infinity });
+  ui.tree.bounds = nodes.reduce((b, n) => ({ x1: Math.min(b.x1, n.x - 14), y1: Math.min(b.y1, n.y), x2: Math.max(b.x2, n.x + n.w + 14), y2: Math.max(b.y2, n.y + n.h) }), { x1: Infinity, y1: y1 - 60, x2: 0, y2: -Infinity });
   const { k, x, y } = ui.tree;
   const sw = (cls, label) => `<span><i class="${cls}"></i>${label}</span>`;
   const legend = ui.tree.color === 'level'
@@ -1219,8 +1324,10 @@ window.addEventListener('resize', () => { if (ui.layout === 'tree') sizeTree(); 
 // RENDER: DRAWER (task details)
 // ============================================================
 function openDrawer(id) {
+  const changed = ui.openTask !== id;
   ui.openTask = id;
   renderDrawer();
+  if (changed) { $('drawer').scrollTop = 0; const b = $('drawer').querySelector('.drawer-b'); if (b) b.scrollTop = 0; }
   renderContent();
 }
 function closeDrawer() {
@@ -1264,6 +1371,13 @@ function renderDrawer() {
           </div>`).join('')}
         </div>
         <form id="subForm" autocomplete="off" style="margin-top:4px"><input class="input" style="width:100%" id="subInput" placeholder="+ Add subtask"></form>
+        <div class="tpl-row">
+          <select class="input" id="dTemplate" title="Add the items of a checklist template to this task">
+            <option value="">Load checklist from template…</option>
+            ${db.templates.map(x => `<option value="${esc(x.id)}">${esc(x.name)} (${templateCount(x)})</option>`).join('')}
+          </select>
+          ${t.subtasks.length ? `<button class="btn sm" data-act="save-template" title="Save these subtasks as a reusable template">${ic('checklist')}Save as template</button>` : ''}
+        </div>
       </div>
       <div><label class="lbl">Notes</label><textarea class="input" id="dNotes" rows="6" placeholder="Details, links, decisions…">${esc(t.notes)}</textarea></div>
       <div class="stamp">Created ${esc(fmtStamp(t.createdAt))}<br>Updated ${esc(fmtStamp(t.updatedAt))}${t.completedAt ? `<br>Completed ${esc(fmtStamp(t.completedAt))}` : ''}</div>
@@ -1310,6 +1424,65 @@ function projectModal(p) {
       Object.assign(p, { name, description, color });
       save(); closeModal(); render();
     }
+  });
+}
+
+function templateModal(tpl, presetText) {
+  const isNew = !tpl;
+  const m = $('modal');
+  m.innerHTML = `<form class="modal wide" id="tplForm" autocomplete="off">
+      <h2>${isNew ? 'New template' : 'Edit template'}</h2>
+      <div><label class="lbl">Name</label><input class="input" id="tName" required maxlength="80" value="${esc(tpl ? tpl.name : '')}" placeholder="e.g. Assembly inspection checklist"></div>
+      <div><label class="lbl">Items <span class="lbl-note">one per line · indent a line (Tab or 2 spaces) to make it a sub-item of the line above</span></label>
+        <textarea class="input mono" id="tText" rows="14" spellcheck="false" placeholder="Before starting&#10;  Drawing revision confirmed&#10;  Parts available&#10;Before closing&#10;  Self-review done">${esc(tpl ? tpl.text : presetText || '')}</textarea></div>
+      <div class="actions">${isNew ? '' : '<button type="button" class="btn danger" data-act="delete-template">Delete</button><span style="flex:1"></span>'}
+        <button type="button" class="btn" data-act="cancel-modal">Cancel</button><button class="btn primary" type="submit">${isNew ? 'Create template' : 'Save'}</button></div>
+    </form>`;
+  m.classList.add('open');
+  m.dataset.tpl = tpl ? tpl.id : '';
+  $('tName').focus();
+  $('tText').addEventListener('keydown', e => {           // Tab indents instead of leaving the box
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    e.target.setRangeText('  ', e.target.selectionStart, e.target.selectionEnd, 'end');
+  });
+  $('tplForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('tName').value.trim(), text = $('tText').value.replace(/\s+$/, '');
+    if (!name) return;
+    if (!parseTemplate(text).length) { toast('Add at least one item'); return; }
+    if (isNew) db.templates.push(normalizeTemplate({ name, text }));
+    else Object.assign(tpl, { name, text });
+    save(); closeModal(); render();
+    toast(isNew ? `Template "${name}" created` : 'Template saved');
+  });
+}
+
+function useTemplateModal(p) {
+  const m = $('modal');
+  if (!db.templates.length) {
+    m.innerHTML = `<div class="modal"><h2>No templates yet</h2><p class="head-sub">Make a checklist of the things you always check, then use it here.</p>
+      <div class="actions"><button type="button" class="btn" data-act="cancel-modal">Cancel</button><button class="btn primary" data-act="new-template">New template</button></div></div>`;
+    m.classList.add('open'); return;
+  }
+  m.innerHTML = `<form class="modal" id="useTplForm" autocomplete="off">
+      <h2>Add from template</h2>
+      <div><label class="lbl">Template</label><select class="input" id="uTpl" style="width:100%">${db.templates.map(x => `<option value="${esc(x.id)}">${esc(x.name)} (${templateCount(x)} items)</option>`).join('')}</select></div>
+      <div class="radios">
+        <label><input type="radio" name="uMode" value="one" checked> <span><b>One task with this checklist</b><br><span class="head-sub">A task named after the template; every item becomes a subtask to tick off.</span></span></label>
+        <label><input type="radio" name="uMode" value="many"> <span><b>A task for each section</b><br><span class="head-sub">Each top-level line becomes a task; its indented lines become that task's subtasks.</span></span></label>
+      </div>
+      <div class="actions"><button type="button" class="btn" data-act="cancel-modal">Cancel</button><button class="btn primary" type="submit">Add to ${esc(p.name)}</button></div>
+    </form>`;
+  m.classList.add('open');
+  $('useTplForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const tpl = db.templates.find(x => x.id === $('uTpl').value);
+    const mode = m.querySelector('input[name=uMode]:checked').value;
+    const made = applyTemplateToProject(tpl, p.id, mode);
+    closeModal(); render();
+    if (made.length === 1) openDrawer(made[0].id);
+    toast(`Added ${made.length} task${made.length === 1 ? '' : 's'} from "${tpl.name}"`);
   });
 }
 
@@ -1402,6 +1575,21 @@ document.addEventListener('click', e => {
     case 'tree-expand': ui.tree.collapsed.clear(); renderContent(); fitTree(); return;
     case 'tree-collapse': collapseAllTasks(); renderContent(); fitTree(); return;
     case 'new-project': projectModal(null); return;
+    case 'new-template': templateModal(null); return;
+    case 'edit-template': templateModal(db.templates.find(x => x.id === actEl.dataset.tpl)); return;
+    case 'delete-template': {
+      const id = $('modal').dataset.tpl, i = db.templates.findIndex(x => x.id === id);
+      if (i < 0 || !confirm(`Delete template "${db.templates[i].name}"?\n\nTasks already made from it are kept.`)) return;
+      const [gone] = db.templates.splice(i, 1);
+      save(); closeModal(); render();
+      toast(`Deleted "${gone.name}"`, 'Undo', () => { db.templates.splice(i, 0, gone); save(); render(); }); return;
+    }
+    case 'project-template': useTemplateModal(p); return;
+    case 'save-template': {
+      const t = taskById(ui.openTask);
+      templateModal(null, t.subtasks.map(x => x.title).join('\n'));
+      $('tName').value = t.title; $('tName').select(); return;
+    }
     case 'edit-project': projectModal(p); return;
     case 'archive-project':
       p.archived = !p.archived; save(); render();
@@ -1467,7 +1655,14 @@ document.addEventListener('change', e => {
   if (id === 'importInput') { if (e.target.files[0]) importBackup(e.target.files[0]); e.target.value = ''; return; }
   const t = ui.openTask && taskById(ui.openTask);
   if (!t) return;
-  if (id === 'dStatus') { updateTask(t.id, { status: e.target.value }); renderDrawer(); refreshBehindDrawer(); }
+  if (id === 'dStatus') {
+    if (e.target.value === 'done' && t.status !== 'done' && !confirmDone(t)) { renderDrawer(); return; }
+    updateTask(t.id, { status: e.target.value }); renderDrawer(); refreshBehindDrawer();
+  }
+  else if (id === 'dTemplate') {
+    const tpl = db.templates.find(x => x.id === e.target.value);
+    if (tpl) { const n = loadChecklist(t, tpl); renderDrawer(); refreshBehindDrawer(); toast(n ? `Loaded ${n} checklist item${n === 1 ? '' : 's'} from "${tpl.name}"` : 'All those items are already on this task'); }
+  }
   else if (id === 'dPriority') { updateTask(t.id, { priority: Number(e.target.value) }); refreshBehindDrawer(); }
   else if (id === 'dDue') { updateTask(t.id, { due: e.target.value || null }); refreshBehindDrawer(); }
   else if (id === 'dProject') { updateTask(t.id, { projectId: e.target.value || null }); refreshBehindDrawer(); }
@@ -1500,7 +1695,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'dTitle') { e.preventDefault(); e.target.blur(); return; }
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
   if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'n' || e.key === 'N') { e.preventDefault(); $('quickInput') ? $('quickInput').focus() : projectModal(null); }
+  if (e.key === 'n' || e.key === 'N') { e.preventDefault(); $('quickInput') ? $('quickInput').focus() : ui.view === 'templates' ? templateModal(null) : projectModal(null); }
   else if (e.key === '/') { if ($('searchInput')) { e.preventDefault(); $('searchInput').focus(); } }
   else if (e.key === 'b' || e.key === 'B') { ui.layout = { list: 'board', board: 'tree', tree: 'list' }[ui.layout]; db.settings.layout = ui.layout; save(); renderTopbar(); renderContent(); }
 });
@@ -1529,6 +1724,7 @@ document.addEventListener('drop', e => {
   e.preventDefault();
   const t = taskById(dragId);
   if (t && t.status !== col.dataset.status) {
+    if (col.dataset.status === 'done' && !confirmDone(t)) return;
     updateTask(t.id, { status: col.dataset.status });
     render();
   }

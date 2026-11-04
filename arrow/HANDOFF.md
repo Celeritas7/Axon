@@ -86,6 +86,18 @@ new features consistent with this.
   doesn't count as a click. Colour mode (`ui.tree.color`: level/status/project) and pan/zoom/collapsed
   state live in `ui.tree`
   (session only, not saved); it auto-fits when the view changes.
+- **TEMPLATES** (checklists): `parseTemplate(text)` → sections with
+  children; `checklistFromTemplate` flattens to subtask titles
+  ("Section › item"); `loadChecklist` (task, skips duplicates);
+  `applyTemplateToProject` (mode `one` = one task with the checklist, `many` =
+  a task per section). `templatesHtml`, `templateModal`, `useTemplateModal`.
+  A save with no `templates` field gets the sample checklist once (in
+  `normalizeDb`). `confirmDone(t)` asks before marking a task done while
+  subtasks are unticked; it is used by toggle, the drawer status select and
+  board drops.
+- **Tree direction**: right-to-left like Axon (`layoutTree` mirrors the
+  columns; links run from a child's right edge to its parent's left edge;
+  the collapse handle sits on the parent's left edge).
 - **MODALS / BACKUP / THEME / TOAST**: `projectModal`, `exportBackup`,
   `importBackup` (replaces all data, with undo), `applyTheme`, `toast`.
 - **EVENTS**: delegated `click` / `input` / `change` / `submit` / `keydown`
@@ -97,6 +109,7 @@ new features consistent with this.
 ```js
 { version: 1,
   projects: [{ id, name, color, description, archived, createdAt }],
+  templates: [{ id, name, text /*one item per line; indented = sub-item*/, createdAt }],
   tasks: [{ id, projectId|null, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
             tags: [string], subtasks: [{ id, title, done }], createdAt, updatedAt, completedAt|null }],
   settings: { theme: 'light'|'dark'|null, view /*'projects'|'project:<id>'|helper*/, layout: 'list'|'board'|'tree',

@@ -9,7 +9,8 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   const errs = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   page.on('console', m => m.type() === 'error' && errs.push('console: ' + m.text()));
-  page.on('dialog', d => d.accept());
+  let dismissNext = false;
+  page.on('dialog', d => { if (dismissNext) { dismissNext = false; d.dismiss(); } else d.accept(); });
   await page.goto(APP_URL);
   const assert = (c, m) => { if (!c) { throw new Error('FAIL: ' + m); } console.log('ok -', m); };
 
@@ -164,6 +165,40 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   await page.click('[data-layout=tree]');
   await page.locator('#treeSvg .troot', { hasText: 'Compressor build' }).click();
   assert((await page.textContent('h1')) === 'Compressor build' && await page.locator('#treeSvg .troot').count() === 1, 'clicking a project root opens that project as a single tree');
+  await page.click('[data-layout=list]');
+
+  // checklist templates
+  await page.click('[data-view=templates]');
+  assert(await page.locator('.tcard', { hasText: 'Work quality checklist' }).count() === 1, 'sample checklist template is there');
+  await page.click('.pnew[data-act=new-template]');
+  await page.fill('#tName', 'Wiring check');
+  await page.fill('#tText', 'Prepare\n  Check drawing rev\n  Label wires\nVerify\n  Continuity test\n  Insulation test\nSign off');
+  await page.click('#tplForm button[type=submit]');
+  assert(await page.locator('.tcard', { hasText: 'Wiring check' }).count() === 1 && await page.locator('.tcard', { hasText: '5 items' }).count() === 1, 'new template saved with sections and sub-items');
+  const pidT = (await getDb()).projects.find(x => x.name === 'Compressor build').id;
+  await page.click('.brand'); await page.click(`.pcard[data-view="project:${pidT}"]`);
+  const before = (await getDb()).tasks.length;
+  await page.click('[data-act=project-template]');
+  await page.selectOption('#uTpl', { label: 'Wiring check (5 items)' });
+  await page.check('input[name=uMode][value=many]');
+  await page.click('#useTplForm button[type=submit]');
+  await page.waitForTimeout(300);
+  const afterDb = await getDb();
+  assert(afterDb.tasks.length === before + 3 && afterDb.tasks.find(t => t.title === 'Verify').subtasks.length === 2, 'template creates a task per section with sub-items');
+  await page.click('.row:has-text("Call supplier") .row-title');
+  await page.selectOption('#dTemplate', { label: 'Wiring check (5)' });
+  await page.waitForTimeout(300);
+  const cs2 = (await getDb()).tasks.find(t => t.title === 'Call supplier');
+  assert(cs2.subtasks.length === 5 && cs2.subtasks[0].title === 'Prepare › Check drawing rev', 'checklist loads into a task as subtasks');
+  dismissNext = true;
+  await page.click('[data-act=drawer-done]');
+  await page.waitForTimeout(300);
+  assert((await getDb()).tasks.find(t => t.title === 'Call supplier').status !== 'done', 'marking done with unticked items asks first (cancel keeps it open)');
+  await page.click('[data-act=close-drawer]');
+  await page.click('[data-layout=tree]');
+  const rootX = Number(await page.locator('#treeSvg .troot .n-bar').first().getAttribute('x'));
+  const taskX = Number(await page.locator('#treeSvg .ttask .n-bar').first().getAttribute('x'));
+  assert(rootX > taskX, 'tree reads right-to-left like Axon (project on the right)');
   await page.click('[data-layout=list]');
 
   // dark + mobile

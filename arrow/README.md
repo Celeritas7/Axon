@@ -41,13 +41,38 @@ there, pick its project in the box next to it (Arrow remembers your choice).
 - **List** view (group by due date / status / project / priority),
   **Board** view (drag cards between status columns), or
   **Tree** view: a map of project → tasks → subtasks in Axon's tree style
-  (level colours, numbered badges 1, 1a…, level headers). The project is
-  always the root; helper views show one tree per project. Colour nodes by
+  (level colours, numbered badges 1, 1a…, level headers), reading right to
+  left like Axon: the project is on the right. The project is always the root; helper views show one tree per project. Colour nodes by
   level, status or project.
   Drag to pan, scroll to zoom, use −/+ on a node to collapse or expand it,
   click a node's status dot to tick it off, click a task to open it.
 - Search across titles, notes, tags, projects and subtasks; filter by priority.
 - Light and dark theme.
+
+## Checklist templates
+Keep the things you must always check as **templates** (top bar →
+**Templates**). Write one item per line; indent a line (Tab or 2 spaces) to
+make it a sub-item of the line above, e.g.
+
+```
+Before starting
+  Drawing revision confirmed
+  Parts available
+Before closing
+  Self-review done
+  Tested against the requirement
+```
+
+Use a template in either of two ways:
+- **In a task:** open the task and pick **Load checklist from template…**.
+  Every item is added as a subtask to tick off.
+- **In a project:** click **From template**, then choose *one task with the
+  checklist* or *a task for each section*.
+
+If you mark a task done while checklist items are still unticked, Arrow asks
+first and lists what's left, so nothing is missed. **Save as template** in a
+task turns its subtasks into a new template. A sample "Work quality
+checklist" is included; edit it to suit your work.
 
 ## Quick add
 Type in the "Add a task" box:
