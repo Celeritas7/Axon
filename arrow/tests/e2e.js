@@ -6,6 +6,18 @@ const addDaysNode = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); 
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined });
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 860 }, acceptDownloads: true });
+  // stand-in for the browser's file picker (File System Access API), kept in memory per page
+  await ctx.addInitScript(() => {
+    window.__files = {};
+    const handle = name => ({
+      kind: 'file', name,
+      async getFile() { const f = window.__files[name] || { text: '', t: 0 }; return { lastModified: f.t, text: async () => f.text }; },
+      async createWritable() { let buf = ''; return { write: async d => { buf += d; }, close: async () => { window.__files[name] = { text: buf, t: Date.now() }; } }; },
+      async queryPermission() { return 'granted'; }, async requestPermission() { return 'granted'; }
+    });
+    window.showSaveFilePicker = async o => handle((o && o.suggestedName) || 'data.json');
+    window.showOpenFilePicker = async () => [handle(window.__openName || 'existing.json')];
+  });
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
@@ -334,6 +346,52 @@ const addDaysNode = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); 
   await page.selectOption('#sortSel', 'due');
   await page.click('.brand');
   assert((await page.textContent(`.pcard[data-view="project:${pidT}"] .pc-meta`)).includes('left'), 'project card shows hours left');
+
+  // save to a file
+  const fileDb = () => page.evaluate(() => JSON.parse(window.__files['arrow-data.json'].text));
+  await page.click('.savepill');
+  assert(await page.locator('.modal [data-act=fs-create]').count() === 1, 'storage panel offers to create a data file');
+  await page.click('.modal [data-act=fs-create]');
+  await page.waitForTimeout(400);
+  assert((await fileDb()).tasks.length === (await getDb()).tasks.length, 'creating the data file writes all data to it');
+  assert((await page.textContent('.savepill')).includes('Saved to file'), 'top bar shows "Saved to file"');
+  await page.click('[data-view=today]');
+  await page.fill('#quickInput', 'Synced task');
+  await page.press('#quickInput', 'Enter');
+  await page.waitForTimeout(1300);
+  assert((await fileDb()).tasks.some(t => t.title === 'Synced task'), 'changes are saved to the file automatically');
+  const viewOnly = (await fileDb()).savedAt;
+  await page.click('[data-view=upcoming]');
+  await page.waitForTimeout(1200);
+  assert((await fileDb()).savedAt === viewOnly, 'just looking around does not rewrite the file');
+  // another computer changes the file, and this browser changes too -> ask, never overwrite silently
+  await page.evaluate(() => {
+    const d = JSON.parse(window.__files['arrow-data.json'].text);
+    d.projects.push({ id: 'laptop1', name: 'From laptop', color: '#8250df' });
+    d.savedAt = new Date(Date.now() + 60000).toISOString();
+    window.__files['arrow-data.json'] = { text: JSON.stringify(d), t: Date.now() };
+  });
+  await page.click('[data-view=today]');
+  await page.fill('#quickInput', 'Local change');
+  await page.press('#quickInput', 'Enter');
+  await page.waitForTimeout(1300);
+  assert((await page.textContent('.savepill')).includes('File changed') && !(await fileDb()).tasks.some(t => t.title === 'Local change'), 'a file changed elsewhere is not overwritten');
+  await page.click('.savepill');
+  await page.waitForTimeout(200);
+  assert(await page.locator('.modal .cmp-side').count() === 2, 'conflict dialog compares file and browser');
+  await page.click('.modal [data-act=fs-load]');
+  await page.waitForTimeout(300);
+  assert((await getDb()).projects.some(x => x.name === 'From laptop'), 'loading the file brings in the other computer\'s data');
+  await page.click('[data-view=today]');
+  await page.fill('#quickInput', 'After sync');
+  await page.press('#quickInput', 'Enter');
+  await page.waitForTimeout(1300);
+  const fd = await fileDb();
+  assert(fd.tasks.some(t => t.title === 'After sync') && fd.projects.some(x => x.name === 'From laptop'), 'saving resumes after choosing');
+  await page.click('.savepill');
+  await page.click('.modal [data-act=fs-disconnect]');
+  await page.waitForTimeout(200);
+  assert(!(await page.textContent('.savepill')).includes('file'), 'stop saving to the file');
 
   // dark + mobile
   await page.click('[data-act=theme]');

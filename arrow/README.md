@@ -13,9 +13,30 @@ through a local server, starts out empty.
 
 ## Where your data lives
 In this browser's local storage on this computer. It survives restarts, but
-**clearing browsing data / site data for files deletes it**. So:
+**clearing browsing data / site data for files deletes it**. Keep a second
+copy in a **data file** (best) or with backups.
 
-- Click the **download** button (top right) now and then. It saves
+### Save to a file (Chrome / Edge)
+Click the **Saved locally** pill (top right) → **Create a data file…** (or
+**Use an existing file…**) and pick where to keep it, e.g. your **Google
+Drive for desktop** folder. From then on Arrow saves every change to that
+file automatically and the pill says **Saved to file**.
+
+- After restarting the browser, the pill may say **Reconnect file**: click
+  it once to let Arrow keep saving (browsers ask once per session).
+- **Two computers:** open Arrow on the other computer and choose **Use an
+  existing file…** with the same file in your Drive folder. When Arrow starts
+  it loads newer data from the file. If the file and this browser *both*
+  changed, the pill says **File changed** and Arrow asks which data to keep;
+  it never overwrites silently. (Let Drive finish syncing before switching
+  computers.)
+- While a data file is connected, the "Backup due" reminder is switched off.
+- Firefox and Safari can't do this; use backups there.
+
+### Backups
+
+- Click the **download** button (top right), or **Download backup** in the
+  storage panel, now and then. It saves
   `arrow-backup-YYYY-MM-DD.json`. The green **Saved locally** pill turns
   red (**Backup due**) after 7 days without a backup; clicking it backs up too.
 - The **upload** button (top right) restores a backup file (older `axon-tasks-backup-…` files from

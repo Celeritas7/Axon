@@ -130,6 +130,19 @@ new features consistent with this.
 - **Tree direction**: right-to-left like Axon (`layoutTree` mirrors the
   columns; links run from a child's right edge to its parent's left edge;
   the collapse handle sits on the parent's left edge).
+- **SAVE TO A FILE** (File System Access API; Chrome/Edge, works on
+  `file://`): localStorage stays the main store; `save()` also schedules
+  `writeFile` (700 ms) when the data really changed. `db.savedAt` is bumped
+  only when `bodyOf(db)` changes (view/layout/lastBackup don't count), so
+  opening or browsing never looks like an edit. The file handle lives in
+  IndexedDB (`idbHandle`), the savedAt last synced with the file in
+  localStorage `arrow.fileSavedAt` (`fsKnown`). `writeFile` re-reads the file
+  first and stops with state `conflict` if its savedAt isn't the known one.
+  `fsStartup` → `fsSync`: same stamp = in sync; only the file changed = load it
+  (with undo); only local changed = write; both = `conflict` (pill → 
+  `conflictModal`: load file / keep browser). States in `fs.state`: none, ok,
+  saving, permission (pill → `fsReconnect`, needs a click), conflict, error.
+  UI: `storageModal` (from the pill). e2e mocks `showSaveFilePicker`.
 - **MODALS / BACKUP / THEME / TOAST**: `projectModal`, `exportBackup`,
   `importBackup` (replaces all data, with undo), `applyTheme`, `toast`.
 - **EVENTS**: delegated `click` / `input` / `change` / `submit` / `keydown`
@@ -162,20 +175,24 @@ changes. Extend the test whenever you add a feature.
 
 ## Known limitations
 - Data is per browser and per file location. Opening the file from another
-  folder or another browser starts out empty. Backups are the only
+  folder or another browser starts out empty, until you connect the same
+  data file there (Chrome/Edge). Without a data file, backups are the only
   protection against the browser's site data being cleared.
+- Data-file sync is "last saved wins with a prompt", not a merge: if two
+  computers both change things, the owner picks one side.
 - The board has no manual ordering within a column; cards follow the chosen
   sort.
-- No recurring tasks, reminders, notifications, attachments or time tracking.
+- No recurring tasks, reminders, notifications or attachments. Effort is
+  entered by hand (no timer).
 - `confirm()` dialogs are used for destructive actions (good enough for a
   personal tool).
 
-## Ideas backlog (not started; check with the owner before building)
-- Save automatically to a file the owner chooses (File System Access API in
-  Chrome/Edge), so data also lives outside the browser.
+## Ideas backlog (check with the owner before building)
+Built since the first handoff: tree view, project-first layout, Axon look,
+checklist templates, phases, dependencies, timeline, effort, save to a file.
+Still open:
 - Recurring tasks (daily, weekly, monthly).
 - Manual drag ordering in the list and board.
-- Task dependencies ("blocked by").
 - Calendar or week view.
 - CSV export of tasks.
 - Optional import of projects from the online Axon app (Supabase).

@@ -98,6 +98,7 @@ svg.i { width:16px; height:16px; flex:none; vertical-align:middle; }
 .cluster > button.on .n { color:var(--accent); }
 .savepill { display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 10px; border-radius:100px; font-size:11.5px; font-weight:600; border:1px solid color-mix(in srgb, var(--st-done) 35%, transparent); background:color-mix(in srgb, var(--st-done) 10%, transparent); color:var(--st-done); cursor:pointer; white-space:nowrap; }
 .savepill::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; }
+.savepill.amber { color:var(--pr-3); border-color:color-mix(in srgb, var(--pr-3) 40%, transparent); background:color-mix(in srgb, var(--pr-3) 10%, transparent); }
 .savepill.warn { color:var(--danger); border-color:color-mix(in srgb, var(--danger) 35%, transparent); background:color-mix(in srgb, var(--danger) 9%, transparent); }
 .dot { width:10px; height:10px; border-radius:3px; flex:none; }
 .cluster > button.nag { position:relative; }
@@ -272,6 +273,16 @@ label.lbl { display:block; font-size:10px; font-weight:600; letter-spacing:.06em
 .inbox-note u { color:var(--accent); }
 .sec-h { font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin:26px 0 10px; }
 .quick-proj { max-width:200px; flex:none; height:34px; }
+.store-row { display:flex; gap:12px; padding:12px; border:1px solid var(--border); border-radius:var(--radius-sm); }
+.store-row .st-i { width:30px; height:30px; border-radius:8px; display:grid; place-items:center; background:var(--surface-3); color:var(--ink-2); flex:none; }
+.store-row.ok .st-i { background:color-mix(in srgb, var(--st-done) 14%, transparent); color:var(--st-done); }
+.store-row.warn { border-color:color-mix(in srgb, var(--pr-3) 45%, var(--border)); }
+.store-row.warn .st-i { background:color-mix(in srgb, var(--pr-3) 14%, transparent); color:var(--pr-3); }
+.st-b { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; font-size:13px; }
+.store-acts { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.cmp { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.cmp-side { display:flex; flex-direction:column; gap:3px; padding:12px; border:1px solid var(--border); border-radius:var(--radius-sm); font-size:13px; }
+.cmp-side .mono { font-size:11.5px; color:var(--ink-3); }
 .eff { display:inline-flex; align-items:center; gap:3px; font-family:var(--font-mono); color:var(--ink-2); }
 .eff.over { color:var(--danger); font-weight:600; }
 .effline { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-2); font-family:var(--font-mono); }
@@ -619,6 +630,7 @@ function normalizeDb(raw) {
   // templates were added later: a save without the field gets the sample checklist once
   base.templates = Array.isArray(raw.templates) ? raw.templates.map(normalizeTemplate) : [normalizeTemplate({ name: 'Work quality checklist', text: SAMPLE_TEMPLATE })];
   base.settings = { ...base.settings, ...(raw.settings || {}) };
+  base.savedAt = typeof raw.savedAt === 'string' ? raw.savedAt : null;   // when the data last changed (used to sync with a data file)
   return base;
 }
 
@@ -666,22 +678,37 @@ let db = loadDb();
 let saveTimer = null;
 let saveOk = true;
 
-function save() {
+// The data without things that change just by looking around (view, layout, backup date):
+// savedAt only moves, and the data file is only written, when this changes.
+const bodyOf = d => JSON.stringify({ ...d, savedAt: undefined, settings: { ...d.settings, view: undefined, layout: undefined, lastBackup: undefined } });
+let lastBody = bodyOf(db);   // as loaded: opening the app is not a change
+function saveLocal() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(db));
+    saveOk = true;
+  } catch (e) {
+    console.error('Save failed', e);
+    saveOk = false;
+    toast('Could not save. Export a backup now.');
+  }
+}
+function save(force) {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(db));
-      saveOk = true;
-    } catch (e) {
-      console.error('Save failed', e);
-      saveOk = false;
-      toast('Could not save. Export a backup now.');
-    }
+    saveTimer = null;
+    const body = bodyOf(db), changed = force === true || body !== lastBody;
+    if (changed) { db.savedAt = nowIso(); lastBody = body; }
+    saveLocal();
     renderFoot();
+    if (changed) scheduleFileWrite();
   }, 150);
 }
 window.addEventListener('beforeunload', () => {
-  if (saveTimer) { clearTimeout(saveTimer); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { /* ignore */ } }
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    if (bodyOf(db) !== lastBody) db.savedAt = nowIso();   // the data file catches up on the next start
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { /* ignore */ }
+  }
 });
 
 // ============================================================
@@ -1022,14 +1049,21 @@ function renderFoot() {
   if (!el) return;
   const last = db.settings.lastBackup;
   const age = last ? daysBetween(localDay(last), todayStr()) : null;
-  const nag = db.tasks.length > 0 && (age === null || age >= BACKUP_NAG_DAYS);
+  const fileOk = fs.handle && (fs.state === 'ok' || fs.state === 'saving');
+  const nag = !fileOk && db.tasks.length > 0 && (age === null || age >= BACKUP_NAG_DAYS);
   const lastTxt = last ? (age === 0 ? 'today' : age === 1 ? 'yesterday' : `${age} days ago`) : 'never';
   const dark = document.documentElement.dataset.theme === 'dark';
-  const pill = !saveOk ? ['warn', 'Not saved', 'Saving failed. Download a backup now.']
-    : nag ? ['warn', 'Backup due', `Last backup: ${lastTxt}. Click to download one.`]
-    : ['', 'Saved locally', `Saved on this computer. Last backup: ${lastTxt}. Click to download a backup.`];
+  const at = fs.last ? fs.last.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
+  const pill = !saveOk ? ['warn', 'Not saved', 'Saving failed. Download a backup now.', 'storage']
+    : fs.handle && fs.state === 'permission' ? ['amber', 'Reconnect file', `Click to let Arrow keep saving to ${fs.name} (the browser asks once per session).`, 'fs-reconnect']
+    : fs.handle && fs.state === 'conflict' ? ['amber', 'File changed', `${fs.name} was changed elsewhere. Click to choose which data to keep.`, 'fs-conflict']
+    : fs.handle && fs.state === 'error' ? ['warn', 'File save failed', `Could not save to ${fs.name}: ${fs.error}. Your data is still saved in this browser.`, 'storage']
+    : fs.handle && fs.state === 'saving' ? ['', 'Saving…', `Saving to ${fs.name}`, 'storage']
+    : fileOk ? ['', 'Saved to file', `Saving every change to ${fs.name}${at ? ` (last saved ${at})` : ''}. Click for storage options.`, 'storage']
+    : nag ? ['warn', 'Backup due', `Last backup: ${lastTxt}. Click to back up, or set up saving to a file.`, 'storage']
+    : ['', 'Saved locally', `Saved in this browser. Last backup: ${lastTxt}. Click for storage options.`, 'storage'];
   el.innerHTML = `
-    <button class="savepill ${pill[0]}" data-act="export" title="${esc(pill[2])}"><span class="txt">${pill[1]}</span></button>
+    <button class="savepill ${pill[0]}" data-act="${pill[3]}" title="${esc(pill[2])}"><span class="txt">${pill[1]}</span></button>
     <div class="cluster">
       <button class="ib ${pill[0] ? 'nag' : ''}" data-act="export" title="Backup: download all data as a file">${ic('download')}</button>
       <button class="ib" data-act="import" title="Restore from a backup file">${ic('upload')}</button>
@@ -2129,6 +2163,183 @@ function importBackup(file) {
   reader.readAsText(file);
 }
 
+// ============================================================
+// SAVE TO A FILE (File System Access API: Chrome / Edge). The browser copy stays the
+// main store; the file is kept in step so the data also lives outside the browser.
+// ============================================================
+const fs = { supported: typeof window.showSaveFilePicker === 'function', handle: null, name: '', state: 'none', last: null, error: '', fileInfo: null };
+const FS_KNOWN_KEY = 'arrow.fileSavedAt';   // savedAt of the data last read from / written to the file
+const fsKnown = {
+  get: () => { try { return localStorage.getItem(FS_KNOWN_KEY); } catch (e) { return null; } },
+  set: v => { try { v ? localStorage.setItem(FS_KNOWN_KEY, v) : localStorage.removeItem(FS_KNOWN_KEY); } catch (e) { /* ignore */ } }
+};
+// the file handle is kept in IndexedDB so Arrow finds the file again after a restart
+function idbHandle(op, value) {
+  return new Promise(resolve => {
+    try {
+      const req = indexedDB.open('arrow-file', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('kv');
+      req.onerror = () => resolve(null);
+      req.onsuccess = () => {
+        try {
+          const st = req.result.transaction('kv', op === 'get' ? 'readonly' : 'readwrite').objectStore('kv');
+          const r = op === 'get' ? st.get('handle') : op === 'del' ? st.delete('handle') : st.put(value, 'handle');
+          r.onsuccess = () => resolve(op === 'get' ? r.result || null : true);
+          r.onerror = () => resolve(null);
+        } catch (e) { resolve(null); }
+      };
+    } catch (e) { resolve(null); }
+  });
+}
+async function readFileDb() {
+  const text = await (await fs.handle.getFile()).text();
+  if (!text.trim()) return { empty: true };
+  let raw;
+  try { raw = JSON.parse(text); } catch (e) { return { bad: true }; }
+  const next = normalizeDb(raw);
+  return next ? { db: next, savedAt: next.savedAt } : { bad: true };
+}
+let fsTimer = null;
+function scheduleFileWrite() {
+  if (!fs.handle || fs.state === 'permission' || fs.state === 'conflict') return;
+  clearTimeout(fsTimer);
+  fsTimer = setTimeout(() => writeFile(false), 700);
+}
+async function writeFile(force) {
+  if (!fs.handle) return;
+  try {
+    if (!force) {   // never overwrite changes another computer made to the file
+      const cur = await readFileDb();
+      if (cur.db && cur.savedAt && cur.savedAt !== fsKnown.get()) { fs.state = 'conflict'; fs.fileInfo = cur; renderFoot(); return; }
+    }
+    fs.state = 'saving'; renderFoot();
+    const w = await fs.handle.createWritable();
+    await w.write(JSON.stringify(db, null, 2));
+    await w.close();
+    fsKnown.set(db.savedAt);
+    Object.assign(fs, { state: 'ok', last: new Date(), error: '' });
+  } catch (e) {
+    console.error('File save failed', e);
+    fs.state = e && e.name === 'NotAllowedError' ? 'permission' : 'error';
+    fs.error = (e && e.message) || String(e);
+  }
+  renderFoot();
+}
+async function fsAttach(h) { Object.assign(fs, { handle: h, name: h.name, state: 'ok' }); await idbHandle('put', h); }
+const FS_TYPES = [{ description: 'Arrow data', accept: { 'application/json': ['.json'] } }];
+async function fileCreate() {
+  try {
+    const h = await window.showSaveFilePicker({ suggestedName: 'arrow-data.json', types: FS_TYPES });
+    await fsAttach(h);
+    await writeFile(true);
+    closeModal();
+    toast(`Saving every change to ${h.name}`);
+  } catch (e) { if (!e || e.name !== 'AbortError') toast('Could not create the file: ' + ((e && e.message) || e)); }
+}
+async function fileOpen() {
+  try {
+    const [h] = await window.showOpenFilePicker({ multiple: false, types: FS_TYPES });
+    if (h.requestPermission && (await h.requestPermission({ mode: 'readwrite' })) !== 'granted') { toast('Arrow needs permission to save to that file'); return; }
+    await fsAttach(h);
+    const cur = await readFileDb();
+    closeModal();
+    if (cur.db) {
+      if (confirm(`Load the data in "${h.name}"?\n\n${cur.db.projects.length} projects, ${cur.db.tasks.length} tasks${cur.savedAt ? `, saved ${fmtStamp(cur.savedAt)}` : ''}.\n\nOK = load it (replaces what is in this browser; you can undo).\nCancel = keep this browser's data and save it into the file.`)) { loadFromFile(cur, false); return; }
+    } else if (cur.bad && !confirm(`"${h.name}" is not an Arrow data file.\n\nOverwrite it with your Arrow data?`)) { await fileDisconnect(true); return; }
+    await writeFile(true);
+    toast(`Saving every change to ${h.name}`);
+  } catch (e) { if (!e || e.name !== 'AbortError') toast('Could not open the file: ' + ((e && e.message) || e)); }
+}
+function loadFromFile(cur, automatic) {
+  const prev = db;
+  db = cur.db;
+  lastBody = bodyOf(db);
+  fsKnown.set(cur.savedAt);
+  Object.assign(fs, { state: 'ok', last: new Date(), fileInfo: null });
+  ui.openTask = null;
+  if (ui.view.startsWith('project:') && !currentProject()) ui.view = 'projects';
+  saveLocal(); applyTheme(); closeDrawer(); render();
+  toast(automatic ? `Loaded the newer data from ${fs.name}` : `Loaded ${fs.name}`, 'Undo', () => { db = prev; applyTheme(); save(true); render(); });
+}
+// after (re)connecting: bring the file and this browser in line
+async function fsSync() {
+  let cur;
+  try { cur = await readFileDb(); } catch (e) { Object.assign(fs, { state: 'error', error: (e && e.message) || String(e) }); renderFoot(); return; }
+  if (!cur.db) { await writeFile(true); return; }                         // empty file: fill it
+  if (cur.savedAt === db.savedAt) { fsKnown.set(cur.savedAt); Object.assign(fs, { state: 'ok', last: new Date() }); renderFoot(); return; }
+  const known = fsKnown.get(), fileChanged = cur.savedAt !== known, localChanged = db.savedAt !== known;
+  if (fileChanged && !localChanged) { loadFromFile(cur, true); return; }  // edited on another computer only
+  if (!fileChanged) { await writeFile(true); return; }                     // edited here only
+  Object.assign(fs, { state: 'conflict', fileInfo: cur });                 // edited in both places: ask
+  renderFoot();
+}
+async function fsStartup() {
+  if (!fs.supported) return;
+  const h = await idbHandle('get');
+  if (!h) return;
+  Object.assign(fs, { handle: h, name: h.name });
+  let perm = 'prompt';
+  try { perm = await h.queryPermission({ mode: 'readwrite' }); } catch (e) { /* ignore */ }
+  if (perm === 'granted') await fsSync();
+  else { fs.state = 'permission'; renderFoot(); }
+}
+async function fsReconnect() {
+  try {
+    if ((await fs.handle.requestPermission({ mode: 'readwrite' })) !== 'granted') { toast('Not allowed; saving in this browser only for now'); return; }
+  } catch (e) { toast('Could not reconnect: ' + ((e && e.message) || e)); return; }
+  closeModal();
+  await fsSync();
+  if (fs.state === 'ok') toast(`Reconnected to ${fs.name}`);
+}
+async function fileDisconnect(quiet) {
+  clearTimeout(fsTimer);
+  Object.assign(fs, { handle: null, name: '', state: 'none', last: null, fileInfo: null });
+  fsKnown.set(null);
+  await idbHandle('del');
+  renderFoot();
+  if (!quiet) { closeModal(); toast('No longer saving to a file. The file itself is kept.'); }
+}
+
+function storageModal() {
+  const m = $('modal');
+  const last = db.settings.lastBackup;
+  const at = fs.last ? fs.last.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
+  const fileState = { ok: `Saving every change${at ? ` · last saved ${at}` : ''}.`, saving: 'Saving…', permission: 'Needs your permission again (browsers ask once per session).', conflict: 'Changed elsewhere since Arrow last saved it.', error: `Last save failed: ${esc(fs.error)}` }[fs.state] || '';
+  const fileOk = fs.handle && (fs.state === 'ok' || fs.state === 'saving');
+  m.innerHTML = `<div class="modal wide">
+    <h2>Where your data is saved</h2>
+    <div class="store-row ok"><span class="st-i">${ic('check')}</span><div class="st-b"><b>This browser</b><div class="head-sub">Saved automatically on this computer. Clearing the browser's site data would delete it, so keep a second copy below.</div></div></div>
+    <div class="store-row ${fs.handle ? (fileOk ? 'ok' : 'warn') : ''}"><span class="st-i">${ic(fileOk ? 'check' : 'download')}</span><div class="st-b"><b>A data file</b>
+      <div class="head-sub">${!fs.supported ? "This browser can't save to a file automatically. Open Arrow in Chrome or Edge for this, or download backups below."
+        : fs.handle ? `<b>${esc(fs.name)}</b> · ${fileState}`
+        : 'Pick a file and Arrow saves every change to it. Put it in your Google Drive (or OneDrive / Dropbox) folder to keep a copy off this computer, and open the same file from Arrow on another computer.'}</div>
+      ${fs.supported ? `<div class="store-acts">${fs.handle
+        ? `${fs.state === 'permission' ? '<button class="btn primary sm" data-act="fs-reconnect">Reconnect</button>' : ''}${fs.state === 'conflict' ? '<button class="btn primary sm" data-act="fs-conflict">Choose which data to keep…</button>' : ''}
+           <button class="btn sm" data-act="fs-open">Open another file…</button><button class="btn sm" data-act="fs-create">Save to a new file…</button><button class="btn sm ghost danger" data-act="fs-disconnect">Stop saving to the file</button>`
+        : '<button class="btn primary sm" data-act="fs-create">Create a data file…</button><button class="btn sm" data-act="fs-open">Use an existing file…</button>'}</div>` : ''}
+    </div></div>
+    <div class="store-row"><span class="st-i">${ic('upload')}</span><div class="st-b"><b>Backups</b><div class="head-sub">One-off copies you download. Last backup: ${last ? esc(fmtStamp(last)) : 'never'}.</div>
+      <div class="store-acts"><button class="btn sm" data-act="export">${ic('download')}Download backup</button><button class="btn sm" data-act="import">${ic('upload')}Restore from backup…</button></div></div></div>
+    <div class="actions"><button class="btn" data-act="cancel-modal">Close</button></div>
+  </div>`;
+  m.classList.add('open');
+}
+async function conflictModal() {
+  try { fs.fileInfo = await readFileDb(); } catch (e) { /* use what we have */ }
+  const cur = fs.fileInfo;
+  if (!cur || !cur.db) { await writeFile(true); return; }
+  const m = $('modal');
+  const side = (label, d, at) => `<div class="cmp-side"><b>${label}</b><span>${d.projects.length} project${d.projects.length === 1 ? '' : 's'} · ${d.tasks.length} task${d.tasks.length === 1 ? '' : 's'}</span><span class="mono">saved ${esc(fmtStamp(at))}</span></div>`;
+  m.innerHTML = `<div class="modal wide">
+    <h2>${esc(fs.name)} was changed elsewhere</h2>
+    <p class="head-sub">Another computer or browser saved this file since Arrow last did, and this browser has changes too. Pick the data to keep; the other is replaced (loading the file can be undone).</p>
+    <div class="cmp">${side('In the file', cur.db, cur.savedAt)}${side('In this browser', db, db.savedAt)}</div>
+    <div class="actions"><button class="btn" data-act="cancel-modal">Decide later</button><span style="flex:1"></span>
+      <button class="btn" data-act="fs-keep">Keep this browser's data</button><button class="btn primary" data-act="fs-load">Load the file</button></div>
+  </div>`;
+  m.classList.add('open');
+}
+
 function applyTheme() {
   const pref = db.settings.theme || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   document.documentElement.dataset.theme = pref;
@@ -2231,6 +2442,14 @@ document.addEventListener('click', e => {
     }
     case 'toggle-archived': ui.showArchived = !ui.showArchived; renderSidebar(); return;
     case 'export': exportBackup(); return;
+    case 'storage': storageModal(); return;
+    case 'fs-create': fileCreate(); return;
+    case 'fs-open': fileOpen(); return;
+    case 'fs-reconnect': fsReconnect(); return;
+    case 'fs-disconnect': fileDisconnect(false); return;
+    case 'fs-conflict': conflictModal(); return;
+    case 'fs-keep': closeModal(); writeFile(true).then(() => toast(`Saved this browser's data to ${fs.name}`)); return;
+    case 'fs-load': closeModal(); if (fs.fileInfo && fs.fileInfo.db) loadFromFile(fs.fileInfo, false); return;
     case 'import': $('importInput').click(); return;
     case 'theme':
       db.settings.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
@@ -2400,6 +2619,7 @@ setInterval(() => { if (todayStr() !== lastDay) { lastDay = todayStr(); render()
 applyTheme();
 save();
 render();
+fsStartup();
 </script>
 </body>
 </html>
