@@ -393,6 +393,48 @@ const addDaysNode = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); 
   await page.waitForTimeout(200);
   assert(!(await page.textContent('.savepill')).includes('file'), 'stop saving to the file');
 
+  // recurring tasks
+  const step = await page.evaluate(() => {
+    const m = normalizeRepeat({ every: 1, unit: 'month', monthDay: 31 });
+    const wk = normalizeRepeat({ every: 1, unit: 'week', weekdays: [1, 4] });   // Mon + Thu
+    return [stepDate('2026-01-31', m), stepDate(stepDate('2026-01-31', m), m), stepDate('2026-11-02', wk), stepDate('2026-11-05', wk),
+      stepDate('2028-02-29', normalizeRepeat({ every: 1, unit: 'year', monthDay: 29 })), repeatLabel(wk), repeatLabel(normalizeRepeat({ every: 2, unit: 'week', from: 'done' }))];
+  });
+  assert(step.join('|') === '2026-02-28|2026-03-31|2026-11-05|2026-11-09|2029-02-28|Weekly on Mon, Thu|Every 2 weeks after done', 'repeat dates: month ends, weekdays, leap years, labels');
+  await page.click('[data-view=today]');
+  await page.fill('#quickInput', 'Daily standup *daily');
+  await page.press('#quickInput', 'Enter');
+  await page.waitForTimeout(300);
+  const ds = (await getDb()).tasks.find(t => t.title === 'Daily standup');
+  assert(ds && ds.repeat && ds.repeat.unit === 'day' && ds.due === addDaysNode(addDaysNode(ds.due, 0), 0), 'quick add *daily makes a repeating task due today');
+  assert(await page.locator('.row:has-text("Daily standup") .rep').count() === 1, 'list shows the repeat');
+  await page.click('.row:has-text("Daily standup") [data-act=toggle]');
+  await page.waitForTimeout(300);
+  let all = (await getDb()).tasks.filter(t => t.title === 'Daily standup');
+  const first = all.find(t => t.id === ds.id), next = all.find(t => t.id !== ds.id);
+  assert(all.length === 2 && first.status === 'done' && !first.repeat && next && next.status === 'todo' && next.due === addDaysNode(ds.due, 1) && next.repeat.unit === 'day', 'finishing it keeps a done record and creates the next one (tomorrow)');
+  assert((await page.textContent('#toast')).includes('next one tomorrow'), 'toast says when the next one is');
+  await page.click('#showDone');
+  await page.click(`.row[data-task="${ds.id}"] [data-act=toggle]`);
+  await page.waitForTimeout(300);
+  all = (await getDb()).tasks.filter(t => t.title === 'Daily standup');
+  assert(all.length === 1 && all[0].repeat && all[0].status !== 'done', 'reopening by mistake takes the next one back');
+  await page.click('#showDone');
+  await page.click('.row:has-text("Daily standup") .row-title');
+  await page.selectOption('#dRepeat', 'custom');
+  await page.selectOption('#rUnit', 'week');
+  await page.waitForTimeout(150);
+  await page.click('[data-rwd="5"]');
+  await page.selectOption('#rFrom', 'done');
+  await page.waitForTimeout(300);
+  const ds2 = (await getDb()).tasks.find(t => t.id === ds.id);
+  assert(ds2.repeat.unit === 'week' && ds2.repeat.weekdays.includes(5) && ds2.repeat.from === 'done', 'custom repeat: weekly on chosen days, counted from completion');
+  assert((await page.textContent('.rep-next')).includes('next one is due'), 'details preview the next due date');
+  await page.selectOption('#dRepeat', '');
+  await page.waitForTimeout(250);
+  assert(!(await getDb()).tasks.find(t => t.id === ds.id).repeat, 'repeat can be switched off');
+  await page.click('[data-act=close-drawer]');
+
   // dark + mobile
   await page.click('[data-act=theme]');
   await page.click('[data-view=today]');

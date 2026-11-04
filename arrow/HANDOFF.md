@@ -112,6 +112,13 @@ new features consistent with this.
   unticked subtasks. Drawer section `depsHtml`; list/board `.wait` chip;
   tree `depLinks` draws dashed arrows in the gap left of the task column
   (only between tasks that are both visible).
+- **RECURRING**: `normalizeRepeat`, `stepDate` (weekdays only when every
+  is 1; months/years keep `monthDay`, clamped to short months), `nextDue`
+  (fixed schedules skip missed dates), `repeatLabel`, `presetRepeat` /
+  `presetKey`. Every status change goes through `afterStatusChange(t, prev)`:
+  done → `spawnNext` (new task, repeat moves to it, `t.nextId` set) or
+  `announceReady`; reopened → `undoSpawn` removes the untouched next one.
+  Quick add `*daily` … `*yearly`. Drawer `repeatHtml`.
 - **EFFORT**: `task.estimate` / `task.spent` in hours. `parseHours` accepts
   4h, 1.5, 30m, 90 min, 2d (8h/day, `HOURS_PER_DAY`), 1d 4h; `fmtH` prints
   them. `effortOf(tasks)` → { est, done, left (open est − spent, ≥0), spent,
@@ -155,7 +162,9 @@ new features consistent with this.
 { version: 1,
   projects: [{ id, name, color, description, archived, phases: [{ id, name }] /*ordered*/, createdAt }],
   templates: [{ id, name, text /*one item per line; indented = sub-item*/, createdAt }],
-  tasks: [{ id, projectId|null, phaseId|null /*one of its project's phases*/, dependsOn: [taskId] /*must be done first*/, start /*YYYY-MM-DD|null*/, estimate /*hours|null*/, spent /*hours|null*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
+  tasks: [{ id, projectId|null, phaseId|null /*one of its project's phases*/, dependsOn: [taskId] /*must be done first*/, start /*YYYY-MM-DD|null*/, estimate /*hours|null*/, spent /*hours|null*/,
+            repeat: { every, unit: 'day'|'week'|'month'|'year', weekdays: [0-6], monthDay, from: 'due'|'done' }|null,
+            nextId /*occurrence created when this was done*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
             tags: [string], subtasks: [{ id, title, done }], createdAt, updatedAt, completedAt|null }],
   settings: { theme: 'light'|'dark'|null, view /*'projects'|'project:<id>'|helper*/, layout: 'list'|'board'|'tree'|'timeline',
               lastBackup /*ISO|null*/, lastProject /*id|''|null*/ } }
@@ -182,16 +191,16 @@ changes. Extend the test whenever you add a feature.
   computers both change things, the owner picks one side.
 - The board has no manual ordering within a column; cards follow the chosen
   sort.
-- No recurring tasks, reminders, notifications or attachments. Effort is
+- No reminders, notifications or attachments. Effort is
   entered by hand (no timer).
 - `confirm()` dialogs are used for destructive actions (good enough for a
   personal tool).
 
 ## Ideas backlog (check with the owner before building)
 Built since the first handoff: tree view, project-first layout, Axon look,
-checklist templates, phases, dependencies, timeline, effort, save to a file.
+checklist templates, phases, dependencies, timeline, effort, save to a file,
+recurring tasks.
 Still open:
-- Recurring tasks (daily, weekly, monthly).
 - Manual drag ordering in the list and board.
 - Calendar or week view.
 - CSV export of tasks.

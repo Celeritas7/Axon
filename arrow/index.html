@@ -273,6 +273,15 @@ label.lbl { display:block; font-size:10px; font-weight:600; letter-spacing:.06em
 .inbox-note u { color:var(--accent); }
 .sec-h { font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin:26px 0 10px; }
 .quick-proj { max-width:200px; flex:none; height:34px; }
+.rep { display:inline-flex; align-items:center; gap:4px; color:var(--lv3-bar); font-weight:500; }
+.rep-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px; font-size:12.5px; color:var(--ink-2); }
+.rep-days { display:flex; gap:4px; margin-top:8px; }
+.rep-days button { width:30px; height:30px; border-radius:50%; border:1px solid var(--ctl-border); background:var(--ctl); color:var(--ink-2); font-weight:600; font-size:12px; cursor:pointer; }
+.rep-days button.on { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+.rep-next { display:block; margin-top:8px; font-size:12px; line-height:1.5; color:var(--ink-2); }
+.rep-next svg { vertical-align:-2px; margin-right:5px; } .rep-next .dep-t { display:inline; padding:0; }
+.rep-next b { color:var(--ink); }
+.tnode .t2 .rp { fill:var(--lv3-bar); font-weight:700; }
 .store-row { display:flex; gap:12px; padding:12px; border:1px solid var(--border); border-radius:var(--radius-sm); }
 .store-row .st-i { width:30px; height:30px; border-radius:8px; display:grid; place-items:center; background:var(--surface-3); color:var(--ink-2); flex:none; }
 .store-row.ok .st-i { background:color-mix(in srgb, var(--st-done) 14%, transparent); color:var(--st-done); }
@@ -524,6 +533,7 @@ const ICON = {
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2.5v2 M12 19.5v2 M2.5 12h2 M19.5 12h2 M5 5l1.4 1.4 M17.6 17.6 19 19 M19 5l-1.4 1.4 M6.4 17.6 5 19',
   moon: 'M20 13.5A8 8 0 0 1 10.5 4 8 8 0 1 0 20 13.5z',
   menu: 'M4 7h16 M4 12h16 M4 17h16',
+  repeat: 'M17 2l3 3-3 3 M4 11V9a4 4 0 0 1 4-4h12 M7 22l-3-3 3-3 M20 13v2a4 4 0 0 1-4 4H4',
   clock: 'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z M12 8v4l3 2',
   gantt: 'M4 4v16h16 M7 7h6 M10 11h7 M8 15h5',
   link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
@@ -580,6 +590,16 @@ function emptyDb() {
   return { version: 1, projects: [], tasks: [], templates: [], settings: { theme: null, view: 'projects', layout: 'list', lastBackup: null, lastProject: null } };
 }
 
+function normalizeRepeat(r) {
+  if (!r || !['day', 'week', 'month', 'year'].includes(r.unit)) return null;
+  return {
+    every: Math.min(99, Math.max(1, Math.round(Number(r.every) || 1))),
+    unit: r.unit,
+    weekdays: r.unit === 'week' && Array.isArray(r.weekdays) ? [...new Set(r.weekdays.map(Number).filter(d => d >= 0 && d <= 6))].sort() : [],
+    monthDay: Number(r.monthDay) >= 1 && Number(r.monthDay) <= 31 ? Math.round(Number(r.monthDay)) : null,
+    from: r.from === 'done' ? 'done' : 'due'
+  };
+}
 function normalizeTask(t) {
   return {
     id: String(t.id || uid()),
@@ -592,6 +612,8 @@ function normalizeTask(t) {
     start: /^\d{4}-\d{2}-\d{2}$/.test(t.start || '') ? t.start : null,   // timeline start (added later)
     estimate: Number(t.estimate) > 0 ? Math.round(Number(t.estimate) * 100) / 100 : null,   // hours (added later)
     spent: Number(t.spent) > 0 ? Math.round(Number(t.spent) * 100) / 100 : null,            // hours actually spent
+    repeat: normalizeRepeat(t.repeat),                                                         // added later; null = one-off
+    nextId: t.nextId ? String(t.nextId) : null,                                                // the occurrence made when this one was done
     due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null,
     tags: Array.isArray(t.tags) ? t.tags.map(String).filter(Boolean) : [],
     // ids of tasks that must be done before this one can start (added later; older saves have none)
@@ -916,6 +938,96 @@ function deleteTask(id) {
   save(); render();
   toast(`Deleted "${removed.title}"`, 'Undo', () => { db.tasks.splice(i, 0, removed); save(); render(); });
 }
+// ---- recurring tasks ----
+const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+// one step of the schedule from date d
+function stepDate(d, r) {
+  if (r.unit === 'day') return addDays(d, r.every);
+  if (r.unit === 'week') {
+    if (r.weekdays.length && r.every === 1) {
+      for (let i = 1; i <= 7; i++) { const c = addDays(d, i); if (r.weekdays.includes(parseYmd(c).getDay())) return c; }
+    }
+    return addDays(d, 7 * r.every);
+  }
+  const x = parseYmd(d), months = r.unit === 'year' ? 12 * r.every : r.every;
+  const day = r.monthDay || x.getDate();                              // keep "the 31st" even after a short month
+  const target = new Date(x.getFullYear(), x.getMonth() + months, 1);
+  target.setDate(Math.min(day, new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()));
+  return ymd(target);
+}
+// due date of the next occurrence; on a fixed schedule, missed dates are skipped
+function nextDue(t) {
+  const r = t.repeat, today = todayStr();
+  let n = stepDate(r.from === 'done' ? today : (t.due || today), r);
+  for (let guard = 0; r.from !== 'done' && n < today && guard < 2000; guard++) n = stepDate(n, r);
+  return n;
+}
+function repeatLabel(r) {
+  if (!r) return '';
+  const unit = { day: 'day', week: 'week', month: 'month', year: 'year' }[r.unit];
+  let txt;
+  if (r.unit === 'week' && r.every === 1 && r.weekdays.join() === '1,2,3,4,5') txt = 'Every weekday';
+  else if (r.unit === 'week' && r.every === 1 && r.weekdays.length) txt = 'Weekly on ' + r.weekdays.map(d => DOW_SHORT[d]).join(', ');
+  else if (r.every === 1) txt = { day: 'Daily', week: 'Weekly', month: 'Monthly', year: 'Yearly' }[r.unit];
+  else txt = `Every ${r.every} ${unit}s`;
+  const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+  if (r.unit === 'month' && r.monthDay) txt += ` on the ${ord(r.monthDay)}`;
+  return txt + (r.from === 'done' ? ' after done' : '');
+}
+function presetRepeat(name, due, from) {
+  const d = parseYmd(due || todayStr()), base = { weekdays: [], monthDay: null, from: from || 'due' };
+  return normalizeRepeat({
+    daily: { ...base, every: 1, unit: 'day' },
+    weekdays: { ...base, every: 1, unit: 'week', weekdays: [1, 2, 3, 4, 5] },
+    weekly: { ...base, every: 1, unit: 'week', weekdays: [d.getDay()] },
+    biweekly: { ...base, every: 2, unit: 'week' },
+    monthly: { ...base, every: 1, unit: 'month', monthDay: d.getDate() },
+    yearly: { ...base, every: 1, unit: 'year', monthDay: d.getDate() }
+  }[name]);
+}
+function presetKey(t) {
+  if (!t.repeat) return '';
+  const same = (a, b) => JSON.stringify({ ...a, from: 0 }) === JSON.stringify({ ...b, from: 0 });
+  return ['daily', 'weekdays', 'weekly', 'biweekly', 'monthly', 'yearly'].find(k => same(t.repeat, presetRepeat(k, t.due, t.repeat.from))) || 'custom';
+}
+// finishing a repeating task: it stays done as a record and the next one is created
+function spawnNext(t) {
+  const due = nextDue(t), shift = t.due ? daysBetween(t.due, due) : 0;
+  const n = createTask({
+    projectId: t.projectId, phaseId: t.phaseId, title: t.title, notes: t.notes, tags: t.tags, priority: t.priority,
+    estimate: t.estimate, repeat: t.repeat, due, start: t.start && t.due ? addDays(t.start, shift) : null,
+    subtasks: t.subtasks.map(x => ({ title: x.title }))
+  });
+  t.nextId = n.id; t.repeat = null;
+  save();
+  return n;
+}
+// reopening it by mistake takes the untouched next occurrence back
+function undoSpawn(t) {
+  const n = taskById(t.nextId);
+  if (n && n.status !== 'done' && !n.spent && !n.subtasks.some(x => x.done) && !dependentsOf(n).length) {
+    db.tasks = db.tasks.filter(x => x.id !== n.id);
+    t.repeat = n.repeat;
+    if (ui.openTask === n.id) ui.openTask = null;
+  }
+  t.nextId = null;
+  save();
+}
+function afterStatusChange(t, prev) {
+  if (t.status === 'done' && prev !== 'done') {
+    if (t.repeat && !t.nextId) {
+      const n = spawnNext(t);
+      render();
+      toast(`Repeats: next one ${fmtDue(n.due).toLowerCase().startsWith('to') ? fmtDue(n.due).toLowerCase() : 'on ' + fmtDue(n.due)}`, 'Open', () => openDrawer(n.id));
+      return;
+    }
+    announceReady(t);
+  } else if (t.status !== 'done' && prev === 'done' && t.nextId) {
+    undoSpawn(t);
+    render();
+  }
+}
+
 // Marking a task done with unticked checklist items asks first, so nothing is missed.
 function confirmDone(t) {
   const open = t.subtasks.filter(s => !s.done), wait = openDeps(t);
@@ -930,9 +1042,10 @@ function toggleDone(id) {
   const t = taskById(id);
   if (!t) return;
   if (t.status !== 'done' && !confirmDone(t)) return;
+  const prev = t.status;
   updateTask(id, { status: t.status === 'done' ? 'todo' : 'done' });
   render();
-  if (t.status === 'done') announceReady(t);
+  afterStatusChange(t, prev);
 }
 
 // Template text: one item per line; indented lines are sub-items of the line above.
@@ -981,12 +1094,13 @@ function applyTemplateToProject(tpl, projectId, mode) {
   return parseTemplate(tpl.text).map(i => createTask({ projectId, ...splitEstimate(i.title), subtasks: i.children.map(title => ({ title: splitEstimate(title).title })) }));
 }
 
-// Quick add syntax: #tag  !low|!med|!high|!urgent|!1-4  @today|@tomorrow|@mon..@sun|@YYYY-MM-DD|@+3  ~4h|~30m|~2d
+// Quick add syntax: #tag  !low|!med|!high|!urgent|!1-4  @today|@tomorrow|@mon..@sun|@YYYY-MM-DD|@+3  ~4h|~30m|~2d  *daily|*weekdays|*weekly|*biweekly|*monthly|*yearly
 function parseQuick(text) {
-  const out = { tags: [], priority: 0, due: null, estimate: null };
+  const out = { tags: [], priority: 0, due: null, estimate: null, repeatName: null };
   const pmap = { low: 1, med: 2, medium: 2, high: 3, urgent: 4, '1': 1, '2': 2, '3': 3, '4': 4 };
   let s = ' ' + text + ' ';
   s = s.replace(/\s#([\p{L}\p{N}_-]+)(?=\s)/gu, (m, tag) => { out.tags.push(tag); return ' '; });
+  s = s.replace(/\s\*(daily|weekdays|weekly|biweekly|monthly|yearly)(?=\s)/gi, (m, r) => { out.repeatName = r.toLowerCase(); return ' '; });
   s = s.replace(/\s~(\d+(?:[.,]\d+)?\s?(?:d|h|m)?)(?=\s)/gi, (m, e) => { const h = parseHours(e); if (h > 0) out.estimate = h; return ' '; });
   s = s.replace(/\s!(low|med|medium|high|urgent|[1-4])(?=\s)/gi, (m, p) => { out.priority = pmap[p.toLowerCase()]; return ' '; });
   s = s.replace(/\s@(today|tod|tomorrow|tom|mon|tue|wed|thu|fri|sat|sun|\d{4}-\d{2}-\d{2}|\+\d{1,3})(?=\s)/gi, (m, d) => {
@@ -1009,6 +1123,8 @@ function quickAdd(text) {
   if (!q.due && ui.view === 'today') q.due = todayStr();
   if (!q.due && ui.view === 'upcoming') q.due = addDays(todayStr(), 1);
   const phEl = $('quickPhase');
+  if (q.repeatName) { q.due = q.due || todayStr(); q.repeat = presetRepeat(q.repeatName, q.due); }
+  delete q.repeatName;
   const t = createTask({ ...q, projectId: p ? p.id : null, phaseId: p && phEl ? phEl.value || null : null });
   render();
   const ph = phaseOf(t);
@@ -1287,6 +1403,7 @@ function metaHtml(t, { showProject = true } = {}) {
     const cls = t.status !== 'done' && diff < 0 ? 'over' : diff === 0 ? 'today' : '';
     parts.push(`<span class="due ${cls}" ${ranged ? 'title="Start → due"' : ''}>${ranged ? esc(fmtDue(t.start)) + ' → ' : ''}${esc(fmtDue(t.due))}</span>`);
   }
+  if (t.repeat) parts.push(`<span class="rep" title="Repeats: ${esc(repeatLabel(t.repeat))}">${ic('repeat', 'style="width:12px;height:12px"')}${esc(repeatLabel(t.repeat).replace(/ after done$/, ''))}</span>`);
   if (t.estimate || t.spent) {
     const overrun = t.estimate && (t.spent || 0) > t.estimate;
     parts.push(`<span class="eff ${overrun ? 'over' : ''}" title="${t.spent ? `Spent ${fmtH(t.spent)}` : ''}${t.spent && t.estimate ? ' of ' : ''}${t.estimate ? `Estimate ${fmtH(t.estimate)}` : ''}">${ic('clock', 'style="width:12px;height:12px"')}${t.spent ? fmtH(t.spent) + (t.estimate ? '/' : '') : ''}${t.estimate ? fmtH(t.estimate) : ''}</span>`);
@@ -1342,7 +1459,7 @@ function quickHtml() {
       <input class="input" id="quickInput" placeholder="Add a task to ${esc(target ? target.name : 'Inbox')}${when}…  ( N )">
       <button class="btn primary" type="submit">${ic('plus')}Add</button>
     </form>
-    <div class="hint">Quick add: <code>#tag</code> <code>!high</code> <code>!urgent</code> <code>@today</code> <code>@tomorrow</code> <code>@fri</code> <code>@+3</code> <code>@2026-12-01</code> <code>~4h</code></div>`;
+    <div class="hint">Quick add: <code>#tag</code> <code>!high</code> <code>!urgent</code> <code>@today</code> <code>@tomorrow</code> <code>@fri</code> <code>@+3</code> <code>@2026-12-01</code> <code>~4h</code> <code>*weekly</code></div>`;
 }
 
 function emptyHtml() {
@@ -1548,6 +1665,7 @@ function nodeSvg(n) {
       const diff = daysBetween(todayStr(), t.due);
       meta.push(`<tspan class="${t.status !== 'done' && diff < 0 ? 'over' : diff === 0 ? 'today' : ''}">${esc(fmtDue(t.due))}</tspan>`);
     }
+    if (t.repeat) meta.push(`<tspan class="rp">↻</tspan>`);
     if (t.estimate) meta.push(`<tspan class="${(t.spent || 0) > t.estimate ? 'over' : ''}">${t.spent ? fmtH(t.spent) + '/' : ''}${fmtH(t.estimate)}</tspan>`);
     if (t.subtasks.length) meta.push(`<tspan>${t.subtasks.filter(s => s.done).length}/${t.subtasks.length}</tspan>`);
     if (t.priority) meta.push(`<tspan class="pr p${t.priority}">${PRIORITIES[t.priority]}</tspan>`);
@@ -1784,7 +1902,7 @@ function timelineHtml(tasks) {
     const prog = t.status === 'done' ? 100 : t.subtasks.length ? Math.round(t.subtasks.filter(x => x.done).length / t.subtasks.length * 100) : 0;
     const conflicts = depsOf(t).filter(d => { const ds = tlSpan(d); return ds && d.status !== 'done' && sp[0] < ds[1]; });
     const over = t.status !== 'done' && sp[1] < today;
-    const tip = `${t.title}\n${fmtShort(sp[0])} → ${fmtShort(sp[1])} (${daysBetween(sp[0], sp[1]) + 1} day${sp[0] === sp[1] ? '' : 's'})${conflicts.length ? `\n⚠ starts before ${conflicts.map(d => d.title).join(', ')} is due` : ''}${over ? '\nOverdue' : ''}${t.estimate ? `\nEstimate ${fmtH(t.estimate)}${t.spent ? `, spent ${fmtH(t.spent)}` : ''}` : ''}`;
+    const tip = `${t.title}\n${fmtShort(sp[0])} → ${fmtShort(sp[1])} (${daysBetween(sp[0], sp[1]) + 1} day${sp[0] === sp[1] ? '' : 's'})${conflicts.length ? `\n⚠ starts before ${conflicts.map(d => d.title).join(', ')} is due` : ''}${over ? '\nOverdue' : ''}${t.estimate ? `\nEstimate ${fmtH(t.estimate)}${t.spent ? `, spent ${fmtH(t.spent)}` : ''}` : ''}${t.repeat ? `\nRepeats: ${repeatLabel(t.repeat)}` : ''}`;
     const inside = width > 90;
     bars += `<div class="tl-bar st-${t.status} ${wait.length ? 'waiting' : ''} ${conflicts.length ? 'conflict' : ''} ${over ? 'over' : ''} ${ui.openTask === t.id ? 'sel' : ''}" data-tl data-task="${esc(t.id)}" style="left:${left}px;top:${top + 6}px;width:${width}px" title="${esc(tip)}">
         <span class="tl-prog" style="width:${prog}%"></span>
@@ -1921,6 +2039,7 @@ function renderDrawer() {
         ${(() => { const tp = t.projectId ? projectById(t.projectId) : null; return tp && tp.phases.length ? `<div><label class="lbl">Phase</label><select class="input" id="dPhase">
           <option value="">No phase</option>${tp.phases.map((ph, i) => `<option value="${esc(ph.id)}" ${ph.id === t.phaseId ? 'selected' : ''}>${i + 1}. ${esc(ph.name)}</option>`).join('')}</select></div>` : ''; })()}
       </div>
+      ${repeatHtml(t)}
       <div><label class="lbl">Tags <span style="color:var(--ink-3);font-weight:400">(comma separated)</span></label><input class="input" style="width:100%" id="dTags" value="${esc(t.tags.join(', '))}" placeholder="e.g. purchasing, design"></div>
       <div>
         <label class="lbl">Subtasks ${t.subtasks.length ? `<span class="mono" style="color:var(--ink-3)">${t.subtasks.filter(s => s.done).length}/${t.subtasks.length}</span>` : ''}</label>
@@ -1945,6 +2064,23 @@ function renderDrawer() {
       <div class="stamp">Created ${esc(fmtStamp(t.createdAt))}<br>Updated ${esc(fmtStamp(t.updatedAt))}${t.completedAt ? `<br>Completed ${esc(fmtStamp(t.completedAt))}` : ''}</div>
     </div>`;
   autoGrow($('dTitle'));
+}
+function repeatHtml(t) {
+  const r = t.repeat, d = parseYmd(t.due || todayStr()), key = presetKey(t);
+  const opts = [['', "Doesn't repeat"], ['daily', 'Every day'], ['weekdays', 'Every weekday (Mon–Fri)'], ['weekly', `Every week on ${DOW_SHORT[d.getDay()]}`],
+    ['biweekly', 'Every 2 weeks'], ['monthly', `Every month on day ${d.getDate()}`], ['yearly', `Every year on ${fmtShort(ymd(d))}`], ['custom', 'Custom…']];
+  const custom = r ? `<div class="rep-row">
+      <span>Every</span><input class="input" type="number" id="rEvery" min="1" max="99" value="${r.every}" style="width:64px">
+      <select class="input" id="rUnit">${[['day', 'days'], ['week', 'weeks'], ['month', 'months'], ['year', 'years']].map(([v, l]) => `<option value="${v}" ${r.unit === v ? 'selected' : ''}>${r.every === 1 ? l.slice(0, -1) : l}</option>`).join('')}</select>
+      <select class="input" id="rFrom" title="When the next one is due"><option value="due" ${r.from === 'due' ? 'selected' : ''}>after the due date</option><option value="done" ${r.from === 'done' ? 'selected' : ''}>after I finish it</option></select>
+    </div>
+    ${r.unit === 'week' && r.every === 1 ? `<div class="rep-days">${[1, 2, 3, 4, 5, 6, 0].map(i => `<button type="button" class="${r.weekdays.includes(i) ? 'on' : ''}" data-rwd="${i}" title="${DOW_SHORT[i]}">${DOW_SHORT[i][0]}</button>`).join('')}</div>` : ''}
+    <div class="rep-next">${ic('repeat', 'style="width:13px;height:13px"')}${esc(repeatLabel(r))} · when you finish this, the next one is due <b>${esc(fmtDue(nextDue(t)))}</b></div>` : '';
+  return `<div><label class="lbl">Repeat</label>
+      <select class="input" id="dRepeat" style="width:100%">${opts.map(([v, l]) => `<option value="${v}" ${key === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
+      ${t.nextId && t.status === 'done' && taskById(t.nextId) ? `<div class="rep-next">${ic('repeat', 'style="width:13px;height:13px"')}Repeated: <button class="dep-t" data-open-task="${esc(t.nextId)}" style="flex:none">next one ${esc(fmtDue(taskById(t.nextId).due))}</button></div>` : ''}
+      ${custom}
+    </div>`;
 }
 function depsHtml(t) {
   const deps = depsOf(t), blocks = dependentsOf(t), wait = openDeps(t);
@@ -2373,6 +2509,13 @@ document.addEventListener('click', e => {
   const viewBtn = e.target.closest('[data-view]');
   if (viewBtn) { setView(viewBtn.dataset.view); return; }
 
+  const wdBtn = e.target.closest('[data-rwd]');
+  if (wdBtn) {
+    const t = taskById(ui.openTask), d = Number(wdBtn.dataset.rwd);
+    const days = t.repeat.weekdays.includes(d) ? t.repeat.weekdays.filter(x => x !== d) : [...t.repeat.weekdays, d];
+    if (days.length) { updateTask(t.id, { repeat: normalizeRepeat({ ...t.repeat, weekdays: days }) }); renderDrawer(); refreshBehindDrawer(); }
+    return;
+  }
   const openBtn = e.target.closest('[data-open-task]');
   if (openBtn) { openDrawer(openBtn.dataset.openTask); return; }
 
@@ -2508,8 +2651,10 @@ document.addEventListener('change', e => {
   if (!t) return;
   if (id === 'dStatus') {
     if (e.target.value === 'done' && t.status !== 'done' && !confirmDone(t)) { renderDrawer(); return; }
+    const prev = t.status;
     updateTask(t.id, { status: e.target.value }); renderDrawer(); refreshBehindDrawer();
-    if (t.status === 'done') announceReady(t);
+    afterStatusChange(t, prev);
+    if (ui.openTask === t.id) renderDrawer();
   }
   else if (id === 'dAddDep') {
     const d = taskById(e.target.value);
@@ -2525,6 +2670,20 @@ document.addEventListener('change', e => {
     if (due && t.start && due < t.start) { updateTask(t.id, { due, start: due }); renderDrawer(); toast('Start moved to match the due date'); }
     else updateTask(t.id, { due });
     refreshBehindDrawer();
+  }
+  else if (id === 'dRepeat') {
+    const v = e.target.value, due = t.due || todayStr();
+    const r = !v ? null : v === 'custom' ? (t.repeat || presetRepeat('weekly', due)) : presetRepeat(v, due, t.repeat && t.repeat.from);
+    updateTask(t.id, { repeat: r, due: r ? due : t.due });
+    renderDrawer(); refreshBehindDrawer();
+  }
+  else if (id === 'rEvery' || id === 'rUnit' || id === 'rFrom') {
+    const r = { ...t.repeat };
+    if (id === 'rEvery') r.every = e.target.value;
+    if (id === 'rUnit') { r.unit = e.target.value; r.weekdays = r.unit === 'week' ? [parseYmd(t.due || todayStr()).getDay()] : []; r.monthDay = r.unit === 'month' || r.unit === 'year' ? parseYmd(t.due || todayStr()).getDate() : null; }
+    if (id === 'rFrom') r.from = e.target.value;
+    updateTask(t.id, { repeat: normalizeRepeat(r) });
+    renderDrawer(); refreshBehindDrawer();
   }
   else if (id === 'dEst' || id === 'dSpent') {
     const h = parseHours(e.target.value);
@@ -2599,9 +2758,10 @@ document.addEventListener('drop', e => {
   const t = taskById(dragId);
   if (t && t.status !== col.dataset.status) {
     if (col.dataset.status === 'done' && !confirmDone(t)) return;
+    const prev = t.status;
     updateTask(t.id, { status: col.dataset.status });
     render();
-    if (t.status === 'done') announceReady(t);
+    afterStatusChange(t, prev);
   }
 });
 

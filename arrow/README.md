@@ -84,6 +84,19 @@ remove them (or use the Design · Purchase · Build · Test preset).
 - A template can create phases: **From template → A phase for each section**.
 - Project cards show which phase you're in.
 
+## Recurring tasks
+Open a task and choose **Repeat**: every day, every weekday, weekly, every 2
+weeks, monthly, yearly, or **Custom…** (every N days / weeks / months / years,
+pick the weekdays, and count from **the due date** or from **when you finish
+it**). In quick add use `*daily`, `*weekdays`, `*weekly`, `*biweekly`,
+`*monthly` or `*yearly`.
+
+When you finish a repeating task it stays done (so effort and history are
+kept) and the **next one is created** with the next due date, a fresh
+checklist and the same project, phase, tags and estimate. On a fixed schedule
+missed dates are skipped; "monthly on the 31st" falls on the last day of
+shorter months. Reopened it by mistake? The untouched next one is taken back.
+
 ## Effort
 Give tasks an **Estimate** and log time **Spent** in the task details. Type
 hours however is natural: `4h`, `1.5`, `30m`, `90 min`, `2d`, `1d 4h`
@@ -160,6 +173,8 @@ Type in the "Add a task" box:
 | `#purchasing` | adds tag `purchasing` |
 | `!low` `!med` `!high` `!urgent` (or `!1`–`!4`) | sets priority |
 | `@today` `@tomorrow` `@fri` `@+3` `@2026-12-01` | sets due date |
+| `~4h` `~30m` `~2d` | sets the effort estimate |
+| `*daily` `*weekdays` `*weekly` `*biweekly` `*monthly` `*yearly` | makes it repeat |
 
 Example: `Order fasteners #purchasing !high @fri`
 
