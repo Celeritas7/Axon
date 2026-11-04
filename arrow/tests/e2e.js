@@ -244,6 +244,34 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   await page.click('.brand');
   assert(await page.locator(`.pcard[data-view="project:${pidT}"] .pc-meta`, { hasText: 'phase' }).count() === 1, 'project card shows the current phase');
 
+  // task dependencies
+  await page.click(`.pcard[data-view="project:${pidT}"]`);
+  await page.click('.ph[data-phase=""]').catch(() => {});
+  const ddb = await getDb();
+  const frame = ddb.tasks.find(t => t.title === 'Assemble frame'), supplier = ddb.tasks.find(t => t.title === 'Call supplier');
+  await page.click('.row:has-text("Assemble frame") .row-title');
+  await page.selectOption('#dAddDep', supplier.id);
+  await page.waitForTimeout(300);
+  assert((await getDb()).tasks.find(t => t.id === frame.id).dependsOn.includes(supplier.id), 'dependency added from task details');
+  assert(await page.locator('.wait-banner').count() === 1 && await page.locator('.dep').count() === 1, 'details show "waiting on" and the dependency');
+  await page.click(`[data-open-task="${supplier.id}"]`);
+  assert(await page.locator('#dTitle').inputValue() === 'Call supplier' && await page.locator('.dep', { hasText: 'Assemble frame' }).count() === 1, 'prerequisite shows what it blocks');
+  assert(await page.locator(`#dAddDep option[value="${frame.id}"]`).count() === 0, 'a loop (A needs B needs A) cannot be picked');
+  await page.click('[data-act=close-drawer]');
+  assert(await page.locator('.row.waiting:has-text("Assemble frame") .wait').count() === 1, 'list marks a waiting task');
+  dismissNext = true;
+  await page.click('.row:has-text("Assemble frame") [data-act=toggle]');
+  await page.waitForTimeout(250);
+  assert((await getDb()).tasks.find(t => t.id === frame.id).status !== 'done', 'finishing a waiting task asks first');
+  await page.click('[data-layout=tree]');
+  assert(await page.locator('#treeSvg .tdep').count() >= 1 && await page.locator('#treeSvg .ttask.waiting').count() >= 1, 'tree draws dependency arrows');
+  await page.screenshot({ path: OUT + '/shot-deps-tree.png' });
+  await page.click('[data-layout=list]');
+  await page.click('.row:has-text("Call supplier") [data-act=toggle]');
+  await page.waitForTimeout(250);
+  assert((await page.textContent('#toast')).includes('Ready to start: Assemble frame'), 'finishing a prerequisite announces what is now ready');
+  assert(await page.locator('.row.waiting:has-text("Assemble frame")').count() === 0, 'task is no longer waiting once its dependency is done');
+
   // dark + mobile
   await page.click('[data-act=theme]');
   await page.click('[data-view=today]');

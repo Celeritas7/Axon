@@ -270,6 +270,23 @@ label.lbl { display:block; font-size:10px; font-weight:600; letter-spacing:.06em
 .inbox-note u { color:var(--accent); }
 .sec-h { font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin:26px 0 10px; }
 .quick-proj { max-width:200px; flex:none; height:34px; }
+.wait { display:inline-flex; align-items:center; gap:4px; color:var(--pr-3); font-weight:500; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.row.waiting .row-title { color:var(--ink-2); }
+.wait-banner { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--pr-3); background:color-mix(in srgb, var(--pr-3) 9%, transparent); border:1px solid color-mix(in srgb, var(--pr-3) 28%, transparent); border-radius:var(--radius-sm); padding:7px 10px; margin-bottom:6px; }
+.dep-list { display:flex; flex-direction:column; gap:2px; }
+.dep { display:flex; align-items:center; gap:8px; padding:3px 0; min-width:0; }
+.dep .pill::before { width:8px; height:8px; }
+.dep-t { flex:1; min-width:0; text-align:left; background:none; border:0; cursor:pointer; padding:4px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink); }
+.dep-t:hover { color:var(--accent); text-decoration:underline; }
+.dep.done .dep-t { color:var(--ink-3); text-decoration:line-through; }
+.dep-where { font-size:11px; color:var(--ink-3); white-space:nowrap; max-width:40%; overflow:hidden; text-overflow:ellipsis; }
+.dep .x { opacity:0; } .dep:hover .x { opacity:1; }
+.tdep { fill:none; stroke:var(--pr-3); stroke-width:1.6; stroke-dasharray:5 4; stroke-linecap:round; }
+.tdep.done { stroke:var(--st-done); opacity:.6; }
+.dep-head { fill:var(--pr-3); } .dep-head.done { fill:var(--st-done); }
+.ttask.waiting .n-edge { stroke:var(--pr-3); stroke-dasharray:4 3; }
+.tnode .t2 .wt { fill:var(--pr-3); font-weight:600; }
+.lg-dep { display:inline-flex; align-items:center; gap:6px; margin-left:6px; }
 .phases { display:flex; align-items:center; gap:6px; overflow-x:auto; padding:2px 0 4px; scrollbar-width:thin; }
 .ph { display:inline-flex; align-items:center; gap:9px; height:40px; padding:0 12px 0 8px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface); cursor:pointer; color:var(--ink-2); flex:none; box-shadow:0 1px 2px rgba(16,23,32,.04); }
 .ph:hover { border-color:var(--border-2); color:var(--ink); }
@@ -428,6 +445,7 @@ const ICON = {
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2.5v2 M12 19.5v2 M2.5 12h2 M19.5 12h2 M5 5l1.4 1.4 M17.6 17.6 19 19 M19 5l-1.4 1.4 M6.4 17.6 5 19',
   moon: 'M20 13.5A8 8 0 0 1 10.5 4 8 8 0 1 0 20 13.5z',
   menu: 'M4 7h16 M4 12h16 M4 17h16',
+  link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
   checklist: 'M10 6h10 M10 12h10 M10 18h10 M3.5 6l1.5 1.5 2.5-3 M3.5 12l1.5 1.5 2.5-3 M3.5 18l1.5 1.5 2.5-3',
   back: 'M19 12H5 M11 6l-6 6 6 6',
   zoomin: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.5-4.5 M8 11h6 M11 8v6',
@@ -492,6 +510,8 @@ function normalizeTask(t) {
     priority: Math.min(4, Math.max(0, Number(t.priority) || 0)),
     due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null,
     tags: Array.isArray(t.tags) ? t.tags.map(String).filter(Boolean) : [],
+    // ids of tasks that must be done before this one can start (added later; older saves have none)
+    dependsOn: Array.isArray(t.dependsOn) ? [...new Set(t.dependsOn.map(String))].filter(x => x !== String(t.id)) : [],
     subtasks: Array.isArray(t.subtasks) ? t.subtasks.map(s => ({ id: String(s.id || uid()), title: String(s.title || ''), done: !!s.done })) : [],
     createdAt: t.createdAt || nowIso(),
     updatedAt: t.updatedAt || nowIso(),
@@ -521,6 +541,8 @@ function normalizeDb(raw) {
   base.tasks = raw.tasks.map(normalizeTask).map(t => (t.projectId && !ids.has(t.projectId) ? { ...t, projectId: null } : t));
   const phaseIds = new Map(base.projects.map(x => [x.id, new Set(x.phases.map(ph => ph.id))]));
   base.tasks.forEach(t => { if (t.phaseId && !(t.projectId && phaseIds.get(t.projectId).has(t.phaseId))) t.phaseId = null; });
+  const taskIds = new Set(base.tasks.map(t => t.id));
+  base.tasks.forEach(t => { t.dependsOn = t.dependsOn.filter(id => taskIds.has(id)); });
   // templates were added later: a save without the field gets the sample checklist once
   base.templates = Array.isArray(raw.templates) ? raw.templates.map(normalizeTemplate) : [normalizeTemplate({ name: 'Work quality checklist', text: SAMPLE_TEMPLATE })];
   base.settings = { ...base.settings, ...(raw.settings || {}) };
@@ -610,6 +632,32 @@ const ui = {
 if (ui.view.startsWith('project:') && !projectById(ui.view.slice(8))) ui.view = 'projects';
 
 function projectById(id) { return db.projects.find(p => p.id === id); }
+// ---- dependencies ("can't start until X is done") ----
+function depsOf(t) { return t.dependsOn.map(taskById).filter(Boolean); }
+function openDeps(t) { return depsOf(t).filter(d => d.status !== 'done'); }
+function dependentsOf(t) { return db.tasks.filter(x => x.dependsOn.includes(t.id)); }
+// would making `t` depend on `cand` create a loop? (true if cand already waits on t, directly or not)
+function wouldCycle(t, cand) {
+  const seen = new Set(), stack = [cand.id];
+  while (stack.length) {
+    const id = stack.pop();
+    if (id === t.id) return true;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const x = taskById(id);
+    if (x) stack.push(...x.dependsOn);
+  }
+  return false;
+}
+function taskLabel(t) {
+  const p = t.projectId ? projectById(t.projectId) : null, ph = phaseOf(t);
+  return (p ? p.name + (ph ? ' › ' + ph.name : '') + ' — ' : '') + t.title;
+}
+// after a task is finished, say which tasks it unblocked
+function announceReady(t) {
+  const ready = dependentsOf(t).filter(d => d.status !== 'done' && !openDeps(d).length);
+  if (ready.length) toast(`Ready to start: ${ready.map(d => d.title).join(', ')}`, 'Open', () => openDrawer(ready[0].id));
+}
 function phaseOf(t) {
   const p = t.projectId ? projectById(t.projectId) : null;
   return p && t.phaseId ? p.phases.find(ph => ph.id === t.phaseId) || null : null;
@@ -735,10 +783,13 @@ function deleteTask(id) {
 }
 // Marking a task done with unticked checklist items asks first, so nothing is missed.
 function confirmDone(t) {
-  const open = t.subtasks.filter(s => !s.done);
-  if (!open.length) return true;
-  const list = open.slice(0, 8).map(s => '•  ' + s.title).join('\n') + (open.length > 8 ? `\n…and ${open.length - 8} more` : '');
-  return confirm(`"${t.title}" still has ${open.length} unchecked item${open.length === 1 ? '' : 's'}:\n\n${list}\n\nMark it done anyway?`);
+  const open = t.subtasks.filter(s => !s.done), wait = openDeps(t);
+  if (!open.length && !wait.length) return true;
+  const bullets = xs => xs.slice(0, 8).map(x => '•  ' + x).join('\n') + (xs.length > 8 ? `\n…and ${xs.length - 8} more` : '');
+  const parts = [];
+  if (wait.length) parts.push(`It is waiting on ${wait.length} unfinished task${wait.length === 1 ? '' : 's'}:\n${bullets(wait.map(d => d.title))}`);
+  if (open.length) parts.push(`It still has ${open.length} unchecked item${open.length === 1 ? '' : 's'}:\n${bullets(open.map(x => x.title))}`);
+  return confirm(`"${t.title}"\n\n${parts.join('\n\n')}\n\nMark it done anyway?`);
 }
 function toggleDone(id) {
   const t = taskById(id);
@@ -746,6 +797,7 @@ function toggleDone(id) {
   if (t.status !== 'done' && !confirmDone(t)) return;
   updateTask(id, { status: t.status === 'done' ? 'todo' : 'done' });
   render();
+  if (t.status === 'done') announceReady(t);
 }
 
 // Template text: one item per line; indented lines are sub-items of the line above.
@@ -1058,6 +1110,8 @@ function projectsOverviewHtml() {
 // ============================================================
 function metaHtml(t, { showProject = true } = {}) {
   const parts = [];
+  const wait = t.status === 'done' ? [] : openDeps(t);
+  if (wait.length) parts.push(`<span class="wait" title="Waiting on: ${esc(wait.map(d => d.title).join(', '))}">${ic('link', 'style="width:12px;height:12px"')}waiting on ${wait.length === 1 ? esc(wait[0].title) : wait.length + ' tasks'}</span>`);
   const p = t.projectId ? projectById(t.projectId) : null;
   const ph = phaseOf(t);
   if (ph && !(ui.layout === 'list' && (ui.group || defaultGroup()) === 'phase')) parts.push(`<span class="phase-chip" title="Phase">${ic('layers', 'style="width:11px;height:11px"')}${esc(ph.name)}</span>`);
@@ -1075,7 +1129,7 @@ function metaHtml(t, { showProject = true } = {}) {
 
 function rowHtml(t) {
   const st = STATUSES.find(s => s.id === t.status);
-  return `<div class="row ${t.status === 'done' ? 'done' : ''} ${ui.openTask === t.id ? 'sel' : ''}" data-task="${esc(t.id)}">
+  return `<div class="row ${t.status === 'done' ? 'done' : ''} ${t.status !== 'done' && openDeps(t).length ? 'waiting' : ''} ${ui.openTask === t.id ? 'sel' : ''}" data-task="${esc(t.id)}">
     <button class="check ${t.status === 'done' ? 'on' : ''}" data-act="toggle" title="Mark ${t.status === 'done' ? 'not done' : 'done'}">${ic('check')}</button>
     <div class="row-main"><div class="row-title">${esc(t.title)}</div>${metaHtml(t)}</div>
     ${t.priority ? `<span class="prio p${t.priority}">${PRIORITIES[t.priority]}</span>` : ''}
@@ -1322,9 +1376,11 @@ function nodeSvg(n) {
     }
     if (t.subtasks.length) meta.push(`<tspan>${t.subtasks.filter(s => s.done).length}/${t.subtasks.length}</tspan>`);
     if (t.priority) meta.push(`<tspan class="pr p${t.priority}">${PRIORITIES[t.priority]}</tspan>`);
+    const wait = t.status === 'done' ? [] : openDeps(t);
+    if (wait.length) meta.unshift(`<tspan class="wt">waiting on ${wait.length}</tspan>`);
     if (!meta.length) meta.push(`<tspan>${STATUSES.find(s => s.id === t.status).label}</tspan>`);
     const st = STATUSES.find(s => s.id === t.status).label;
-    return `<g class="tnode ttask st-${t.status} ${t.status === 'done' ? 'done' : ''} ${ui.openTask === t.id ? 'sel' : ''}" data-task="${esc(t.id)}" style="${style}">
+    return `<g class="tnode ttask st-${t.status} ${t.status === 'done' ? 'done' : ''} ${wait.length ? 'waiting' : ''} ${ui.openTask === t.id ? 'sel' : ''}" data-task="${esc(t.id)}" style="${style}">
       ${cardShape(x, y, w, h)}
       <text x="${x + 15}" y="${y + 21}" class="t1">${esc(clip(t.title, w - 40, 12.5))}</text>
       <text x="${x + 15}" y="${y + 38}" class="t2">${meta.join('<tspan class="sep"> · </tspan>')}</text>
@@ -1347,6 +1403,22 @@ function linkPath(a, b) {
   return `M${x1} ${y1}C${x1 + dx} ${y1} ${x2 - dx} ${y2} ${x2} ${y2}`;
 }
 
+// dashed arrows from a prerequisite task to the task waiting on it (drawn in the gap left of the task column)
+function depLinks(nodes) {
+  const byTask = new Map(nodes.filter(n => n.kind === 'task').map(n => [n.task.id, n]));
+  const out = [];
+  for (const n of byTask.values()) {
+    for (const d of n.task.dependsOn) {
+      const a = byTask.get(d);
+      if (!a) continue;
+      const x1 = a.x, y1 = a.y + a.h / 2 + 6, x2 = n.x, y2 = n.y + n.h / 2 + 6;
+      const bend = Math.min(70, 26 + Math.abs(y2 - y1) * 0.18);
+      const done = a.task.status === 'done';
+      out.push(`<path d="M${x1} ${y1}C${x1 - bend} ${y1} ${x2 - bend} ${y2} ${x2 - 2} ${y2}" class="tdep ${done ? 'done' : ''}" marker-end="url(#${done ? 'depArrowDone' : 'depArrow'})"><title>${esc(n.task.title)} depends on ${esc(a.task.title)}</title></path>`);
+    }
+  }
+  return out.join('');
+}
 function treeHtml(tasks) {
   const { nodes, links, colX, colW, kindAt } = layoutTree(treeModel(tasks));
   const y1 = Math.min(...nodes.map(n => n.y));
@@ -1360,13 +1432,17 @@ function treeHtml(tasks) {
     : ui.tree.color === 'project' ? `<span class="lg-h">Colour</span><span>by project</span>` : '';
   return `<div class="tree-wrap" id="treeWrap">
     <div class="tree-legend">${legend}<span class="lg-h">Status</span>${STATUSES.map(s => sw('st-' + s.id, s.label)).join('')}
+      ${nodes.some(n => n.kind === 'task' && n.task.dependsOn.length) ? '<span class="lg-dep"><svg width="26" height="10"><path d="M1 5H20" class="tdep"/><path d="M19 1.5L25 5L19 8.5z" class="dep-head"/></svg>depends on</span>' : ''}
       <span class="hint-k"><span class="kbd">drag</span> pan · <span class="kbd">scroll</span> zoom · click a dot to tick off</span></div>
     <svg id="treeSvg" xmlns="http://www.w3.org/2000/svg">
-      <defs><pattern id="treeDots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.3" class="tree-dot"/></pattern></defs>
+      <defs><pattern id="treeDots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.3" class="tree-dot"/></pattern>
+        <marker id="depArrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" class="dep-head"/></marker>
+        <marker id="depArrowDone" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" class="dep-head done"/></marker></defs>
       <rect width="100%" height="100%" fill="url(#treeDots)"/>
       <g id="treeG" transform="translate(${x},${y}) scale(${k})">
         <g class="tlevels">${heads}</g>
         <g class="tlinks">${links.map(([a, b]) => `<path d="${linkPath(a, b)}" class="tlink"/>`).join('')}</g>
+        <g class="tdeps">${depLinks(nodes)}</g>
         <g class="tnodes">${nodes.map(nodeSvg).join('')}</g>
       </g>
     </svg>
@@ -1505,10 +1581,39 @@ function renderDrawer() {
           ${t.subtasks.length ? `<button class="btn sm" data-act="save-template" title="Save these subtasks as a reusable template">${ic('checklist')}Save as template</button>` : ''}
         </div>
       </div>
+      ${depsHtml(t)}
       <div><label class="lbl">Notes</label><textarea class="input" id="dNotes" rows="6" placeholder="Details, links, decisions…">${esc(t.notes)}</textarea></div>
       <div class="stamp">Created ${esc(fmtStamp(t.createdAt))}<br>Updated ${esc(fmtStamp(t.updatedAt))}${t.completedAt ? `<br>Completed ${esc(fmtStamp(t.completedAt))}` : ''}</div>
     </div>`;
   autoGrow($('dTitle'));
+}
+function depsHtml(t) {
+  const deps = depsOf(t), blocks = dependentsOf(t), wait = openDeps(t);
+  const row = (d, removable) => `<div class="dep ${d.status === 'done' ? 'done' : ''}">
+      <span class="pill st-${d.status}" title="${STATUSES.find(s => s.id === d.status).label}"></span>
+      <button class="dep-t" data-open-task="${esc(d.id)}" title="Open this task">${esc(d.title)}</button>
+      ${d.projectId !== t.projectId || d.phaseId !== t.phaseId ? `<span class="dep-where">${esc((d.projectId !== t.projectId && d.projectId ? projectById(d.projectId).name : '') + (phaseOf(d) ? (d.projectId !== t.projectId ? ' › ' : '') + phaseOf(d).name : ''))}</span>` : ''}
+      ${removable ? `<button class="btn ghost sm icon x" data-act="dep-del" data-dep="${esc(d.id)}" title="Remove this dependency">${ic('close')}</button>` : ''}
+    </div>`;
+  // candidates: any other task that isn't already a dependency and wouldn't create a loop; this project first
+  const cands = db.tasks.filter(x => x.id !== t.id && !t.dependsOn.includes(x.id) && !wouldCycle(t, x));
+  const groups = new Map();
+  for (const x of cands) {
+    const key = x.projectId || '';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(x);
+  }
+  const order = [t.projectId || ''].concat(db.projects.map(x => x.id), ['']).filter((k, i, a) => a.indexOf(k) === i && groups.has(k));
+  const opts = order.map(k => `<optgroup label="${esc(k ? projectById(k).name : 'Inbox')}">${groups.get(k)
+    .sort((a, b) => (a.status === 'done') - (b.status === 'done') || SORTS.due(a, b))
+    .map(x => `<option value="${esc(x.id)}">${phaseOf(x) ? esc(phaseOf(x).name) + ' › ' : ''}${esc(x.title)}${x.status === 'done' ? ' (done)' : ''}</option>`).join('')}</optgroup>`).join('');
+  return `<div>
+      <label class="lbl">Depends on ${deps.length ? `<span class="mono" style="color:var(--ink-3)">${deps.length - wait.length}/${deps.length} done</span>` : ''}</label>
+      ${wait.length && t.status !== 'done' ? `<div class="wait-banner">${ic('link')}Waiting on ${wait.length} unfinished task${wait.length === 1 ? '' : 's'}. Start this once ${wait.length === 1 ? 'it is' : 'they are'} done.</div>` : ''}
+      <div class="dep-list">${deps.map(d => row(d, true)).join('')}</div>
+      ${cands.length ? `<select class="input" id="dAddDep" style="width:100%;margin-top:4px"><option value="">+ Add a task this depends on…</option>${opts}</select>` : ''}
+      ${blocks.length ? `<label class="lbl" style="margin-top:12px">Blocks <span class="lbl-note">these wait for this task</span></label><div class="dep-list">${blocks.map(d => row(d, false)).join('')}</div>` : ''}
+    </div>`;
 }
 function autoGrow(ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
 
@@ -1729,6 +1834,9 @@ document.addEventListener('click', e => {
   const viewBtn = e.target.closest('[data-view]');
   if (viewBtn) { setView(viewBtn.dataset.view); return; }
 
+  const openBtn = e.target.closest('[data-open-task]');
+  if (openBtn) { openDrawer(openBtn.dataset.openTask); return; }
+
   const phaseBtn = e.target.closest('[data-phase]');
   if (phaseBtn) { ui.phase = phaseBtn.dataset.phase || null; renderTopbar(); renderContent(); return; }
 
@@ -1802,6 +1910,10 @@ document.addEventListener('click', e => {
       openDrawer(c.id); refreshBehindDrawer(); toast('Task duplicated'); return;
     }
     case 'delete-task': deleteTask(ui.openTask); return;
+    case 'dep-del': {
+      const t = taskById(ui.openTask);
+      updateTask(t.id, { dependsOn: t.dependsOn.filter(x => x !== actEl.dataset.dep) }); renderDrawer(); refreshBehindDrawer(); return;
+    }
     case 'sub-toggle': case 'sub-del': {
       const t = taskById(ui.openTask);
       const sid = e.target.closest('[data-sub]').dataset.sub;
@@ -1844,6 +1956,11 @@ document.addEventListener('change', e => {
   if (id === 'dStatus') {
     if (e.target.value === 'done' && t.status !== 'done' && !confirmDone(t)) { renderDrawer(); return; }
     updateTask(t.id, { status: e.target.value }); renderDrawer(); refreshBehindDrawer();
+    if (t.status === 'done') announceReady(t);
+  }
+  else if (id === 'dAddDep') {
+    const d = taskById(e.target.value);
+    if (d && !wouldCycle(t, d)) { updateTask(t.id, { dependsOn: [...t.dependsOn, d.id] }); renderDrawer(); refreshBehindDrawer(); }
   }
   else if (id === 'dTemplate') {
     const tpl = db.templates.find(x => x.id === e.target.value);
@@ -1914,6 +2031,7 @@ document.addEventListener('drop', e => {
     if (col.dataset.status === 'done' && !confirmDone(t)) return;
     updateTask(t.id, { status: col.dataset.status });
     render();
+    if (t.status === 'done') announceReady(t);
   }
 });
 

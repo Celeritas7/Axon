@@ -104,6 +104,14 @@ new features consistent with this.
   (remembered per project in `ui.quickPhase`), list group mode `phase`
   (default on a project with phases), tree level `phase` on project pages
   only (helper-view trees stay project → task), template mode `phases`.
+- **DEPENDENCIES**: `task.dependsOn` (ids; `normalizeDb` drops unknown ids,
+  reads ignore ids of deleted tasks so undo-delete restores links).
+  `depsOf`, `openDeps` ("waiting"), `dependentsOf`, `wouldCycle` (the picker
+  never offers a task that would create a loop), `announceReady` (toast after
+  a task is finished). `confirmDone` warns about open dependencies as well as
+  unticked subtasks. Drawer section `depsHtml`; list/board `.wait` chip;
+  tree `depLinks` draws dashed arrows in the gap left of the task column
+  (only between tasks that are both visible).
 - **Tree direction**: right-to-left like Axon (`layoutTree` mirrors the
   columns; links run from a child's right edge to its parent's left edge;
   the collapse handle sits on the parent's left edge).
@@ -119,7 +127,7 @@ new features consistent with this.
 { version: 1,
   projects: [{ id, name, color, description, archived, phases: [{ id, name }] /*ordered*/, createdAt }],
   templates: [{ id, name, text /*one item per line; indented = sub-item*/, createdAt }],
-  tasks: [{ id, projectId|null, phaseId|null /*one of its project's phases*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
+  tasks: [{ id, projectId|null, phaseId|null /*one of its project's phases*/, dependsOn: [taskId] /*must be done first*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
             tags: [string], subtasks: [{ id, title, done }], createdAt, updatedAt, completedAt|null }],
   settings: { theme: 'light'|'dark'|null, view /*'projects'|'project:<id>'|helper*/, layout: 'list'|'board'|'tree',
               lastBackup /*ISO|null*/, lastProject /*id|''|null*/ } }

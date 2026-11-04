@@ -63,6 +63,19 @@ remove them (or use the Design · Purchase · Build · Test preset).
 - A template can create phases: **From template → A phase for each section**.
 - Project cards show which phase you're in.
 
+## Dependencies
+Some tasks can't start until others are done. Open a task and use
+**Depends on → + Add a task this depends on…** (any task, in any project).
+Arrow won't let you create a loop (A waits on B waits on A).
+
+- A task with unfinished dependencies shows **waiting on …** in orange in
+  the list and board, with a banner in its details.
+- In the **tree**, dashed orange arrows run from each prerequisite to the
+  task that waits on it (green once the prerequisite is done).
+- A task's details also list what it **Blocks**; click any name to open it.
+- Marking a waiting task done asks first. Finishing a task tells you which
+  tasks are now **ready to start**.
+
 ## Checklist templates
 Keep the things you must always check as **templates** (top bar →
 **Templates**). Write one item per line; indent a line (Tab or 2 spaces) to
