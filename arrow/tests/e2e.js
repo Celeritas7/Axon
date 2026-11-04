@@ -531,6 +531,35 @@ const addDaysNode = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); 
   await page.click('[data-layout=list]');
   await page.selectOption('#sortSel', 'due');
 
+  // CSV export
+  await page.click('.brand'); await page.click(`.pcard[data-view="project:${pidT}"]`);
+  await page.click('.row:has-text("Bench test") .row-title');
+  await page.fill('#dNotes', 'Line one, with a comma\n"quoted" line two');
+  await page.click('[data-act=close-drawer]');
+  await page.fill('#quickInput', '=SUM(A1) trick');
+  await page.press('#quickInput', 'Enter');
+  await page.waitForTimeout(300);
+  await page.click('[data-act=csv]');
+  const shownN = Number(await page.textContent('#csvHere'));
+  const [csvDl] = await Promise.all([page.waitForEvent('download'), page.click('#csvForm button[type=submit]')]);
+  const raw = require('fs').readFileSync(await csvDl.path(), 'utf8');
+  assert(raw.charCodeAt(0) === 0xfeff && csvDl.suggestedFilename().startsWith('arrow-compressor-build-'), 'CSV has a UTF-8 BOM for Excel and a helpful name');
+  // tiny CSV parser (quotes, doubled quotes, newlines in cells)
+  const parse = txt => { const rows = []; let row = [], cell = '', q = false; for (let i = 0; i < txt.length; i++) { const c = txt[i];
+    if (q) { if (c === '"' && txt[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') q = false; else cell += c; }
+    else if (c === '"') q = true; else if (c === ',') { row.push(cell); cell = ''; } else if (c === '\n') { row.push(cell.replace(/\r$/, '')); rows.push(row); row = []; cell = ''; } else cell += c; }
+    return rows; };
+  const rows = parse(raw.slice(1));
+  assert(rows[0][2] === 'Task' && rows[0].length === 17 && rows.length - 1 === shownN, 'header plus one row per shown task');
+  const bench = rows.find(r => r[2] === 'Bench test');
+  assert(bench && bench[14] === 'Line one, with a comma\n"quoted" line two' && bench[7] === '10' && bench[8] === '1.5', 'commas, quotes, line breaks and hours survive');
+  assert(rows.some(r => r[2] === "'=SUM(A1) trick"), 'a formula-looking title is made safe');
+  await page.click('[data-act=csv]');
+  await page.check('input[name=csvScope][value=all]'); await page.check('#csvDone');
+  const allN = (await getDb()).tasks.length;
+  const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('#csvForm button[type=submit]')]);
+  assert(parse(require('fs').readFileSync(await dl2.path(), 'utf8').slice(1)).length - 1 === allN, 'all tasks, including finished ones');
+
   // dark + mobile
   await page.click('[data-act=theme]');
   await page.click('[data-view=today]');

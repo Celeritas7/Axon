@@ -112,6 +112,11 @@ new features consistent with this.
   unticked subtasks. Drawer section `depsHtml`; list/board `.wait` chip;
   tree `depLinks` draws dashed arrows in the gap left of the task column
   (only between tasks that are both visible).
+- **CSV EXPORT**: `csvModal` (scope "here" = `shownTasks(includeDone)`:
+  view + phase + search/priority filters; or all tasks), `csvRows` (sorted
+  by project order, phase, then the current sort), `csvCell` (RFC 4180
+  quoting; leading = + - @ tab CR get a ' to stop formula injection),
+  `exportCsv` (UTF-8 BOM, CRLF). Columns in `CSV_COLUMNS`.
 - **MANUAL ORDER**: `task.order` + `SORTS.manual` (unplaced tasks after,
   oldest first). Rows (`.rows .row`, grip handle) and board cards use the
   shared HTML5 drag handlers: drop on a row/card → `placeIn` the visible ids
@@ -209,9 +214,8 @@ changes. Extend the test whenever you add a feature.
 ## Ideas backlog (check with the owner before building)
 Built since the first handoff: tree view, project-first layout, Axon look,
 checklist templates, phases, dependencies, timeline, effort, save to a file,
-recurring tasks, calendar, manual ordering.
+recurring tasks, calendar, manual ordering, CSV export.
 Still open:
-- CSV export of tasks.
 - Optional import of projects from the online Axon app (Supabase).
 
 ## Git

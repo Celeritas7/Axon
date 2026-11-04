@@ -84,6 +84,17 @@ remove them (or use the Design · Purchase · Build · Test preset).
 - A template can create phases: **From template → A phase for each section**.
 - Project cards show which phase you're in.
 
+## Export to a spreadsheet (CSV)
+Click **CSV** at the right of the toolbar (or **Export tasks as CSV…** in the
+storage panel). Choose **what's shown here** (this project or view, with your
+search / phase / priority filter) or **all tasks**, and whether to include
+finished ones. The file opens in Excel, Google Sheets or Numbers with one row
+per task: project, phase, task, status, priority, start, due, estimate and
+spent hours, tags, repeat, depends on, checklist (done count and items),
+notes, created and completed dates. It's UTF-8 so any language shows
+correctly; cells that start with = + - @ get a leading ' so a spreadsheet
+won't treat them as formulas.
+
 ## Your own order
 Drag tasks to put them in the order you want: in the **list** grab a row
 (⋮⋮ handle on the left) and drop it above or below another; on the **board**

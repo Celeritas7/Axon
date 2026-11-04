@@ -273,6 +273,8 @@ label.lbl { display:block; font-size:10px; font-weight:600; letter-spacing:.06em
 .inbox-note u { color:var(--accent); }
 .sec-h { font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin:26px 0 10px; }
 .quick-proj { max-width:200px; flex:none; height:34px; }
+.tools .spacer { flex:1; }
+.csv-opts { display:flex; flex-direction:column; gap:10px; }
 .row { position:relative; }
 .grip { position:absolute; left:-2px; top:50%; transform:translateY(-50%); width:14px; height:22px; display:grid; place-items:center; color:var(--ink-3); cursor:grab; opacity:0; }
 .grip svg { width:14px; height:14px; stroke-width:3; }
@@ -585,6 +587,7 @@ const ICON = {
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2.5v2 M12 19.5v2 M2.5 12h2 M19.5 12h2 M5 5l1.4 1.4 M17.6 17.6 19 19 M19 5l-1.4 1.4 M6.4 17.6 5 19',
   moon: 'M20 13.5A8 8 0 0 1 10.5 4 8 8 0 1 0 20 13.5z',
   menu: 'M4 7h16 M4 12h16 M4 17h16',
+  sheet: 'M4 4h16v16H4z M4 9h16 M4 14h16 M10 4v16',
   grip: 'M9 6h.01 M15 6h.01 M9 12h.01 M15 12h.01 M9 18h.01 M15 18h.01',
   repeat: 'M17 2l3 3-3 3 M4 11V9a4 4 0 0 1 4-4h12 M7 22l-3-3 3-3 M20 13v2a4 4 0 0 1-4 4H4',
   clock: 'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z M12 8v4l3 2',
@@ -1364,6 +1367,8 @@ function renderTopbar() {
         ${[['level', 'Colour: By level'], ['status', 'Colour: By status'], ['project', 'Colour: By project']].map(([v, l]) => `<option value="${v}" ${ui.tree.color === v ? 'selected' : ''}>${l}</option>`).join('')}
       </select>` : ''}
       ${ui.layout !== 'board' ? `<label class="check-lbl"><input type="checkbox" id="showDone" ${ui.showDone ? 'checked' : ''}> Show done</label>` : ''}
+      <span class="spacer"></span>
+      <button class="btn" data-act="csv" title="Export tasks to a spreadsheet (CSV for Excel / Google Sheets)">${ic('sheet')}<span class="lbl-sm">CSV</span></button>
     </div>`;
 }
 
@@ -2397,6 +2402,84 @@ function useTemplateModal(p) {
 // ============================================================
 // BACKUP / RESTORE / THEME
 // ============================================================
+// ============================================================
+// CSV EXPORT (opens in Excel, Google Sheets, Numbers…)
+// ============================================================
+// one cell: quoted when needed; a leading = + - @ gets a ' so spreadsheets don't run it as a formula
+function csvCell(v) {
+  if (v == null) return '';
+  let x = String(v);
+  if (/^[=+\-@\t\r]/.test(x)) x = "'" + x;
+  return /[",\r\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x;
+}
+const CSV_COLUMNS = ['Project', 'Phase', 'Task', 'Status', 'Priority', 'Start', 'Due', 'Estimate (h)', 'Spent (h)', 'Tags', 'Repeats', 'Depends on', 'Checklist done', 'Checklist', 'Notes', 'Created', 'Completed'];
+function csvRows(tasks) {
+  const projIndex = new Map(db.projects.map((x, i) => [x.id, i]));
+  const sorted = tasks.slice().sort((a, b) => {
+    const pa = a.projectId ? projIndex.get(a.projectId) : 1e9, pb = b.projectId ? projIndex.get(b.projectId) : 1e9;
+    if (pa !== pb) return pa - pb;
+    const p = a.projectId ? projectById(a.projectId) : null;
+    const ia = p && a.phaseId ? p.phases.findIndex(x => x.id === a.phaseId) : 1e9, ib = p && b.phaseId ? p.phases.findIndex(x => x.id === b.phaseId) : 1e9;
+    return (ia - ib) || SORTS[ui.sort](a, b);
+  });
+  const num = h => (h == null ? '' : Math.round(h * 100) / 100);
+  return sorted.map(t => {
+    const p = t.projectId ? projectById(t.projectId) : null, ph = phaseOf(t);
+    return [
+      p ? p.name : 'Inbox', ph ? ph.name : '', t.title, STATUSES.find(x => x.id === t.status).label, t.priority ? PRIORITIES[t.priority] : '',
+      t.start || '', t.due || '', num(t.estimate), num(t.spent), t.tags.join(', '), t.repeat ? repeatLabel(t.repeat) : '',
+      depsOf(t).map(d => d.title).join('; '), t.subtasks.length ? `${t.subtasks.filter(x => x.done).length}/${t.subtasks.length}` : '',
+      t.subtasks.map(x => (x.done ? '[x] ' : '[ ] ') + x.title).join('\n'), t.notes, localDay(t.createdAt) || '', localDay(t.completedAt) || ''
+    ];
+  });
+}
+function exportCsv(tasks, label) {
+  const lines = [CSV_COLUMNS, ...csvRows(tasks)].map(r => r.map(csvCell).join(','));
+  const blob = new Blob(['﻿' + lines.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
+  const slug = String(label).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'tasks';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `arrow-${slug}-${todayStr()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast(`Exported ${tasks.length} task${tasks.length === 1 ? '' : 's'} to ${a.download}`);
+}
+// "what's shown here": this view with its search / phase / priority filters, done or not
+function shownTasks(includeDone) {
+  return db.tasks
+    .filter(t => inView(t, ui.view))
+    .filter(t => includeDone || t.status !== 'done')
+    .filter(t => !ui.phase || !currentProject() || (ui.phase === 'none' ? !t.phaseId : t.phaseId === ui.phase))
+    .filter(matchesFilters);
+}
+function csvModal() {
+  const m = $('modal'), here = ui.view === 'projects' ? null : viewTitle() + (ui.phase ? ' (one phase)' : '');
+  const count = done => (here ? shownTasks(done).length : 0), all = done => db.tasks.filter(t => done || t.status !== 'done').length;
+  m.innerHTML = `<form class="modal" id="csvForm" autocomplete="off">
+      <h2>Export tasks to a spreadsheet</h2>
+      <p class="head-sub">A CSV file that opens in Excel, Google Sheets or Numbers: one row per task with project, phase, status, dates, hours, tags, dependencies, checklist and notes.</p>
+      <div class="radios">
+        ${here ? `<label><input type="radio" name="csvScope" value="here" checked> <span><b>What's shown here</b><br><span class="head-sub">${esc(here)}${ui.search || ui.priority !== 'any' ? ', with your search / filter' : ''} · <span id="csvHere">${count(ui.showDone)}</span> tasks</span></span></label>` : ''}
+        <label><input type="radio" name="csvScope" value="all" ${here ? '' : 'checked'}> <span><b>All tasks</b><br><span class="head-sub">Every project and the Inbox · <span id="csvAll">${all(ui.showDone)}</span> tasks</span></span></label>
+      </div>
+      <label class="check-lbl"><input type="checkbox" id="csvDone" ${ui.showDone ? 'checked' : ''}> Include finished tasks</label>
+      <div class="actions"><button type="button" class="btn" data-act="cancel-modal">Cancel</button><button class="btn primary" type="submit">${ic('download')}Download CSV</button></div>
+    </form>`;
+  m.classList.add('open');
+  $('csvDone').addEventListener('change', e => {
+    if ($('csvHere')) $('csvHere').textContent = count(e.target.checked);
+    $('csvAll').textContent = all(e.target.checked);
+  });
+  $('csvForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const done = $('csvDone').checked, scope = m.querySelector('input[name=csvScope]:checked').value;
+    const tasks = scope === 'here' ? shownTasks(done) : db.tasks.filter(t => done || t.status !== 'done');
+    if (!tasks.length) { toast('No tasks to export'); return; }
+    closeModal();
+    exportCsv(tasks, scope === 'here' ? viewTitle() : 'all-tasks');
+  });
+}
+
 function exportBackup() {
   db.settings.lastBackup = nowIso();
   const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
@@ -2582,7 +2665,7 @@ function storageModal() {
         : '<button class="btn primary sm" data-act="fs-create">Create a data file…</button><button class="btn sm" data-act="fs-open">Use an existing file…</button>'}</div>` : ''}
     </div></div>
     <div class="store-row"><span class="st-i">${ic('upload')}</span><div class="st-b"><b>Backups</b><div class="head-sub">One-off copies you download. Last backup: ${last ? esc(fmtStamp(last)) : 'never'}.</div>
-      <div class="store-acts"><button class="btn sm" data-act="export">${ic('download')}Download backup</button><button class="btn sm" data-act="import">${ic('upload')}Restore from backup…</button></div></div></div>
+      <div class="store-acts"><button class="btn sm" data-act="export">${ic('download')}Download backup</button><button class="btn sm" data-act="import">${ic('upload')}Restore from backup…</button><button class="btn sm" data-act="csv">${ic('sheet')}Export tasks as CSV…</button></div></div></div>
     <div class="actions"><button class="btn" data-act="cancel-modal">Close</button></div>
   </div>`;
   m.classList.add('open');
@@ -2723,6 +2806,7 @@ document.addEventListener('click', e => {
     }
     case 'toggle-archived': ui.showArchived = !ui.showArchived; renderSidebar(); return;
     case 'export': exportBackup(); return;
+    case 'csv': csvModal(); return;
     case 'storage': storageModal(); return;
     case 'fs-create': fileCreate(); return;
     case 'fs-open': fileOpen(); return;
