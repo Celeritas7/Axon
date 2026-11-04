@@ -16,6 +16,16 @@ Read this before continuing development in a new chat or session.
   electric-blue accent, light and dark themes), with the tokens copied from
   `../css/styles.css`.
 
+## Project-first (owner's direction)
+The app is organised around **projects**; Today / Upcoming / Inbox / All tasks
+are helpers. Concretely: launch opens the last project or the `projects`
+overview (helper views are never restored on launch); the sidebar lists
+projects first and helpers under "Across projects"; helper views group by
+project by default; helper-view quick add has a project picker
+(`#quickProj`, remembered in `settings.lastProject`, `''` = Inbox); the tree
+is always rooted on a project (one tree per project in helper views). Keep
+new features consistent with this.
+
 ## Files
 | File | Purpose |
 |---|---|
@@ -56,9 +66,12 @@ Read this before continuing development in a new chat or session.
   Everything re-renders from state with `innerHTML`. Edits made in the drawer
   call `refreshBehindDrawer()`, which never re-renders the drawer itself, so
   typing isn't interrupted.
+- **RENDER: PROJECTS OVERVIEW**: `projectStats`, `projectCardHtml`,
+  `projectsOverviewHtml` (the home screen, view id `projects`).
 - **RENDER: TREE**: a node-link diagram modelled on Axon's tree view
   (`js/graph.js` at the repo root), but plain SVG with no D3, so it stays
-  offline. `treeModel` builds root → projects (non-project views only) →
+  offline. `treeModel` returns one root per project (just the current project on a
+  project page, every project with matching tasks in helper views) →
   tasks → subtasks; `layoutTree` places columns by depth and centres each
   parent on its children; `nodeSvg` / `linkPath` draw it; `wireTree` adds
   pan (pointer drag), wheel zoom and a capture-phase click guard so a pan
@@ -77,7 +90,8 @@ Read this before continuing development in a new chat or session.
   projects: [{ id, name, color, description, archived, createdAt }],
   tasks: [{ id, projectId|null, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
             tags: [string], subtasks: [{ id, title, done }], createdAt, updatedAt, completedAt|null }],
-  settings: { theme: 'light'|'dark'|null, view, layout: 'list'|'board'|'tree', lastBackup /*ISO|null*/ } }
+  settings: { theme: 'light'|'dark'|null, view /*'projects'|'project:<id>'|helper*/, layout: 'list'|'board'|'tree',
+              lastBackup /*ISO|null*/, lastProject /*id|''|null*/ } }
 ```
 
 ## Testing

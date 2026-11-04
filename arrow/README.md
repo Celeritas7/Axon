@@ -22,15 +22,26 @@ In this browser's local storage on this computer. It survives restarts, but
   before the rename work too). It replaces the current data, and you can
   undo it from the message that appears.
 
+## How it's organised
+Arrow is **project-first**. It opens on **Projects**, a card for each project
+showing progress, open / in-progress / blocked / overdue counts and the next
+task due. Click a card (or a project in the sidebar) to work inside it.
+
+**Across projects** (Today, Upcoming, Inbox, All tasks) are helper views
+that pull tasks from every project, grouped by project. When you add a task
+there, pick its project in the box next to it (Arrow remembers your choice).
+
 ## Features
 - **Projects** with colour, description, progress bar, archive and delete.
 - **Tasks** with status (To do / In progress / Blocked / Done), priority,
   due date, tags, subtasks and notes.
-- **Views:** Today (due today, overdue, or in progress), Upcoming, Inbox
-  (tasks with no project), All tasks, and each project.
+- **Views:** Projects overview, each project, and the helper views Today
+  (due today, overdue, or in progress), Upcoming, Inbox (tasks with no
+  project) and All tasks.
 - **List** view (group by due date / status / project / priority),
   **Board** view (drag cards between status columns), or
   **Tree** view: a map of project → tasks → subtasks like Axon's tree.
+  The project is always the root; helper views show one tree per project.
   Drag to pan, scroll to zoom, use −/+ on a node to collapse or expand it,
   tick tasks and subtasks right on the map, click a task to open it.
 - Search across titles, notes, tags, projects and subtasks; filter by priority.

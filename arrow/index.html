@@ -202,6 +202,34 @@ label.lbl { display:block; font-size:12px; font-weight:500; color:var(--ink-2); 
 .kbd { font-family:var(--font-mono); font-size:11px; border:1px solid var(--border-2); border-bottom-width:2px; border-radius:4px; padding:0 4px; color:var(--ink-3); }
 
 
+
+/* ---------- projects overview ---------- */
+.pgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; }
+.pcard { display:flex; flex-direction:column; gap:10px; text-align:left; background:var(--surface); border:1px solid var(--border); border-top:4px solid var(--pc); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow-card); cursor:pointer; min-height:150px; }
+.pcard:hover { border-color:var(--pc); border-top-color:var(--pc); transform:translateY(-1px); transition:transform .12s; }
+.pcard.archived { opacity:.65; }
+.pc-head { display:flex; align-items:center; gap:9px; }
+.pc-dot { width:12px; height:12px; border-radius:3px; background:var(--pc); flex:none; }
+.pc-name { font-weight:600; font-size:15px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pc-pct { font-family:var(--font-mono); font-size:13px; color:var(--ink-2); }
+.pc-desc { color:var(--ink-2); font-size:13px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.pc-bar { display:flex; height:7px; border-radius:4px; overflow:hidden; background:var(--surface-3); gap:1px; }
+.pc-bar span { background:var(--c); }
+.pc-facts { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; color:var(--ink-2); }
+.pc-facts .f-doing { color:var(--st-doing); } .pc-facts .f-blocked { color:var(--st-blocked); } .pc-facts .f-over { color:var(--danger); font-weight:600; }
+.pc-facts .pc-total { margin-left:auto; font-family:var(--font-mono); color:var(--ink-3); }
+.pc-next { display:flex; align-items:center; gap:8px; font-size:13px; border-top:1px solid var(--border); padding-top:9px; margin-top:auto; min-width:0; }
+.pc-next .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); font-weight:600; }
+.pc-next .tt { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pc-next .due { font-family:var(--font-mono); font-size:12px; color:var(--ink-2); }
+.pc-next.muted { color:var(--ink-3); }
+.pnew { align-items:center; justify-content:center; flex-direction:row; border:1.5px dashed var(--border-2); border-top:1.5px dashed var(--border-2); box-shadow:none; background:transparent; color:var(--ink-2); font-weight:500; }
+.pnew:hover { border-color:var(--accent); color:var(--accent); }
+.inbox-note { margin-top:16px; display:flex; align-items:center; gap:8px; background:none; border:0; color:var(--ink-2); cursor:pointer; font-size:13px; padding:4px; }
+.inbox-note u { color:var(--accent); }
+.quick-proj { max-width:200px; flex:none; }
+.nav-sec.helpers { margin-top:8px; border-top:1px solid var(--border); padding-top:14px; }
+
 /* ---------- tree view ---------- */
 .tree-wrap { position:relative; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface-2); overflow:hidden; min-height:360px; }
 #treeSvg { display:block; width:100%; height:100%; cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none; }
@@ -222,13 +250,11 @@ label.lbl { display:block; font-size:12px; font-weight:500; color:var(--ink-2); 
 .tnode .t2 { font-size:11px; fill:var(--ink-2); font-family:var(--font-mono); }
 .tnode .t2 .over { fill:var(--danger); font-weight:600; } .tnode .t2 .today { fill:var(--accent); } .tnode .t2 .tg { fill:var(--accent); } .tnode .t2 .sep { fill:var(--ink-3); }
 .ticon path { fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
-.troot { cursor:default; color:#fff; }
+.troot { cursor:pointer; color:#fff; } .troot.here { cursor:default; }
+.troot:not(.here):hover rect { filter:brightness(1.08) drop-shadow(0 3px 8px rgba(16,40,90,.25)); }
 .troot rect { fill:var(--pc, var(--accent)); filter:drop-shadow(0 3px 8px rgba(16,40,90,.25)); }
 .troot .t1, .troot .t2 { fill:#fff; } .troot .t1 { font-size:14px; font-weight:700; } .troot .t2 { opacity:.85; }
-.tproj .tp-shape { fill:var(--surface); stroke:var(--pc); stroke-width:2; filter:drop-shadow(0 2px 6px rgba(16,23,32,.08)); }
 .tproj:hover .tp-shape { fill:var(--surface-2); }
-.tproj .tp-dot { fill:var(--pc); } .tproj .tp-ic { color:var(--ink-3); }
-.tproj .tp-bar { fill:var(--surface-3); } .tproj .tp-fill { fill:var(--st-done); }
 .ttask { --c:var(--st-todo); }
 .ttask .tt-box { fill:var(--surface); stroke:var(--border-2); stroke-width:1; filter:drop-shadow(0 2px 6px rgba(16,23,32,.07)); }
 .ttask:hover .tt-box { stroke:var(--accent); }
@@ -267,6 +293,9 @@ label.lbl { display:block; font-size:12px; font-weight:500; color:var(--ink-2); 
   .topbar, .content { padding-left:16px; padding-right:16px; }
   .tools .search { max-width:none; flex-basis:100%; }
   .hint { display:none; }
+  .quick { flex-wrap:wrap; }
+  .quick-proj { max-width:none; flex-basis:100%; }
+  .pgrid { grid-template-columns:1fr; }
 }
 </style>
 </head>
@@ -322,6 +351,7 @@ const ICON = {
   moon: 'M20 13.5A8 8 0 0 1 10.5 4 8 8 0 1 0 20 13.5z',
   menu: 'M4 7h16 M4 12h16 M4 17h16',
   chevron: 'M9 5l7 7-7 7',
+  projects: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z',
   chevdown: 'M5 9l7 7 7-7'
 };
 // Logo: a fletched arrow in flight (feathers swept back, away from the tip).
@@ -362,7 +392,7 @@ function fmtStamp(iso) {
 // STORE
 // ============================================================
 function emptyDb() {
-  return { version: 1, projects: [], tasks: [], settings: { theme: null, view: 'today', layout: 'list', lastBackup: null } };
+  return { version: 1, projects: [], tasks: [], settings: { theme: null, view: 'projects', layout: 'list', lastBackup: null, lastProject: null } };
 }
 
 function normalizeTask(t) {
@@ -454,7 +484,9 @@ window.addEventListener('beforeunload', () => {
 // UI STATE
 // ============================================================
 const ui = {
-  view: db.settings.view || 'today',     // today | upcoming | inbox | all | project:<id>
+  // Arrow is project-first: on launch open the last project, else the Projects overview.
+  // Today / Upcoming / Inbox / All tasks are helper views and aren't restored on launch.
+  view: String(db.settings.view || '').startsWith('project:') ? db.settings.view : 'projects',  // projects | project:<id> | today | upcoming | inbox | all
   layout: ['list', 'board', 'tree'].includes(db.settings.layout) ? db.settings.layout : 'list',  // list | board | tree
   search: '',
   showDone: false,
@@ -464,15 +496,13 @@ const ui = {
   openTask: null,
   showArchived: false
 };
-if (ui.view.startsWith('project:') && !projectById(ui.view.slice(8))) ui.view = 'today';
+if (ui.view.startsWith('project:') && !projectById(ui.view.slice(8))) ui.view = 'projects';
 
 function projectById(id) { return db.projects.find(p => p.id === id); }
 function taskById(id) { return db.tasks.find(t => t.id === id); }
 function currentProject() { return ui.view.startsWith('project:') ? projectById(ui.view.slice(8)) : null; }
 function defaultGroup() {
-  if (ui.view === 'today' || ui.view === 'upcoming') return 'due';
-  if (ui.view === 'all') return 'project';
-  return 'status';
+  return currentProject() ? 'status' : 'project';   // helper views are organised by project
 }
 function setView(v) {
   ui.view = v; ui.group = null;
@@ -538,7 +568,7 @@ function groupTasks(tasks, mode) {
   const put = (key, label, t) => { if (!groups.has(key)) groups.set(key, { label, tasks: [] }); groups.get(key).tasks.push(t); };
   for (const t of tasks) {
     if (mode === 'status') { const i = STATUSES.findIndex(s => s.id === t.status); put(String(i), STATUSES[i].label, t); }
-    else if (mode === 'project') { const p = t.projectId ? projectById(t.projectId) : null; put(p ? '1' + p.name.toLowerCase() + p.id : '0', p ? p.name : 'Inbox', t); }
+    else if (mode === 'project') { const p = t.projectId ? projectById(t.projectId) : null; put(p ? '1' + p.name.toLowerCase() + p.id : '9', p ? p.name : 'Inbox (no project)', t); }
     else if (mode === 'priority') put(String(9 - t.priority), PRIORITIES[t.priority] + ' priority', t);
     else if (mode === 'due') { const [k, l] = dueBucket(t); put(k, l, t); }
     else put('0', '', t);
@@ -602,7 +632,7 @@ function parseQuick(text) {
 function quickAdd(text) {
   const q = parseQuick(text);
   if (!q.title) return;
-  const p = currentProject();
+  const p = quickTarget();
   if (!q.due && ui.view === 'today') q.due = todayStr();
   if (!q.due && ui.view === 'upcoming') q.due = addDays(todayStr(), 1);
   const t = createTask({ ...q, projectId: p ? p.id : null });
@@ -614,8 +644,8 @@ function quickAdd(text) {
 // ============================================================
 // RENDER: SIDEBAR
 // ============================================================
-function navItem(view, icon, label, extra = '') {
-  const n = openCount(view);
+function navItem(view, icon, label, extra = '', count = null) {
+  const n = count != null ? count : openCount(view);
   const over = view === 'today' && db.tasks.some(t => t.status !== 'done' && t.due && t.due < todayStr() && inView(t, 'today'));
   return `<button class="nav-item ${ui.view === view ? 'active' : ''}" data-view="${esc(view)}">${icon}<span class="name">${esc(label)}</span>${extra}<span class="count ${over ? 'warn' : ''}">${n || ''}</span></button>`;
 }
@@ -633,15 +663,17 @@ function renderSidebar() {
   $('sidebar').innerHTML = `
     <div class="brand"><span class="logo">${LOGO_SVG}</span>Arrow</div>
     <nav class="nav">
-      ${navItem('today', ic('today'), 'Today')}
-      ${navItem('upcoming', ic('upcoming'), 'Upcoming')}
-      ${navItem('inbox', ic('inbox'), 'Inbox')}
-      ${navItem('all', ic('all'), 'All tasks')}
       <div class="nav-sec"><span>Projects</span><button class="btn ghost sm icon" data-act="new-project" title="New project">${ic('plus')}</button></div>
+      ${navItem('projects', ic('projects'), 'All projects', '', active.length)}
       ${active.map(projectNav).join('') || '<div class="foot-note" style="padding:2px 8px">No projects yet.</div>'}
       ${archived.length ? `
         <button class="nav-item" data-act="toggle-archived">${ic(ui.showArchived ? 'chevdown' : 'chevron')}<span class="name">Archived</span><span class="count">${archived.length}</span></button>
         ${ui.showArchived ? archived.map(projectNav).join('') : ''}` : ''}
+      <div class="nav-sec helpers"><span>Across projects</span></div>
+      ${navItem('today', ic('today'), 'Today')}
+      ${navItem('upcoming', ic('upcoming'), 'Upcoming')}
+      ${navItem('inbox', ic('inbox'), 'Inbox (no project)')}
+      ${navItem('all', ic('all'), 'All tasks')}
     </nav>
     <div class="sidebar-foot" id="sidebarFoot"></div>`;
   renderFoot();
@@ -671,10 +703,21 @@ function renderFoot() {
 function viewTitle() {
   const p = currentProject();
   if (p) return p.name;
-  return { today: 'Today', upcoming: 'Upcoming', inbox: 'Inbox', all: 'All tasks' }[ui.view];
+  return { projects: 'Projects', today: 'Today', upcoming: 'Upcoming', inbox: 'Inbox', all: 'All tasks' }[ui.view];
 }
 
 function renderTopbar() {
+  if (ui.view === 'projects') {
+    const n = db.projects.filter(x => !x.archived).length;
+    $('topbar').innerHTML = `
+      <div class="title-row">
+        <button class="btn ghost icon menu-btn" data-act="menu" title="Menu">${ic('menu')}</button>
+        <h1>Projects</h1><span class="sub">${n} active</span>
+        <span class="spacer"></span>
+        <button class="btn primary sm" data-act="new-project">${ic('plus')}<span>New project</span></button>
+      </div>`;
+    return;
+  }
   const p = currentProject();
   const group = ui.group || defaultGroup();
   let projectExtras = '';
@@ -723,13 +766,58 @@ function renderTopbar() {
     </div>`;
 }
 
+
+// ============================================================
+// RENDER: PROJECTS OVERVIEW (the home screen)
+// ============================================================
+function projectStats(p) {
+  const all = db.tasks.filter(t => t.projectId === p.id);
+  const today = todayStr();
+  const by = id => all.filter(t => t.status === id).length;
+  const open = all.filter(t => t.status !== 'done');
+  const next = open.filter(t => t.due).sort(SORTS.due)[0] || open.sort(SORTS.priority)[0] || null;
+  return {
+    total: all.length, done: by('done'), doing: by('doing'), blocked: by('blocked'), todo: by('todo'),
+    open: open.length, overdue: open.filter(t => t.due && t.due < today).length, next
+  };
+}
+function projectCardHtml(p) {
+  const st = projectStats(p);
+  const pct = st.total ? Math.round(st.done / st.total * 100) : 0;
+  const seg = id => (st.total ? `<span class="st-${id}" style="flex:${st[id]}"></span>` : '');
+  const facts = [`<span>${st.open} open</span>`];
+  if (st.doing) facts.push(`<span class="f-doing">${st.doing} in progress</span>`);
+  if (st.blocked) facts.push(`<span class="f-blocked">${st.blocked} blocked</span>`);
+  if (st.overdue) facts.push(`<span class="f-over">${st.overdue} overdue</span>`);
+  const next = st.next ? `<div class="pc-next"><span class="lbl">Next</span><span class="tt">${esc(st.next.title)}</span>${st.next.due ? `<span class="due">${esc(fmtDue(st.next.due))}</span>` : ''}</div>`
+    : `<div class="pc-next muted">${st.total ? 'All tasks done 🎉' : 'No tasks yet'}</div>`;
+  return `<button class="pcard ${p.archived ? 'archived' : ''}" data-view="project:${esc(p.id)}" style="--pc:${esc(p.color)}">
+    <div class="pc-head"><span class="pc-dot"></span><span class="pc-name">${esc(p.name)}</span><span class="pc-pct">${pct}%</span></div>
+    ${p.description ? `<div class="pc-desc">${esc(p.description)}</div>` : ''}
+    <div class="pc-bar">${seg('done')}${seg('doing')}${seg('blocked')}${seg('todo')}</div>
+    <div class="pc-facts">${facts.join('')}<span class="pc-total">${st.done}/${st.total} done</span></div>
+    ${next}
+  </button>`;
+}
+function projectsOverviewHtml() {
+  const active = db.projects.filter(p => !p.archived);
+  const archived = db.projects.filter(p => p.archived);
+  const inbox = db.tasks.filter(t => !t.projectId && t.status !== 'done').length;
+  return `<div class="pgrid">
+      ${active.map(projectCardHtml).join('')}
+      <button class="pcard pnew" data-act="new-project">${ic('plus')}<span>New project</span></button>
+    </div>
+    ${inbox ? `<button class="inbox-note" data-view="inbox">${ic('inbox')} ${inbox} task${inbox === 1 ? '' : 's'} not in any project yet. <u>Sort them into projects</u></button>` : ''}
+    ${archived.length ? `<div class="group-h" style="margin-top:22px">Archived <span class="n">${archived.length}</span></div><div class="pgrid">${archived.map(projectCardHtml).join('')}</div>` : ''}`;
+}
+
 // ============================================================
 // RENDER: CONTENT
 // ============================================================
 function metaHtml(t, { showProject = true } = {}) {
   const parts = [];
   const p = t.projectId ? projectById(t.projectId) : null;
-  if (showProject && p && !currentProject()) parts.push(`<span class="chip"><span class="dot" style="background:${esc(p.color)};width:8px;height:8px"></span><span>${esc(p.name)}</span></span>`);
+  if (showProject && p && !currentProject() && !(ui.layout === 'list' && (ui.group || defaultGroup()) === 'project')) parts.push(`<span class="chip"><span class="dot" style="background:${esc(p.color)};width:8px;height:8px"></span><span>${esc(p.name)}</span></span>`);
   if (t.due) {
     const diff = daysBetween(todayStr(), t.due);
     const cls = t.status !== 'done' && diff < 0 ? 'over' : diff === 0 ? 'today' : '';
@@ -760,11 +848,26 @@ function cardHtml(t) {
   </div>`;
 }
 
+function quickTarget() {
+  // helper views add tasks to a project picked next to the box (remembered), never silently to Inbox
+  const p = currentProject();
+  if (p) return p;
+  if (ui.view === 'inbox') return null;
+  const last = db.settings.lastProject === '' ? null : projectById(db.settings.lastProject);
+  if (db.settings.lastProject === '') return null;
+  return (last && !last.archived ? last : db.projects.find(x => !x.archived)) || null;
+}
 function quickHtml() {
   const p = currentProject();
-  const where = p ? p.name : ui.view === 'today' ? 'Today' : ui.view === 'upcoming' ? 'tomorrow' : 'Inbox';
+  const target = quickTarget();
+  const when = ui.view === 'today' ? ' for today' : ui.view === 'upcoming' ? ' for tomorrow' : '';
+  const picker = p || ui.view === 'inbox' ? '' : `<select class="input quick-proj" id="quickProj" title="Project for new tasks">
+      ${db.projects.filter(x => !x.archived).map(x => `<option value="${esc(x.id)}" ${target && target.id === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
+      <option value="" ${!target ? 'selected' : ''}>Inbox (no project)</option>
+    </select>`;
   return `<form class="quick" id="quickForm" autocomplete="off">
-      <input class="input" id="quickInput" placeholder="Add a task to ${esc(where)}…  ( N )">
+      ${picker}
+      <input class="input" id="quickInput" placeholder="Add a task to ${esc(target ? target.name : 'Inbox')}${when}…  ( N )">
       <button class="btn primary" type="submit">${ic('plus')}Add</button>
     </form>
     <div class="hint">Quick add: <code>#tag</code> <code>!high</code> <code>!urgent</code> <code>@today</code> <code>@tomorrow</code> <code>@fri</code> <code>@+3</code> <code>@2026-12-01</code></div>`;
@@ -782,7 +885,9 @@ function emptyHtml() {
 function renderContent() {
   const el = $('content');
   const keepQuick = document.activeElement && document.activeElement.id === 'quickInput';
-  if (ui.layout === 'tree') {
+  if (ui.view === 'projects') {
+    el.innerHTML = projectsOverviewHtml();
+  } else if (ui.layout === 'tree') {
     const tasks = visibleTasks(false);
     el.innerHTML = quickHtml() + (tasks.length ? treeHtml(tasks) : emptyHtml());
     wireTree();
@@ -811,9 +916,9 @@ function renderContent() {
 // RENDER: TREE (project → tasks → subtasks as a node-link diagram,
 // in the spirit of Axon's tree view; plain SVG, no libraries)
 // ============================================================
-const TREE_NODE = { root: { w: 200, h: 56 }, project: { w: 220, h: 54 }, task: { w: 290, h: 60 }, sub: { w: 220, h: 32 } };
+const TREE_NODE = { root: { w: 230, h: 56 }, task: { w: 290, h: 60 }, sub: { w: 220, h: 32 } };
 const TREE_COL_GAP = 72;
-const TREE_ROW_GAP = { root: 18, project: 18, task: 14, sub: 8 };
+const TREE_ROW_GAP = { root: 18, task: 14, sub: 8 };
 ui.tree = { k: 1, x: 0, y: 0, fittedFor: null, collapsed: new Set(), moved: false };
 
 function clip(str, px, fontPx) {
@@ -822,34 +927,33 @@ function clip(str, px, fontPx) {
 }
 
 function treeModel(tasks) {
-  const p = currentProject();
+  // Every tree is rooted on a project. Helper views (Today, Upcoming…) show one tree per project.
   const taskNode = t => ({
     kind: 'task', id: 't:' + t.id, task: t,
     children: t.subtasks.map(s => ({ kind: 'sub', id: 's:' + t.id + ':' + s.id, task: t, sub: s, children: [] }))
   });
-  const root = { kind: 'root', id: 'root', project: p, children: [] };
-  if (p) { root.children = tasks.map(taskNode); return root; }
+  const p = currentProject();
+  if (p) return [{ kind: 'root', id: 'r:' + p.id, project: p, children: tasks.map(taskNode) }];
   const byProject = new Map();
   for (const t of tasks) {
     const key = t.projectId || '';
     if (!byProject.has(key)) byProject.set(key, []);
     byProject.get(key).push(t);
   }
-  const order = [''].concat(db.projects.map(x => x.id));
-  root.children = order.filter(k => byProject.has(k)).map(k => ({
-    kind: 'project', id: 'p:' + (k || 'inbox'), project: k ? projectById(k) : null, children: byProject.get(k).map(taskNode)
+  return db.projects.map(x => x.id).concat(['']).filter(k => byProject.has(k)).map(k => ({
+    kind: 'root', id: 'r:' + (k || 'inbox'), project: k ? projectById(k) : null, children: byProject.get(k).map(taskNode)
   }));
-  return root;
 }
 
-function layoutTree(root) {
+function layoutTree(roots) {
   const nodes = [], links = [];
   const colW = [];
-  (function widths(n, d) { colW[d] = Math.max(colW[d] || 0, TREE_NODE[n.kind].w); kids(n).forEach(c => widths(c, d + 1)); })(root, 0);
+  const widths = (n, d) => { colW[d] = Math.max(colW[d] || 0, TREE_NODE[n.kind].w); kids(n).forEach(c => widths(c, d + 1)); };
+  roots.forEach(r => widths(r, 0));
   const colX = colW.map((_, d) => colW.slice(0, d).reduce((a, w) => a + w + TREE_COL_GAP, 0));
   function kids(n) { return ui.tree.collapsed.has(n.id) ? [] : n.children; }
   let cursor = 0;
-  (function place(n, d) {
+  function place(n, d) {
     const { w, h } = TREE_NODE[n.kind];
     n.w = w; n.h = h; n.x = colX[d];
     const ch = kids(n);
@@ -868,7 +972,8 @@ function layoutTree(root) {
       ch.forEach(c => links.push([n, c]));
     }
     nodes.push(n);
-  })(root, 0);
+  }
+  roots.forEach((r, i) => { if (i) cursor += 34; place(r, 0); });   // space between project trees
   return { nodes, links };
 }
 
@@ -891,36 +996,22 @@ function statusMark(t, x, y) {
 function nodeSvg(n) {
   const { x, y, w, h } = n;
   const collapsedKids = ui.tree.collapsed.has(n.id) ? n.children.length : 0;
-  const toggle = n.children.length && n.kind !== 'root'
+  const toggle = n.children.length && !(n.kind === 'root' && currentProject())
     ? `<g class="ttoggle" data-act="tree-toggle" data-node="${esc(n.id)}" transform="translate(${x + w},${y + h / 2})"><title>${collapsedKids ? 'Expand' : 'Collapse'}</title>
         <circle r="${collapsedKids ? 11 : 8}"/><text text-anchor="middle" dy="0.35em">${collapsedKids ? '+' + collapsedKids : '−'}</text></g>` : '';
   if (n.kind === 'root') {
     const p = n.project;
-    const all = p ? db.tasks.filter(t => t.projectId === p.id) : null;
-    const done = all ? all.filter(t => t.status === 'done').length : 0;
-    const sub = p ? `${all.length} tasks · ${all.length ? Math.round(done / all.length * 100) : 0}% done` : `${n.children.reduce((a, c) => a + (c.kind === 'project' ? c.children.length : 1), 0)} tasks`;
-    const icon = p ? 'tree' : ({ today: 'today', upcoming: 'upcoming', inbox: 'inbox', all: 'all' }[ui.view] || 'all');
-    return `<g class="tnode troot" style="${p ? `--pc:${esc(p.color)}` : ''}">
-      <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h / 2}"/>
-      ${svgIcon(icon, x + 18, y + h / 2 - 9, 18)}
-      <text x="${x + 46}" y="${y + 24}" class="t1">${esc(clip(viewTitle(), w - 64, 14))}</text>
-      <text x="${x + 46}" y="${y + 41}" class="t2">${esc(sub)}</text>
-      <title>${esc(viewTitle())}</title></g>`;
-  }
-  if (n.kind === 'project') {
-    const p = n.project;
     const all = db.tasks.filter(t => (p ? t.projectId === p.id : !t.projectId));
     const done = all.filter(t => t.status === 'done').length;
-    const pct = all.length ? done / all.length : 0;
-    const name = p ? p.name : 'Inbox';
-    return `<g class="tnode tproj" data-act="tree-project" data-pid="${esc(p ? p.id : '')}" style="--pc:${p ? esc(p.color) : 'var(--ink-3)'}">
-      <path d="M${x + 12} ${y}H${x + w - 12}L${x + w} ${y + 12}V${y + h - 12}L${x + w - 12} ${y + h}H${x + 12}L${x} ${y + h - 12}V${y + 12}Z" class="tp-shape"/>
-      ${p ? `<rect x="${x + 14}" y="${y + 14}" width="12" height="12" rx="3" class="tp-dot"/>` : svgIcon('inbox', x + 12, y + 12, 16, 'tp-ic')}
-      <text x="${x + 34}" y="${y + 24}" class="t1">${esc(clip(name, w - 50, 13))}</text>
-      <text x="${x + 14}" y="${y + 42}" class="t2">${n.children.length} shown · ${done}/${all.length} done</text>
-      <rect x="${x + w - 64}" y="${y + 37}" width="48" height="4" rx="2" class="tp-bar"/>
-      <rect x="${x + w - 64}" y="${y + 37}" width="${Math.round(48 * pct)}" height="4" rx="2" class="tp-fill"/>
-      <title>${esc(name)} — open project</title></g>${toggle}`;
+    const name = p ? p.name : 'Inbox (no project)';
+    const here = currentProject();
+    const sub = here ? `${all.length} tasks · ${all.length ? Math.round(done / all.length * 100) : 0}% done` : `${n.children.length} shown · ${done}/${all.length} done`;
+    return `<g class="tnode troot ${here ? 'here' : ''}" ${here ? '' : `data-act="tree-project" data-pid="${esc(p ? p.id : '')}"`} style="--pc:${p ? esc(p.color) : 'var(--ink-3)'}">
+      <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h / 2}"/>
+      ${svgIcon(p ? 'tree' : 'inbox', x + 18, y + h / 2 - 9, 18)}
+      <text x="${x + 46}" y="${y + 24}" class="t1">${esc(clip(name, w - 64, 14))}</text>
+      <text x="${x + 46}" y="${y + 41}" class="t2">${esc(sub)}</text>
+      <title>${esc(name)}${here ? '' : ' — open project'}</title></g>${toggle}`;
   }
   if (n.kind === 'task') {
     const t = n.task;
@@ -951,15 +1042,14 @@ function nodeSvg(n) {
 }
 
 function linkPath(a, b) {
-  const x1 = a.x + a.w + (a.children.length && a.kind !== 'root' ? 8 : 0), y1 = a.y + a.h / 2;
+  const x1 = a.x + a.w + (a.children.length && !(a.kind === 'root' && currentProject()) ? 8 : 0), y1 = a.y + a.h / 2;
   const x2 = b.x - 2, y2 = b.y + b.h / 2;
   const dx = (x2 - x1) * 0.5;
   return `M${x1} ${y1}C${x1 + dx} ${y1} ${x2 - dx} ${y2} ${x2} ${y2}`;
 }
 
 function treeHtml(tasks) {
-  const root = treeModel(tasks);
-  const { nodes, links } = layoutTree(root);
+  const { nodes, links } = layoutTree(treeModel(tasks));
   ui.tree.bounds = nodes.reduce((b, n) => ({ x1: Math.min(b.x1, n.x), y1: Math.min(b.y1, n.y), x2: Math.max(b.x2, n.x + n.w + 14), y2: Math.max(b.y2, n.y + n.h) }), { x1: 0, y1: Infinity, x2: 0, y2: -Infinity });
   const { k, x, y } = ui.tree;
   return `<div class="tree-wrap" id="treeWrap">
@@ -1174,7 +1264,7 @@ function importBackup(file) {
     const prev = db;
     db = next;
     db.settings.lastBackup = db.settings.lastBackup || nowIso();
-    ui.view = 'today'; ui.openTask = null;
+    ui.view = 'projects'; ui.openTask = null;
     applyTheme(); save(); closeDrawer(); render();
     toast('Backup restored', 'Undo', () => { db = prev; applyTheme(); save(); render(); });
   };
@@ -1200,6 +1290,7 @@ function toast(msg, actionLabel, action) {
 // EVENTS
 // ============================================================
 function render() {
+  if (ui.view.startsWith('project:') && !currentProject()) ui.view = 'projects';  // e.g. deleted in another tab
   renderSidebar();
   renderTopbar();
   renderContent();
@@ -1247,7 +1338,7 @@ document.addEventListener('click', e => {
       db.projects = db.projects.filter(x => x.id !== p.id);
       db.tasks = db.tasks.filter(t => t.projectId !== p.id);
       if (ui.openTask && !taskById(ui.openTask)) closeDrawer();
-      save(); setView('today'); return;
+      save(); setView('projects'); return;
     }
     case 'toggle-archived': ui.showArchived = !ui.showArchived; renderSidebar(); return;
     case 'export': exportBackup(); return;
@@ -1299,6 +1390,7 @@ document.addEventListener('change', e => {
   if (id === 'sortSel') { ui.sort = e.target.value; renderContent(); return; }
   if (id === 'prioSel') { ui.priority = e.target.value; renderContent(); return; }
   if (id === 'showDone') { ui.showDone = e.target.checked; renderContent(); return; }
+  if (id === 'quickProj') { db.settings.lastProject = e.target.value; save(); renderContent(); $('quickInput').focus(); return; }
   if (id === 'importInput') { if (e.target.files[0]) importBackup(e.target.files[0]); e.target.value = ''; return; }
   const t = ui.openTask && taskById(ui.openTask);
   if (!t) return;
@@ -1336,8 +1428,8 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'dTitle') { e.preventDefault(); e.target.blur(); return; }
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
   if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'n' || e.key === 'N') { e.preventDefault(); $('quickInput').focus(); }
-  else if (e.key === '/') { e.preventDefault(); $('searchInput').focus(); }
+  if (e.key === 'n' || e.key === 'N') { e.preventDefault(); $('quickInput') ? $('quickInput').focus() : projectModal(null); }
+  else if (e.key === '/') { if ($('searchInput')) { e.preventDefault(); $('searchInput').focus(); } }
   else if (e.key === 'b' || e.key === 'B') { ui.layout = { list: 'board', board: 'tree', tree: 'list' }[ui.layout]; db.settings.layout = ui.layout; save(); renderTopbar(); renderContent(); }
 });
 

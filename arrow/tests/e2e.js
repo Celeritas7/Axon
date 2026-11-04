@@ -16,6 +16,10 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   assert(await page.title() === 'Arrow', 'app is named Arrow');
   assert(await page.locator('.brand .logo svg #logoGrad').count() === 1, 'logo is the fletched-arrow mark');
   assert(/^data:image\/svg\+xml,/.test(await page.getAttribute('link[rel=icon]', 'href')), 'favicon is inline (no network)');
+  assert((await page.textContent('h1')) === 'Projects' && await page.locator('.pcard[data-view^="project:"]').count() === 1, 'opens on the Projects overview');
+  await page.click('.pcard[data-view^="project:"]');
+  assert((await page.textContent('h1')) === 'Getting started', 'project card opens the project');
+  await page.click('[data-view=today]');
   assert(await page.locator('.row').count() >= 1, 'seed tasks shown in Today');
   await page.screenshot({ path: OUT + '/shot-today.png' });
 
@@ -104,7 +108,7 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   const getDb = () => page.evaluate(() => JSON.parse(localStorage.getItem('axonTasks.v1')));
   await page.click('[data-view=all]');
   await page.click('[data-layout=tree]');
-  assert(await page.locator('#treeSvg .troot').count() === 1 && await page.locator('#treeSvg .tproj').count() >= 2, 'tree shows root and project nodes');
+  assert(await page.locator('#treeSvg .troot').count() >= 2 && await page.locator('#treeSvg .troot', { hasText: 'Compressor build' }).count() === 1, 'helper-view tree has one project root per project');
   assert(await page.locator('#treeSvg .ttask').count() >= 5 && await page.locator('#treeSvg .tsub').count() >= 2, 'tree shows tasks and subtasks');
   await page.screenshot({ path: OUT + '/shot-tree.png' });
   await page.click('[data-act=tree-collapse]');
@@ -131,11 +135,30 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   assert(await page.locator('#drawer.open').count() === 1, 'clicking a task node opens its details');
   await page.click('[data-act=close-drawer]');
   await page.reload();
+  await page.click('[data-view=all]');
   assert(await page.locator('#treeSvg').count() === 1, 'tree layout remembered after reload');
   await page.keyboard.press('b');
   assert(await page.locator('.content .row').count() > 0, 'B cycles tree -> list');
   await page.keyboard.press('b'); await page.keyboard.press('b');
   assert(await page.locator('#treeSvg').count() === 1, 'B cycles list -> board -> tree');
+  await page.click('[data-layout=list]');
+
+  // helper views add tasks to a chosen project; launch is project-first
+  await page.click('[data-view=today]');
+  const pid = (await getDb()).projects.find(x => x.name === 'Compressor build').id;
+  await page.selectOption('#quickProj', pid);
+  await page.fill('#quickInput', 'Call supplier');
+  await page.press('#quickInput', 'Enter');
+  await page.waitForTimeout(300);
+  const cs = (await getDb()).tasks.find(t => t.title === 'Call supplier');
+  assert(cs && cs.projectId === pid && cs.due, 'quick add in Today goes to the picked project, due today');
+  assert(await page.locator('#quickProj').inputValue() === pid, 'picked project is remembered');
+  await page.reload();
+  assert((await page.textContent('h1')) === 'Projects', 'reload from a helper view opens the Projects overview');
+  await page.click('[data-view=today]');
+  await page.click('[data-layout=tree]');
+  await page.locator('#treeSvg .troot', { hasText: 'Compressor build' }).click();
+  assert((await page.textContent('h1')) === 'Compressor build' && await page.locator('#treeSvg .troot').count() === 1, 'clicking a project root opens that project as a single tree');
   await page.click('[data-layout=list]');
 
   // dark + mobile
