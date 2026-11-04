@@ -112,6 +112,12 @@ new features consistent with this.
   unticked subtasks. Drawer section `depsHtml`; list/board `.wait` chip;
   tree `depLinks` draws dashed arrows in the gap left of the task column
   (only between tasks that are both visible).
+- **MANUAL ORDER**: `task.order` + `SORTS.manual` (unplaced tasks after,
+  oldest first). Rows (`.rows .row`, grip handle) and board cards use the
+  shared HTML5 drag handlers: drop on a row/card → `placeIn` the visible ids
+  and `applyOrder` (10, 20, 30…); `groupPatch` moves the task into the target
+  row's group (status/phase/priority/project); `useManualSort` switches and
+  remembers the sort (`settings.sort`, excluded from `bodyOf`).
 - **RECURRING**: `normalizeRepeat`, `stepDate` (weekdays only when every
   is 1; months/years keep `monthDay`, clamped to short months), `nextDue`
   (fixed schedules skip missed dates), `repeatLabel`, `presetRepeat` /
@@ -170,9 +176,9 @@ new features consistent with this.
   templates: [{ id, name, text /*one item per line; indented = sub-item*/, createdAt }],
   tasks: [{ id, projectId|null, phaseId|null /*one of its project's phases*/, dependsOn: [taskId] /*must be done first*/, start /*YYYY-MM-DD|null*/, estimate /*hours|null*/, spent /*hours|null*/,
             repeat: { every, unit: 'day'|'week'|'month'|'year', weekdays: [0-6], monthDay, from: 'due'|'done' }|null,
-            nextId /*occurrence created when this was done*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
+            nextId /*occurrence created when this was done*/, order /*manual position|null*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
             tags: [string], subtasks: [{ id, title, done }], createdAt, updatedAt, completedAt|null }],
-  settings: { theme: 'light'|'dark'|null, view /*'projects'|'project:<id>'|helper*/, layout: 'list'|'board'|'tree'|'timeline'|'calendar',
+  settings: { theme: 'light'|'dark'|null, sort /*remembered*/, view /*'projects'|'project:<id>'|helper*/, layout: 'list'|'board'|'tree'|'timeline'|'calendar',
               lastBackup /*ISO|null*/, lastProject /*id|''|null*/ } }
 ```
 
@@ -195,8 +201,6 @@ changes. Extend the test whenever you add a feature.
   protection against the browser's site data being cleared.
 - Data-file sync is "last saved wins with a prompt", not a merge: if two
   computers both change things, the owner picks one side.
-- The board has no manual ordering within a column; cards follow the chosen
-  sort.
 - No reminders, notifications or attachments. Effort is
   entered by hand (no timer).
 - `confirm()` dialogs are used for destructive actions (good enough for a
@@ -205,9 +209,8 @@ changes. Extend the test whenever you add a feature.
 ## Ideas backlog (check with the owner before building)
 Built since the first handoff: tree view, project-first layout, Axon look,
 checklist templates, phases, dependencies, timeline, effort, save to a file,
-recurring tasks, calendar.
+recurring tasks, calendar, manual ordering.
 Still open:
-- Manual drag ordering in the list and board.
 - CSV export of tasks.
 - Optional import of projects from the online Axon app (Supabase).
 

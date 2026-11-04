@@ -489,6 +489,48 @@ const addDaysNode = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); 
   await page.click('[data-act=close-drawer]');
   await page.click('[data-layout=list]');
 
+  // manual drag ordering
+  await page.click('[data-act=new-project]').catch(async () => { await page.click('.brand'); await page.click('[data-act=new-project]'); });
+  await page.fill('#pName', 'Order test'); await page.click('#projForm button[type=submit]');
+  for (const q of ['Alpha', 'Bravo', 'Charlie', 'Delta']) { await page.fill('#quickInput', q); await page.press('#quickInput', 'Enter'); }
+  await page.selectOption('#groupSel', 'none');
+  const titles = async () => page.$$eval('.content .rows .row .row-title', els => els.map(e => e.textContent));
+  const rowBox = async name => (await page.locator(`.rows .row:has-text("${name}")`).boundingBox());
+  const dragRow = async (from, to, below) => {
+    const a = await rowBox(from), b = await rowBox(to);
+    await page.dragAndDrop(`.rows .row:has-text("${from}")`, `.rows .row:has-text("${to}")`, { sourcePosition: { x: 40, y: a.height / 2 }, targetPosition: { x: 40, y: below ? b.height - 4 : 4 } });
+    await page.waitForTimeout(300);
+  };
+  await dragRow('Delta', 'Alpha', false);
+  assert((await titles()).join(',') === 'Delta,Alpha,Bravo,Charlie', 'drag a row above another');
+  assert(await page.locator('#sortSel').inputValue() === 'manual', 'first drag switches to Sort: Manual');
+  await dragRow('Alpha', 'Charlie', true);
+  assert((await titles()).join(',') === 'Delta,Bravo,Charlie,Alpha', 'drag a row below another');
+  await page.reload();
+  await page.selectOption('#groupSel', 'none');
+  assert((await titles()).join(',') === 'Delta,Bravo,Charlie,Alpha' && await page.locator('#sortSel').inputValue() === 'manual', 'manual order and sort are kept after reload');
+  await page.fill('#quickInput', 'Echo'); await page.press('#quickInput', 'Enter');
+  assert((await titles()).slice(-1)[0] === 'Echo', 'new tasks go to the end');
+  // across groups: status grouping moves the status too
+  await page.selectOption('#groupSel', 'status');
+  await page.click('.row:has-text("Bravo") .row-title'); await page.selectOption('#dStatus', 'doing'); await page.click('[data-act=close-drawer]');
+  await dragRow('Charlie', 'Bravo', false);
+  assert((await getDb()).tasks.find(t => t.title === 'Charlie').status === 'doing', 'dropping into another status group changes the status');
+  // board
+  await page.click('[data-layout=board]');
+  const cardTitles = async st => page.$$eval(`.col[data-status="${st}"] .card .t`, els => els.map(e => e.textContent));
+  const todo0 = await cardTitles('todo');
+  const lastCard = todo0[todo0.length - 1], topCard = todo0[0];
+  await page.dragAndDrop(`.col[data-status=todo] .card:has-text("${lastCard}")`, `.col[data-status=todo] .card:has-text("${topCard}")`, { targetPosition: { x: 30, y: 4 } });
+  await page.waitForTimeout(300);
+  assert((await cardTitles('todo'))[0] === lastCard, 'board: drag a card to the top of its column');
+  await page.dragAndDrop(`.col[data-status=todo] .card:has-text("${lastCard}")`, `.col[data-status=doing] .card:has-text("Bravo")`, { targetPosition: { x: 30, y: 4 } });
+  await page.waitForTimeout(300);
+  const doing = await cardTitles('doing');
+  assert(doing.indexOf(lastCard) === doing.indexOf('Bravo') - 1 && (await getDb()).tasks.find(t => t.title === lastCard).status === 'doing', 'board: drop between cards of another column sets status and position');
+  await page.click('[data-layout=list]');
+  await page.selectOption('#sortSel', 'due');
+
   // dark + mobile
   await page.click('[data-act=theme]');
   await page.click('[data-view=today]');

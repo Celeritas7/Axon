@@ -273,6 +273,15 @@ label.lbl { display:block; font-size:10px; font-weight:600; letter-spacing:.06em
 .inbox-note u { color:var(--accent); }
 .sec-h { font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin:26px 0 10px; }
 .quick-proj { max-width:200px; flex:none; height:34px; }
+.row { position:relative; }
+.grip { position:absolute; left:-2px; top:50%; transform:translateY(-50%); width:14px; height:22px; display:grid; place-items:center; color:var(--ink-3); cursor:grab; opacity:0; }
+.grip svg { width:14px; height:14px; stroke-width:3; }
+.row:hover .grip { opacity:.8; }
+.row.dragging { opacity:.45; }
+.row.drop-before { box-shadow:inset 0 2px 0 var(--accent); }
+.row.drop-after { box-shadow:inset 0 -2px 0 var(--accent); }
+.card.drop-before { box-shadow:0 -3px 0 var(--accent), var(--shadow-card); }
+.card.drop-after { box-shadow:0 3px 0 var(--accent), var(--shadow-card); }
 .rep { display:inline-flex; align-items:center; gap:4px; color:var(--lv3-bar); font-weight:500; }
 .rep-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px; font-size:12.5px; color:var(--ink-2); }
 .rep-days { display:flex; gap:4px; margin-top:8px; }
@@ -576,6 +585,7 @@ const ICON = {
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2.5v2 M12 19.5v2 M2.5 12h2 M19.5 12h2 M5 5l1.4 1.4 M17.6 17.6 19 19 M19 5l-1.4 1.4 M6.4 17.6 5 19',
   moon: 'M20 13.5A8 8 0 0 1 10.5 4 8 8 0 1 0 20 13.5z',
   menu: 'M4 7h16 M4 12h16 M4 17h16',
+  grip: 'M9 6h.01 M15 6h.01 M9 12h.01 M15 12h.01 M9 18h.01 M15 18h.01',
   repeat: 'M17 2l3 3-3 3 M4 11V9a4 4 0 0 1 4-4h12 M7 22l-3-3 3-3 M20 13v2a4 4 0 0 1-4 4H4',
   clock: 'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z M12 8v4l3 2',
   gantt: 'M4 4v16h16 M7 7h6 M10 11h7 M8 15h5',
@@ -657,6 +667,7 @@ function normalizeTask(t) {
     spent: Number(t.spent) > 0 ? Math.round(Number(t.spent) * 100) / 100 : null,            // hours actually spent
     repeat: normalizeRepeat(t.repeat),                                                         // added later; null = one-off
     nextId: t.nextId ? String(t.nextId) : null,                                                // the occurrence made when this one was done
+    order: t.order == null || !Number.isFinite(Number(t.order)) ? null : Number(t.order),      // manual position (added later)
     due: /^\d{4}-\d{2}-\d{2}$/.test(t.due || '') ? t.due : null,
     tags: Array.isArray(t.tags) ? t.tags.map(String).filter(Boolean) : [],
     // ids of tasks that must be done before this one can start (added later; older saves have none)
@@ -745,7 +756,7 @@ let saveOk = true;
 
 // The data without things that change just by looking around (view, layout, backup date):
 // savedAt only moves, and the data file is only written, when this changes.
-const bodyOf = d => JSON.stringify({ ...d, savedAt: undefined, settings: { ...d.settings, view: undefined, layout: undefined, lastBackup: undefined } });
+const bodyOf = d => JSON.stringify({ ...d, savedAt: undefined, settings: { ...d.settings, view: undefined, layout: undefined, sort: undefined, lastBackup: undefined } });
 let lastBody = bodyOf(db);   // as loaded: opening the app is not a change
 function saveLocal() {
   try {
@@ -787,7 +798,7 @@ const ui = {
   search: '',
   showDone: false,
   priority: 'any',
-  sort: 'due',
+  sort: ['due', 'priority', 'effort', 'manual', 'created', 'title'].includes(db.settings.sort) ? db.settings.sort : 'due',   // remembered
   group: null,                           // null = default for view
   openTask: null,
   showArchived: false,
@@ -915,7 +926,9 @@ const SORTS = {
   priority: (a, b) => b.priority - a.priority || SORTS.due(a, b),
   created: (a, b) => (a.createdAt < b.createdAt ? 1 : -1),
   title: (a, b) => a.title.localeCompare(b.title),
-  effort: (a, b) => (b.estimate || 0) - (a.estimate || 0) || SORTS.due(a, b)
+  effort: (a, b) => (b.estimate || 0) - (a.estimate || 0) || SORTS.due(a, b),
+  // your own order (drag & drop); tasks never placed go after, oldest first
+  manual: (a, b) => ((a.order ?? Infinity) - (b.order ?? Infinity)) || (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0)
 };
 
 function visibleTasks(forBoard) {
@@ -1335,7 +1348,7 @@ function renderTopbar() {
           ${[...(p && p.phases.length ? [['phase', 'Group: Phase']] : []), ['due', 'Group: Due date'], ['status', 'Group: Status'], ['project', 'Group: Project'], ['priority', 'Group: Priority'], ['none', 'No grouping']].map(([v, l]) => `<option value="${v}" ${group === v ? 'selected' : ''}>${l}</option>`).join('')}
         </select>` : ''}
       <select class="input" id="sortSel" title="Sort by">
-        ${[['due', 'Sort: Due date'], ['priority', 'Sort: Priority'], ['effort', 'Sort: Effort'], ['created', 'Sort: Newest'], ['title', 'Sort: Title']].map(([v, l]) => `<option value="${v}" ${ui.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
+        ${[['due', 'Sort: Due date'], ['priority', 'Sort: Priority'], ['effort', 'Sort: Effort'], ['manual', 'Sort: Manual'], ['created', 'Sort: Newest'], ['title', 'Sort: Title']].map(([v, l]) => `<option value="${v}" ${ui.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
       </select>
       <select class="input" id="prioSel" title="Filter by priority">
         <option value="any">Any priority</option>
@@ -1460,7 +1473,8 @@ function metaHtml(t, { showProject = true } = {}) {
 
 function rowHtml(t) {
   const st = STATUSES.find(s => s.id === t.status);
-  return `<div class="row ${t.status === 'done' ? 'done' : ''} ${t.status !== 'done' && openDeps(t).length ? 'waiting' : ''} ${ui.openTask === t.id ? 'sel' : ''}" data-task="${esc(t.id)}">
+  return `<div class="row ${t.status === 'done' ? 'done' : ''} ${t.status !== 'done' && openDeps(t).length ? 'waiting' : ''} ${ui.openTask === t.id ? 'sel' : ''}" draggable="true" data-task="${esc(t.id)}">
+    <span class="grip" title="Drag to reorder">${ic('grip')}</span>
     <button class="check ${t.status === 'done' ? 'on' : ''}" data-act="toggle" title="Mark ${t.status === 'done' ? 'not done' : 'done'}">${ic('check')}</button>
     <div class="row-main"><div class="row-title">${esc(t.title)}</div>${metaHtml(t)}</div>
     ${t.priority ? `<span class="prio p${t.priority}">${PRIORITIES[t.priority]}</span>` : ''}
@@ -2764,7 +2778,7 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const id = e.target.id;
   if (id === 'groupSel') { ui.group = e.target.value; renderContent(); return; }
-  if (id === 'sortSel') { ui.sort = e.target.value; renderContent(); return; }
+  if (id === 'sortSel') { ui.sort = e.target.value; db.settings.sort = ui.sort; save(); renderContent(); return; }
   if (id === 'prioSel') { ui.priority = e.target.value; renderContent(); return; }
   if (id === 'showDone') { ui.showDone = e.target.checked; renderContent(); return; }
   if (id === 'treeColor') { ui.tree.color = e.target.value; renderContent(); return; }
@@ -2857,18 +2871,55 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'b' || e.key === 'B') { ui.layout = { list: 'board', board: 'tree', tree: 'timeline', timeline: 'calendar', calendar: 'list' }[ui.layout]; db.settings.layout = ui.layout; save(); renderTopbar(); renderContent(); }
 });
 
+// ---- manual order (drag & drop in the list and on the board) ----
+function applyOrder(ids) { ids.forEach((id, i) => { const t = taskById(id); if (t) t.order = (i + 1) * 10; }); }
+function placeIn(ids, id, targetId, after) {
+  const a = ids.filter(x => x !== id);
+  let i = targetId ? a.indexOf(targetId) : -1;
+  if (i < 0) i = a.length; else if (after) i++;
+  a.splice(i, 0, id);
+  return a;
+}
+function useManualSort() {
+  if (ui.sort === 'manual') return false;
+  ui.sort = 'manual'; db.settings.sort = 'manual';
+  return true;
+}
+const dropAfter = (e, el) => { const r = el.getBoundingClientRect(); return e.clientY > r.top + r.height / 2; };
+const clearDropMarks = () => document.querySelectorAll('.drop-before, .drop-after').forEach(x => x.classList.remove('drop-before', 'drop-after'));
+// dropping into another list group also moves the task into that group
+function groupPatch(t, target) {
+  const mode = ui.group || defaultGroup();
+  if (mode === 'status' && t.status !== target.status) return { status: target.status };
+  if (mode === 'phase' && t.projectId === target.projectId && t.phaseId !== target.phaseId) return { phaseId: target.phaseId };
+  if (mode === 'priority' && t.priority !== target.priority) return { priority: target.priority };
+  if (mode === 'project' && t.projectId !== target.projectId) return { projectId: target.projectId, phaseId: null };
+  return {};
+}
+
 // Board drag & drop: dropping a card on a column sets its status.
 let dragId = null;
 document.addEventListener('dragstart', e => {
-  const card = e.target.closest && e.target.closest('.card, .cal-chip[data-cal]');
+  if (e.target.closest && e.target.closest('input, textarea, select, button:not(.grip)')) return;
+  const card = e.target.closest && e.target.closest('.card, .cal-chip[data-cal], .rows .row');
   if (!card) return;
   dragId = card.dataset.task;
   card.classList.add('dragging');
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', dragId);
 });
-document.addEventListener('dragend', () => { dragId = null; document.querySelectorAll('.dragging, .col.drop, .cal-day.drop').forEach(x => x.classList.remove('dragging', 'drop')); });
+document.addEventListener('dragend', () => { dragId = null; clearDropMarks(); document.querySelectorAll('.dragging, .col.drop, .cal-day.drop').forEach(x => x.classList.remove('dragging', 'drop')); });
 document.addEventListener('dragover', e => {
+  const over = dragId && e.target.closest('.rows .row, .col .card');
+  if (over && over.dataset.task !== dragId) {
+    e.preventDefault();
+    const after = dropAfter(e, over);
+    if (!over.classList.contains(after ? 'drop-after' : 'drop-before')) { clearDropMarks(); over.classList.add(after ? 'drop-after' : 'drop-before'); }
+    const col = over.closest('.col');
+    if (col) { document.querySelectorAll('.col.drop').forEach(x => x !== col && x.classList.remove('drop')); col.classList.add('drop'); }
+    return;
+  }
+  if (dragId && e.target.closest('.rows')) { e.preventDefault(); return; }
   const day = dragId && e.target.closest('.cal-day');
   if (day) {
     e.preventDefault();
@@ -2883,6 +2934,43 @@ document.addEventListener('dragover', e => {
   col.classList.add('drop');
 });
 document.addEventListener('drop', e => {
+  // list: drop on a row → put the dragged task before/after it (and into its group)
+  const row = dragId && e.target.closest('.rows .row');
+  if (row) {
+    e.preventDefault();
+    const t = taskById(dragId), target = taskById(row.dataset.task), after = dropAfter(e, row);
+    clearDropMarks();
+    if (!t || !target || t.id === target.id) return;
+    const patch = groupPatch(t, target);
+    if (patch.status === 'done' && !confirmDone(t)) return;
+    const prev = t.status;
+    const ids = [...document.querySelectorAll('.content .rows .row')].map(r => r.dataset.task);
+    applyOrder(placeIn(ids, t.id, target.id, after));
+    const switched = useManualSort();
+    updateTask(t.id, patch);
+    render();
+    if (patch.status) afterStatusChange(t, prev);
+    if (switched) toast('Sorted by your own order now (Sort: Manual)');
+    return;
+  }
+  // board: drop on a card → that position in its column (status from the column)
+  const onCard = dragId && e.target.closest('.col .card');
+  if (onCard) {
+    e.preventDefault();
+    const col = onCard.closest('.col'), t = taskById(dragId), after = dropAfter(e, onCard);
+    clearDropMarks();
+    if (!t || onCard.dataset.task === t.id) return;
+    if (col.dataset.status === 'done' && t.status !== 'done' && !confirmDone(t)) return;
+    const prev = t.status;
+    const ids = [...document.querySelectorAll('.board .card')].map(c => c.dataset.task);
+    applyOrder(placeIn(ids, t.id, onCard.dataset.task, after));
+    const switched = useManualSort();
+    updateTask(t.id, t.status !== col.dataset.status ? { status: col.dataset.status } : {});
+    render();
+    if (prev !== t.status) afterStatusChange(t, prev);
+    if (switched) toast('Sorted by your own order now (Sort: Manual)');
+    return;
+  }
   const day = dragId && e.target.closest('.cal-day');
   if (day) {
     e.preventDefault();

@@ -84,6 +84,15 @@ remove them (or use the Design · Purchase · Build · Test preset).
 - A template can create phases: **From template → A phase for each section**.
 - Project cards show which phase you're in.
 
+## Your own order
+Drag tasks to put them in the order you want: in the **list** grab a row
+(⋮⋮ handle on the left) and drop it above or below another; on the **board**
+drop a card between cards (in any column). The first drag switches to
+**Sort: Manual**, which Arrow remembers. In a grouped list, dropping a task
+into another group moves it there too (e.g. Group: Status → into "In
+progress"; also phase, priority and project). New tasks go to the end. The
+tree follows the same order.
+
 ## Recurring tasks
 Open a task and choose **Repeat**: every day, every weekday, weekly, every 2
 weeks, monthly, yearly, or **Custom…** (every N days / weeks / months / years,
