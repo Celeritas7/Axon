@@ -560,6 +560,79 @@ const addDaysNode = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); 
   const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('#csvForm button[type=submit]')]);
   assert(parse(require('fs').readFileSync(await dl2.path(), 'utf8').slice(1)).length - 1 === allN, 'all tasks, including finished ones');
 
+  // import from a file
+  const FIX = path_.join(__dirname, 'fixtures');
+  await page.click('.brand');
+  await page.setInputFiles('#importAnyInput', path_.join(FIX, 'tasks.xlsx'));
+  await page.waitForSelector('#impForm');
+  assert((await page.textContent('#impForm')).includes('Deadline'), 'xlsx: columns detected (Deadline → Due, Hours → Estimate…)');
+  assert(await page.locator('#impForm input[name=impTo][value=column]').isChecked(), 'xlsx: offers the file\'s Project column');
+  await page.click('#impForm button[type=submit]');
+  await page.waitForTimeout(300);
+  let idb = await getDb();
+  const enc = idb.projects.find(x => x.name === 'Enclosure build');
+  const cut = idb.tasks.find(t => t.title === 'Cut sheet metal');
+  assert(enc && enc.phases.map(x => x.name).join(',') === 'Fabrication,Finishing' && cut.projectId === enc.id, 'xlsx: project and phases created');
+  assert(cut.status === 'doing' && cut.due === '2026-12-15' && cut.estimate === 3 && cut.tags.join() === 'shop,metal' && cut.notes.startsWith('Use 2 mm'), 'xlsx: status, Excel date, hours, labels and notes read');
+  assert(idb.tasks.find(t => t.title === 'Order hinges').status === 'done', 'xlsx: done status');
+  await page.click('.brand');
+  await page.setInputFiles('#importAnyInput', path_.join(FIX, 'tasks.xlsx'));
+  await page.waitForSelector('#impForm');
+  await page.click('#impForm button[type=submit]');
+  await page.waitForTimeout(300);
+  assert((await getDb()).tasks.filter(t => t.title === 'Cut sheet metal').length === 1 && (await page.textContent('#toast')).includes('skipped'), 'importing the same file again skips existing tasks');
+  // semicolon CSV with day-first dates into a new project
+  await page.click('.brand');
+  await page.setInputFiles('#importAnyInput', path_.join(FIX, 'semicolon-dmy.csv'));
+  await page.waitForSelector('#impForm');
+  await page.fill('#impName', 'QA checks');
+  await page.click('#impForm button[type=submit]');
+  await page.waitForTimeout(300);
+  idb = await getDb();
+  const iw = idb.tasks.find(t => t.title === 'Inspect welds');
+  assert(iw && idb.projects.find(x => x.id === iw.projectId).name === 'QA checks' && iw.due === '2026-12-15' && iw.priority === 3 && iw.notes === 'Check, then sign off', 'semicolon CSV: DD/MM dates, priority, quoted notes, new project');
+  assert((await page.textContent('h1')) === 'QA checks', 'opens the project it imported into');
+  await page.click('#toast button');
+  await page.waitForTimeout(250);
+  assert(!(await getDb()).projects.some(x => x.name === 'QA checks'), 'undo takes the whole import back');
+  // Axon BOM export → build plan
+  await page.setInputFiles('#importAnyInput', path_.join(FIX, 'axon-bom.csv'));
+  await page.waitForSelector('#impForm');
+  assert((await page.textContent('#impForm')).includes('Axon') && await page.inputValue('#impName') === 'Head assy upgrade', 'Axon BOM recognised; project named after the top assembly');
+  await page.check('#impForm input[name=impTo][value=new]');
+  await page.click('#impForm button[type=submit]');
+  await page.waitForTimeout(300);
+  idb = await getDb();
+  const hp = idb.projects.find(x => x.name.startsWith('Head assy upgrade'));
+  const at = n => idb.tasks.find(t => t.projectId === hp.id && t.title === n);
+  assert(hp.phases.map(x => x.name).join(',').includes('Head side covers') && at('Assemble Head side covers').dependsOn.includes(at('AGX side cover').id), 'Axon: sub-assemblies become phases; assemblies wait on their parts');
+  assert(at('AGX side cover').status === 'done' && at('Head top cover').status === 'blocked' && at('AGX side cover').notes.includes('Part number: AGX-114') && at('Assemble Head assy upgrade').dependsOn.length === 2, 'Axon: status, part number, top assembly waits on sub-assemblies');
+  // JSON list of tasks into the current project
+  await page.setInputFiles('#importAnyInput', path_.join(FIX, 'list.json'));
+  await page.waitForSelector('#impForm');
+  assert(await page.locator('#impForm input[name=impTo][value=existing]').isChecked(), 'JSON list: defaults to the project you are in');
+  await page.click('#impForm button[type=submit]');
+  await page.waitForTimeout(300);
+  idb = await getDb();
+  assert(idb.tasks.find(t => t.title === 'Book crane' && t.projectId === hp.id && t.priority === 4 && t.tags[0] === 'site') && idb.tasks.find(t => t.title === 'Safety briefing').estimate === 0.5, 'JSON list imported with priority, tags, estimate');
+  // an Arrow backup added alongside (not replacing)
+  const nP = (await getDb()).projects.length;
+  const [bk] = await Promise.all([page.waitForEvent('download'), page.click('.cluster [data-act=export]')]);
+  const bkPath = path_.join(require('os').tmpdir(), 'arrow-merge-test.json');
+  await bk.saveAs(bkPath);
+  await page.setInputFiles('#importAnyInput', bkPath);
+  await page.waitForSelector('#ajForm');
+  await page.click('#ajForm button[type=submit]');
+  await page.waitForTimeout(300);
+  idb = await getDb();
+  assert(idb.projects.length === nP * 2 && idb.projects.filter(x => x.name.startsWith('Head assy upgrade')).length === 2 && idb.projects.some(x => / \(\d+\)$/.test(x.name)), 'Arrow backup can be added alongside (same names get "(2)")');
+  const copyHp = idb.projects.find(x => x.name !== hp.name && x.name.startsWith('Head assy upgrade'));
+  const copyAsm = idb.tasks.find(t => t.projectId === copyHp.id && t.title === 'Assemble Head side covers');
+  assert(copyAsm.dependsOn.length && copyAsm.dependsOn.every(id => idb.tasks.find(t => t.id === id).projectId === copyHp.id), 'merged copy keeps its own dependencies');
+  await page.click('#toast button');
+  await page.waitForTimeout(250);
+  assert((await getDb()).projects.length === nP, 'undo the merge');
+
   // dark + mobile
   await page.click('[data-act=theme]');
   await page.click('[data-view=today]');

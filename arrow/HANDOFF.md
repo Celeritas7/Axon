@@ -38,6 +38,7 @@ new features consistent with this.
 | `README.md` | User-facing guide (how to open, backups, quick-add syntax, shortcuts). |
 | `tests/e2e.js` | Browser end-to-end test (Playwright). |
 | `HANDOFF.md` | This file. |
+| `tests/fixtures/` | Sample import files for the e2e test. |
 | `FONTS-LICENSE.txt` | SIL OFL 1.1 for the embedded IBM Plex fonts. |
 
 ## Hard constraints (keep these)
@@ -112,6 +113,17 @@ new features consistent with this.
   unticked subtasks. Drawer section `depsHtml`; list/board `.wait` chip;
   tree `depLinks` draws dashed arrows in the gap left of the task column
   (only between tasks that are both visible).
+- **IMPORT** (`importAnyFile`, input `#importAnyInput`): `parseDelimited`
+  (sniffs , ; tab), `readXlsx` (own zip reader + `DecompressionStream
+  ('deflate-raw')` + DOMParser; first sheet, shared strings), JSON → Arrow
+  (`arrowJsonModal`: merge via `mergeArrowDb` with new ids, or replace) or a
+  list of objects. Columns: `IMPORT_FIELDS` synonyms → `mapColumns`;
+  `specsFromRows` parses status/priority/dates (Excel serials, D/M vs M/D by
+  locale, `DMY_FIRST`)/hours/checklist/repeat; Axon tree/BOM CSV →
+  `axonSpecs` (top assembly = project, level-2 = phases, assemblies depend on
+  parts). `applySpecs` creates projects/phases/tasks, links dependencies by
+  title, skips duplicates; undo restores a snapshot. Fixtures in
+  `tests/fixtures/` (xlsx, semicolon CSV, Axon BOM, JSON list).
 - **CSV EXPORT**: `csvModal` (scope "here" = `shownTasks(includeDone)`:
   view + phase + search/priority filters; or all tasks), `csvRows` (sorted
   by project order, phase, then the current sort), `csvCell` (RFC 4180
@@ -214,9 +226,10 @@ changes. Extend the test whenever you add a feature.
 ## Ideas backlog (check with the owner before building)
 Built since the first handoff: tree view, project-first layout, Axon look,
 checklist templates, phases, dependencies, timeline, effort, save to a file,
-recurring tasks, calendar, manual ordering, CSV export.
+recurring tasks, calendar, manual ordering, CSV export, import (Excel/CSV/JSON/Axon files).
 Still open:
-- Optional import of projects from the online Axon app (Supabase).
+- Optional live import of projects straight from the online Axon app
+  (Supabase); for now, export a CSV from Axon and import that file.
 
 ## Git
 Work happens on branch `ccr-8774c6ce-u43j92` of `celeritas7/axon`. It isn't

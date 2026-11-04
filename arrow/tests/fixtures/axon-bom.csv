@@ -1,0 +1,7 @@
+seq,level,component,parent,part_number,qty,status,fastener,f.qty,loctite,torque
+1,L1,Head assy upgrade,,HD-ASSY-00,1,IN_PROGRESS,,,,
+1a,L2,Head side covers,Head assy upgrade,HD-SIDE-01,1,DONE,,,,
+1a1,L3,AGX side cover,Head side covers,AGX-114,2,DONE,CBE8-20,2,LT-243,4Nm
+1a2,L3,Stock side cover,Head side covers,STK-220,2,NOT_STARTED,,,,
+2a,L2,Head top covers,Head assy upgrade,HD-TOP-02,1,NOT_STARTED,,,,
+2a1,L3,Head top cover,Head top covers,HTC-330,1,BLOCKED,,,,

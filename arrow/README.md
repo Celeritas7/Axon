@@ -84,6 +84,29 @@ remove them (or use the Design · Purchase · Build · Test preset).
 - A template can create phases: **From template → A phase for each section**.
 - Project cards show which phase you're in.
 
+## Import from a file (Excel, CSV, JSON, Axon)
+Click **Import** (Projects page, the toolbar, or the storage panel) and pick
+a file. Arrow shows what it found and a preview before anything is added,
+and the message afterwards has **Undo**.
+
+- **Excel (.xlsx)** and **CSV / TSV** (comma, semicolon or tab): the first row
+  names the columns. Arrow recognises Task/Title/Name, Project, Phase/Stage,
+  Status, Priority, Start, Due/Deadline/End, Estimate/Hours/Effort, Spent,
+  Tags/Labels, Notes/Description, Checklist, Depends on, Repeats, Completed.
+  Dates can be 2026-12-15, Excel dates, 15/12/2026 or "Dec 15, 2026".
+  Arrow's own CSV export imports back the same way, so you can edit a list
+  in Excel and bring it back.
+- Put tasks into the projects named in the file, a new project, or an
+  existing one. Tasks that are already there (same project and title) are
+  skipped unless you untick that.
+- **Axon exports** (the tree CSV or the BOM CSV) become a build plan: the top
+  assembly is the project, sub-assemblies become phases, each part becomes a
+  task (part number, qty, fastener, Loctite and torque in its notes), each
+  assembly an "Assemble …" task that waits on its parts.
+- **JSON:** an Arrow backup or data file can be **added alongside** your data
+  (or replace it, like Restore); a JSON list of tasks imports like a sheet.
+- Old .xls files: save as .xlsx or CSV first.
+
 ## Export to a spreadsheet (CSV)
 Click **CSV** at the right of the toolbar (or **Export tasks as CSV…** in the
 storage panel). Choose **what's shown here** (this project or view, with your

@@ -275,6 +275,12 @@ label.lbl { display:block; font-size:10px; font-weight:600; letter-spacing:.06em
 .quick-proj { max-width:200px; flex:none; height:34px; }
 .tools .spacer { flex:1; }
 .csv-opts { display:flex; flex-direction:column; gap:10px; }
+.imp-col { display:inline-block; font-size:11.5px; background:var(--surface-3); border-radius:4px; padding:1px 6px; margin:2px 2px 0 0; color:var(--ink-2); }
+.imp-prev { border:1px solid var(--border); border-radius:var(--radius-sm); overflow:auto; max-height:240px; }
+.imp-prev table { width:100%; border-collapse:collapse; font-size:12px; }
+.imp-prev th { text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); background:var(--surface-2); padding:6px 8px; position:sticky; top:0; }
+.imp-prev td { padding:5px 8px; border-top:1px solid var(--border); max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.imp-prev .head-sub { padding:6px 8px; }
 .row { position:relative; }
 .grip { position:absolute; left:-2px; top:50%; transform:translateY(-50%); width:14px; height:22px; display:grid; place-items:center; color:var(--ink-3); cursor:grab; opacity:0; }
 .grip svg { width:14px; height:14px; stroke-width:3; }
@@ -548,6 +554,7 @@ textarea.mono { font-family:var(--font-mono); font-size:12.5px; line-height:1.6;
 <div class="backdrop" id="modal"></div>
 <div class="toast" id="toast"></div>
 <input type="file" id="importInput" accept=".json,application/json" hidden>
+<input type="file" id="importAnyInput" accept=".csv,.tsv,.txt,.xlsx,.json,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
 
 <script>
 'use strict';
@@ -1297,6 +1304,7 @@ function renderTopbar() {
       <div class="title-row">
         <h1>Projects</h1>
         <span class="spacer"></span>
+        <button class="btn" data-act="import-any" title="Import tasks or projects from Excel, CSV or JSON (Arrow or Axon exports too)">${ic('upload')}<span>Import</span></button>
         <button class="btn primary" data-act="new-project">${ic('plus')}<span>New project</span></button>
       </div>
       <div class="head-sub">${act.length} project${act.length === 1 ? '' : 's'} · ${open} open task${open === 1 ? '' : 's'}</div>`;
@@ -1368,7 +1376,10 @@ function renderTopbar() {
       </select>` : ''}
       ${ui.layout !== 'board' ? `<label class="check-lbl"><input type="checkbox" id="showDone" ${ui.showDone ? 'checked' : ''}> Show done</label>` : ''}
       <span class="spacer"></span>
-      <button class="btn" data-act="csv" title="Export tasks to a spreadsheet (CSV for Excel / Google Sheets)">${ic('sheet')}<span class="lbl-sm">CSV</span></button>
+      <div class="cluster">
+        <button data-act="import-any" title="Import tasks from Excel, CSV or JSON (Arrow or Axon exports too)">${ic('upload')}<span class="lbl-sm">Import</span></button>
+        <button data-act="csv" title="Export tasks to a spreadsheet (CSV for Excel / Google Sheets)">${ic('sheet')}<span class="lbl-sm">Export</span></button>
+      </div>
     </div>`;
 }
 
@@ -2480,6 +2491,382 @@ function csvModal() {
   });
 }
 
+// ============================================================
+// IMPORT from a file: Excel (.xlsx), CSV/TSV, JSON (Arrow backup/data file or a task list),
+// and Axon tree / BOM exports. Everything is previewed first and can be undone.
+// ============================================================
+// --- reading files ---
+function parseDelimited(text) {
+  text = text.replace(/^﻿/, '');
+  const first = text.split(/\r?\n/, 1)[0] || '';
+  const delim = [',', ';', '\t'].map(d => [d, first.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const rows = [];
+  let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') q = false; else cell += c; }
+    else if (c === '"' && cell === '') q = true;
+    else if (c === delim) { row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += c;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+// a tiny .xlsx reader: unzip (the browser inflates), then read the first sheet's XML
+async function readXlsx(buf) {
+  const dv = new DataView(buf), dec = new TextDecoder();
+  let eocd = -1;
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 66000); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('This is not an .xlsx file');
+  const files = new Map();
+  let off = dv.getUint32(eocd + 16, true);
+  for (let n = 0, count = dv.getUint16(eocd + 10, true); n < count && dv.getUint32(off, true) === 0x02014b50; n++) {
+    const nlen = dv.getUint16(off + 28, true), xlen = dv.getUint16(off + 30, true), clen = dv.getUint16(off + 32, true);
+    files.set(dec.decode(new Uint8Array(buf, off + 46, nlen)), { method: dv.getUint16(off + 10, true), size: dv.getUint32(off + 20, true), at: dv.getUint32(off + 42, true) });
+    off += 46 + nlen + xlen + clen;
+  }
+  const read = async name => {
+    const f = files.get(name.replace(/^\//, ''));
+    if (!f) return null;
+    const start = f.at + 30 + dv.getUint16(f.at + 26, true) + dv.getUint16(f.at + 28, true);
+    const data = new Uint8Array(buf, start, f.size);
+    if (f.method === 0) return dec.decode(data);
+    if (typeof DecompressionStream !== 'function') throw new Error('This browser cannot open .xlsx files; save the sheet as CSV instead');
+    return new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+  };
+  const xml = async name => { const t = await read(name); return t ? new DOMParser().parseFromString(t, 'application/xml') : null; };
+  const tags = (node, name) => [...node.getElementsByTagName(name)];
+  const shared = [];
+  const ss = await xml('xl/sharedStrings.xml');
+  if (ss) tags(ss, 'si').forEach(si => shared.push(tags(si, 't').map(t => t.textContent).join('')));
+  let sheetPath = 'xl/worksheets/sheet1.xml';
+  const wb = await xml('xl/workbook.xml'), rels = await xml('xl/_rels/workbook.xml.rels');
+  const firstSheet = wb && tags(wb, 'sheet')[0];
+  if (firstSheet && rels) {
+    const rid = firstSheet.getAttribute('r:id') || [...firstSheet.attributes].find(a => /:id$/.test(a.name))?.value;
+    const rel = tags(rels, 'Relationship').find(r => r.getAttribute('Id') === rid);
+    if (rel) { const t = rel.getAttribute('Target'); sheetPath = t.startsWith('/') ? t.slice(1) : 'xl/' + t.replace(/^\.\//, ''); }
+  }
+  const sheet = await xml(sheetPath);
+  if (!sheet) throw new Error('No sheet found in this workbook');
+  const colIndex = ref => { let n = 0; for (const ch of ref.replace(/\d+/g, '')) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
+  return tags(sheet, 'row').map(r => {
+    const out = [];
+    tags(r, 'c').forEach(c => {
+      const t = c.getAttribute('t'), v = tags(c, 'v')[0];
+      let val = '';
+      if (t === 's') val = shared[Number(v && v.textContent)] ?? '';
+      else if (t === 'inlineStr') val = tags(c, 't').map(x => x.textContent).join('');
+      else if (t === 'b') val = v && v.textContent === '1' ? 'TRUE' : 'FALSE';
+      else val = v ? v.textContent : '';
+      out[colIndex(c.getAttribute('r') || '')] = val;
+    });
+    return Array.from(out, x => x ?? '');
+  });
+}
+
+// --- understanding columns ---
+const IMPORT_FIELDS = {
+  title: ['task', 'title', 'name', 'taskname', 'summary', 'item', 'todo', 'activity', 'subject'],
+  project: ['project', 'projectname', 'list', 'board'],
+  phase: ['phase', 'stage', 'milestone', 'section', 'group', 'sprint'],
+  status: ['status', 'state'],
+  priority: ['priority', 'prio', 'importance'],
+  start: ['start', 'startdate', 'begin', 'begins'],
+  due: ['due', 'duedate', 'deadline', 'end', 'enddate', 'finish', 'date', 'target', 'targetdate'],
+  estimate: ['estimate', 'estimateh', 'estimatehours', 'effort', 'hours', 'duration', 'plannedhours', 'esttime'],
+  spent: ['spent', 'spenth', 'actual', 'actualhours', 'timespent', 'logged'],
+  tags: ['tags', 'tag', 'labels', 'label', 'category'],
+  notes: ['notes', 'note', 'description', 'details', 'comments', 'comment'],
+  checklist: ['checklist', 'subtasks', 'steps', 'items'],
+  depends: ['dependson', 'depends', 'predecessors', 'blockedby'],
+  repeat: ['repeats', 'repeat', 'recurrence', 'recurring'],
+  completed: ['completed', 'completedat', 'completedon', 'donedate'],
+  done: ['done', 'complete', 'finished']
+};
+const FIELD_LABEL = { title: 'Task', project: 'Project', phase: 'Phase', status: 'Status', priority: 'Priority', start: 'Start', due: 'Due', estimate: 'Estimate', spent: 'Spent', tags: 'Tags', notes: 'Notes', checklist: 'Checklist', depends: 'Depends on', repeat: 'Repeat', completed: 'Completed', done: 'Done' };
+const keyOf = h => String(h || '').toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z0-9]/g, '');
+function mapColumns(headers) {
+  const map = {}, used = new Set();
+  for (const [field, names] of Object.entries(IMPORT_FIELDS)) {
+    const i = headers.findIndex((h, j) => !used.has(j) && names.includes(keyOf(h)));
+    if (i >= 0) { map[field] = i; used.add(i); }
+  }
+  return { map, ignored: headers.filter((h, j) => !used.has(j) && String(h).trim()) };
+}
+function parseStatus(v) {
+  const k = keyOf(v);
+  if (!k) return null;
+  if (/^(done|complete|completed|finished|closed|released|resolved|100)$/.test(k)) return 'done';
+  if (/^(doing|inprogress|wip|started|active|ongoing|working)$/.test(k)) return 'doing';
+  if (/^(blocked|onhold|waiting|stuck)$/.test(k)) return 'blocked';
+  return 'todo';
+}
+function parsePriority(v) {
+  const k = keyOf(v);
+  const m = { none: 0, '0': 0, low: 1, '1': 1, p4: 1, medium: 2, med: 2, normal: 2, '2': 2, p3: 2, high: 3, '3': 3, p2: 3, urgent: 4, critical: 4, highest: 4, '4': 4, p1: 4 };
+  return k in m ? m[k] : 0;
+}
+const DMY_FIRST = !/^en-US|^en-PH/i.test(navigator.language || '');
+function parseDateCell(v) {
+  const x = String(v ?? '').trim();
+  if (!x) return null;
+  let m;
+  if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(x))) return ymd(new Date(+m[1], m[2] - 1, +m[3]));
+  if (/^\d{4,5}(\.\d+)?$/.test(x) && +x > 20000 && +x < 80000) { const d = new Date(1899, 11, 30); d.setDate(d.getDate() + Math.floor(+x)); return ymd(d); }   // Excel serial date
+  if ((m = /^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})$/.exec(x))) {
+    let a = +m[1], b = +m[2], y = +m[3]; if (y < 100) y += 2000;
+    const dmy = a > 12 ? true : b > 12 ? false : DMY_FIRST;
+    return ymd(dmy ? new Date(y, b - 1, a) : new Date(y, a - 1, b));
+  }
+  const t = Date.parse(x);
+  return Number.isNaN(t) ? null : ymd(new Date(t));
+}
+function parseRepeatLabel(v, due) {
+  const x = String(v || '').toLowerCase().trim();
+  if (!x) return null;
+  const from = /after done|after i finish|from completion/.test(x) ? 'done' : 'due';
+  if (/weekday/.test(x)) return presetRepeat('weekdays', due, from);
+  let m;
+  if ((m = /weekly on (.+)/.exec(x))) {
+    const days = m[1].split(/[,\s]+/).map(d => DOW_SHORT.findIndex(s => s.toLowerCase() === d.slice(0, 3))).filter(d => d >= 0);
+    if (days.length) return normalizeRepeat({ every: 1, unit: 'week', weekdays: days, from });
+  }
+  if ((m = /every (\d+) (day|week|month|year)/.exec(x))) return normalizeRepeat({ every: +m[1], unit: m[2], weekdays: [], monthDay: m[2] === 'month' || m[2] === 'year' ? parseYmd(due || todayStr()).getDate() : null, from });
+  for (const [re, key] of [[/daily|every day/, 'daily'], [/biweekly|fortnight/, 'biweekly'], [/weekly|every week/, 'weekly'], [/monthly|every month/, 'monthly'], [/yearly|annual|every year/, 'yearly']]) if (re.test(x)) return presetRepeat(key, due, from);
+  return null;
+}
+const truthy = v => /^(1|true|yes|y|x|done|✓|✔)$/i.test(String(v || '').trim());
+
+// rows of a sheet → task specs
+function specsFromRows(headers, body, map) {
+  const get = (r, f) => (map[f] == null ? '' : String(r[map[f]] ?? '').trim());
+  return body.map(r => {
+    const title = get(r, 'title');
+    if (!title) return null;
+    const due = parseDateCell(get(r, 'due')), start = parseDateCell(get(r, 'start'));
+    let status = parseStatus(get(r, 'status')) || 'todo';
+    if (map.done != null && truthy(get(r, 'done'))) status = 'done';
+    const checklist = get(r, 'checklist').split(/\r?\n|;/).map(x => x.trim()).filter(Boolean).filter(x => !/^\d+\/\d+$/.test(x))
+      .map(x => { const m = /^\[( |x|X|✓)?\]\s*(.*)$/.exec(x); return m ? { title: m[2], done: !!m[1] && m[1] !== ' ' } : { title: x, done: false }; });
+    const hrs = f => { const h = parseHours(get(r, f)); return h > 0 ? h : null; };
+    return {
+      title, project: get(r, 'project'), phase: get(r, 'phase'), status, priority: parsePriority(get(r, 'priority')),
+      start: start && due && start > due ? due : start, due, estimate: hrs('estimate'), spent: hrs('spent'),
+      tags: get(r, 'tags').split(/[,;]/).map(x => x.trim().replace(/^#/, '')).filter(Boolean), notes: get(r, 'notes').replace(/\r\n/g, '\n'),
+      checklist, depends: get(r, 'depends').split(/;|\r?\n/).map(x => x.trim()).filter(Boolean),
+      repeat: parseRepeatLabel(get(r, 'repeat'), due), completed: parseDateCell(get(r, 'completed'))
+    };
+  }).filter(Boolean);
+}
+
+// Axon tree / BOM export → a build plan
+function axonSpecs(headers, body, opts) {
+  const k = headers.map(keyOf), col = n => k.indexOf(n);
+  const iName = col('component') >= 0 ? col('component') : col('child'), iParent = col('parent');
+  const iPn = col('partnumber') >= 0 ? col('partnumber') : col('childpn'), iQty = col('qty'), iStatus = col('status');
+  const iFast = col('fastener'), iFq = col('fqty'), iLoc = col('loctite'), iTor = col('torque');
+  const cell = (r, i) => (i < 0 ? '' : String(r[i] ?? '').trim());
+  const nodes = new Map();
+  body.forEach(r => {
+    const name = cell(r, iName);
+    if (!name || nodes.has(name)) return;
+    nodes.set(name, { name, parent: cell(r, iParent), pn: cell(r, iPn), qty: cell(r, iQty), status: cell(r, iStatus),
+      fast: cell(r, iFast), fq: cell(r, iFq), loc: cell(r, iLoc), tor: cell(r, iTor), kids: [] });
+  });
+  nodes.forEach(n => { if (n.parent && nodes.has(n.parent)) nodes.get(n.parent).kids.push(n); else n.parent = ''; });
+  const roots = [...nodes.values()].filter(n => !n.parent);
+  const root = roots[0];
+  const top = n => { let x = n; while (x.parent && nodes.get(x.parent).parent) x = nodes.get(x.parent); return x; };   // its level-2 ancestor
+  const specs = [];
+  nodes.forEach(n => {
+    const assembly = n.kids.length > 0;
+    const notes = [n.pn && `Part number: ${n.pn}`, n.qty && `Qty: ${n.qty}`, n.fast && `Fastener: ${n.fast}${n.fq ? ' ×' + n.fq : ''}`, n.loc && `Loctite: ${n.loc}`, n.tor && `Torque: ${n.tor}`].filter(Boolean).join('\n');
+    const ph = !opts.phases ? '' : n === root || roots.includes(n) ? 'Final assembly' : top(n).name;
+    specs.push({
+      key: n.name, title: assembly ? `Assemble ${n.name}` : n.name, project: '', phase: ph,
+      status: parseStatus(n.status.replace(/_/g, ' ')) || 'todo', priority: 0, start: null, due: null, estimate: null, spent: null,
+      tags: [assembly ? 'assembly' : 'part'], notes, checklist: [], depends: opts.deps ? n.kids.map(c => c.name) : [], repeat: null, completed: null
+    });
+  });
+  // parts first, then their assemblies, ending with the top assembly
+  const depth = n => { let d = 0, x = n; while (x.parent) { d++; x = nodes.get(x.parent); } return d; };
+  specs.sort((a, b) => depth(nodes.get(b.key)) - depth(nodes.get(a.key)));
+  return { specs, root: root ? root.name : '', parts: [...nodes.values()].filter(n => !n.kids.length).length, assemblies: [...nodes.values()].filter(n => n.kids.length).length };
+}
+
+// --- creating tasks from specs ---
+function applySpecs(specs, target) {
+  const before = normalizeDb(JSON.parse(JSON.stringify(db)));
+  const projectFor = name => {
+    const nm = name.trim() || 'Imported';
+    let p = db.projects.find(x => x.name.toLowerCase() === nm.toLowerCase());
+    if (!p) { p = normalizeProject({ name: nm }, db.projects.length); db.projects.push(p); }
+    return p;
+  };
+  let fixed = null;
+  if (target.mode === 'existing') fixed = projectById(target.projectId);
+  if (target.mode === 'new') fixed = projectFor(uniqueProjectName(target.name || 'Imported'));
+  const made = [], byKey = new Map();
+  let skipped = 0;
+  for (const sp of specs) {
+    const p = fixed || (target.mode === 'column' && sp.project ? projectFor(sp.project) : target.mode === 'column' ? projectFor('Imported') : null);
+    if (target.skipDupes && db.tasks.some(t => t.projectId === (p ? p.id : null) && t.title.toLowerCase() === sp.title.toLowerCase())) { skipped++; continue; }
+    let phaseId = null;
+    if (p && sp.phase) {
+      let ph = p.phases.find(x => x.name.toLowerCase() === sp.phase.toLowerCase());
+      if (!ph) { ph = { id: uid(), name: sp.phase }; p.phases.push(ph); }
+      phaseId = ph.id;
+    }
+    const t = createTask({
+      projectId: p ? p.id : null, phaseId, title: sp.title, status: sp.status, priority: sp.priority, start: sp.start, due: sp.due,
+      estimate: sp.estimate, spent: sp.spent, tags: sp.tags, notes: sp.notes, subtasks: sp.checklist, repeat: sp.repeat
+    });
+    if (sp.status === 'done') t.completedAt = sp.completed ? new Date(parseYmd(sp.completed)).toISOString() : nowIso();
+    made.push([t, sp]);
+    byKey.set((sp.key || sp.title).toLowerCase(), t);
+  }
+  // dependencies by title (imported tasks first, then existing tasks in the same project)
+  for (const [t, sp] of made) {
+    t.dependsOn = sp.depends.map(name => {
+      const n = name.toLowerCase();
+      const d = byKey.get(n) || db.tasks.find(x => x.projectId === t.projectId && x.title.toLowerCase() === n && x.id !== t.id);
+      return d && d.id !== t.id && !wouldCycle(t, d) ? d.id : null;
+    }).filter(Boolean);
+  }
+  save();
+  return { before, made: made.map(x => x[0]), skipped, project: fixed };
+}
+function uniqueProjectName(name) {
+  let n = name, i = 2;
+  while (db.projects.some(p => p.name.toLowerCase() === n.toLowerCase())) n = `${name} (${i++})`;
+  return n;
+}
+function finishImport(res, label) {
+  closeModal();
+  if (res.project) setView('project:' + res.project.id); else render();
+  toast(`Imported ${res.made.length} task${res.made.length === 1 ? '' : 's'}${res.skipped ? ` (${res.skipped} already there, skipped)` : ''} from ${label}`, 'Undo', () => { db = res.before; save(); ui.view = 'projects'; render(); });
+}
+
+// an Arrow backup / data file added alongside what's here (new ids, links kept)
+function mergeArrowDb(src) {
+  const before = normalizeDb(JSON.parse(JSON.stringify(db)));
+  const pMap = new Map(), phMap = new Map(), tMap = new Map();
+  src.projects.forEach(p => {
+    const np = normalizeProject({ ...p, id: uid(), name: uniqueProjectName(p.name), phases: p.phases.map(ph => { const id = uid(); phMap.set(ph.id, id); return { id, name: ph.name }; }) }, db.projects.length);
+    pMap.set(p.id, np.id); db.projects.push(np);
+  });
+  src.tasks.forEach(t => tMap.set(t.id, uid()));
+  src.tasks.forEach(t => db.tasks.push(normalizeTask({
+    ...t, id: tMap.get(t.id), projectId: t.projectId ? pMap.get(t.projectId) || null : null, phaseId: t.phaseId ? phMap.get(t.phaseId) || null : null,
+    dependsOn: t.dependsOn.map(x => tMap.get(x)).filter(Boolean), nextId: t.nextId ? tMap.get(t.nextId) || null : null, subtasks: t.subtasks.map(x => ({ ...x, id: uid() }))
+  })));
+  src.templates.forEach(tp => { if (!db.templates.some(x => x.name === tp.name && x.text === tp.text)) db.templates.push(normalizeTemplate({ ...tp, id: uid() })); });
+  save();
+  return before;
+}
+
+async function importAnyFile(file) {
+  const name = file.name, ext = (name.split('.').pop() || '').toLowerCase(), base = name.replace(/\.[^.]+$/, '');
+  try {
+    if (ext === 'xls') { toast('Old .xls files are not supported. In Excel, save it as .xlsx or CSV and import that.'); return; }
+    if (ext === 'json') {
+      let raw;
+      try { raw = JSON.parse(await file.text()); } catch (e) { toast('That JSON file could not be read'); return; }
+      const arrow = normalizeDb(raw);
+      if (arrow) { arrowJsonModal(arrow, name, raw); return; }
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw.tasks) ? raw.tasks : Array.isArray(raw.items) ? raw.items : null;
+      if (!list || !list.length || typeof list[0] !== 'object') { toast('No tasks found in that JSON file'); return; }
+      const headers = [...new Set(list.flatMap(o => Object.keys(o)))];
+      sheetImportModal(headers, list.map(o => headers.map(h => (Array.isArray(o[h]) ? o[h].join('; ') : o[h] ?? ''))), name, base);
+      return;
+    }
+    const rows = ext === 'xlsx' ? await readXlsx(await file.arrayBuffer()) : parseDelimited(await file.text());
+    const nonEmpty = rows.filter(r => r.some(c => String(c).trim()));
+    if (nonEmpty.length < 2) { toast('That file has no rows to import'); return; }
+    sheetImportModal(nonEmpty[0].map(h => String(h).trim()), nonEmpty.slice(1), name, base);
+  } catch (e) {
+    console.error(e);
+    toast('Could not read that file: ' + (e.message || e));
+  }
+}
+
+function arrowJsonModal(next, name, raw) {
+  const m = $('modal');
+  m.innerHTML = `<form class="modal" id="ajForm"><h2>Import ${esc(name)}</h2>
+      <p class="head-sub">An Arrow backup or data file: ${next.projects.length} project${next.projects.length === 1 ? '' : 's'}, ${next.tasks.length} task${next.tasks.length === 1 ? '' : 's'}, ${next.templates.length} template${next.templates.length === 1 ? '' : 's'}${raw.savedAt ? `, saved ${esc(fmtStamp(raw.savedAt))}` : ''}.</p>
+      <div class="radios">
+        <label><input type="radio" name="ajMode" value="merge" checked> <span><b>Add it alongside my data</b><br><span class="head-sub">Its projects and tasks are added; nothing here is changed. Same-named projects get "(2)".</span></span></label>
+        <label><input type="radio" name="ajMode" value="replace"> <span><b>Replace everything with it</b><br><span class="head-sub">Like Restore: this browser's data becomes the file's (you can undo).</span></span></label>
+      </div>
+      <div class="actions"><button type="button" class="btn" data-act="cancel-modal">Cancel</button><button class="btn primary" type="submit">Import</button></div></form>`;
+  m.classList.add('open');
+  $('ajForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const mode = m.querySelector('input[name=ajMode]:checked').value;
+    closeModal();
+    if (mode === 'replace') {
+      const prev = db;
+      db = next; ui.view = 'projects'; ui.openTask = null;
+      applyTheme(); save(true); closeDrawer(); render();
+      toast(`Replaced with ${name}`, 'Undo', () => { db = prev; applyTheme(); save(true); render(); });
+      return;
+    }
+    const before = mergeArrowDb(next);
+    ui.view = 'projects'; render();
+    toast(`Added ${next.projects.length} project${next.projects.length === 1 ? '' : 's'} and ${next.tasks.length} tasks from ${name}`, 'Undo', () => { db = before; save(); render(); });
+  });
+}
+
+function sheetImportModal(headers, body, name, base) {
+  const k = headers.map(keyOf);
+  const isAxon = (k.includes('child') && k.includes('parent')) || (k.includes('component') && k.includes('parent'));
+  const { map, ignored } = mapColumns(headers);
+  if (!isAxon && map.title == null) {
+    toast(`No task column found in ${name}. Name a column "Task" (or Title / Name).`);
+    return;
+  }
+  const here = currentProject();
+  const projOpts = db.projects.filter(p => !p.archived).map(p => `<option value="${esc(p.id)}" ${here && here.id === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+  const m = $('modal'), axOpts = { phases: true, deps: true };
+  const draw = () => {
+    const ax = isAxon ? axonSpecs(headers, body, axOpts) : null;
+    const specs = isAxon ? ax.specs : specsFromRows(headers, body, map);
+    const prev = specs.slice(0, 6).map(sp => `<tr><td>${esc(sp.title)}</td><td>${esc([sp.project, sp.phase].filter(Boolean).join(' › '))}</td><td>${esc(STATUSES.find(x => x.id === sp.status).label)}</td><td class="mono">${esc(sp.due || '')}</td><td class="mono">${sp.estimate ? esc(fmtH(sp.estimate)) : ''}</td><td>${sp.depends.length ? sp.depends.length : ''}</td></tr>`).join('');
+    return { specs, ax, html: `<form class="modal wide" id="impForm" autocomplete="off">
+      <h2>Import ${esc(name)}</h2>
+      ${isAxon
+        ? `<p class="head-sub">Looks like an <b>Axon</b> ${k.includes('component') ? 'BOM' : 'tree'} export: top assembly <b>${esc(ax.root || '?')}</b>, ${ax.assemblies} assembl${ax.assemblies === 1 ? 'y' : 'ies'}, ${ax.parts} part${ax.parts === 1 ? '' : 's'}. Each part becomes a task, each assembly an "Assemble …" task.</p>
+           <label class="check-lbl"><input type="checkbox" id="axPh" ${axOpts.phases ? 'checked' : ''}> Make each sub-assembly a phase</label>
+           <label class="check-lbl"><input type="checkbox" id="axDep" ${axOpts.deps ? 'checked' : ''}> Assemblies wait on their parts (dependencies)</label>`
+        : `<p class="head-sub">${specs.length} task${specs.length === 1 ? '' : 's'} found. Columns used: ${Object.keys(map).map(f => `<span class="imp-col">${FIELD_LABEL[f]} ← ${esc(headers[map[f]])}</span>`).join(' ')}${ignored.length ? `<br>Not used: ${ignored.map(esc).join(', ')}` : ''}</p>`}
+      <div class="radios">
+        ${!isAxon && map.project != null ? `<label><input type="radio" name="impTo" value="column" checked> <span><b>Use the file's Project column</b><br><span class="head-sub">Tasks go into projects by name; missing projects are created.</span></span></label>` : ''}
+        <label><input type="radio" name="impTo" value="new" ${(isAxon || map.project == null) && !here ? 'checked' : ''}> <span><b>Into a new project</b> <input class="input" id="impName" value="${esc(isAxon && ax.root ? ax.root : base)}" style="margin-left:6px;width:220px"></span></label>
+        ${projOpts ? `<label><input type="radio" name="impTo" value="existing" ${(isAxon || map.project == null) && here ? 'checked' : ''}> <span><b>Into an existing project</b> <select class="input" id="impProj" style="margin-left:6px">${projOpts}</select></span></label>` : ''}
+      </div>
+      <label class="check-lbl"><input type="checkbox" id="impSkip" checked> Skip tasks that already exist (same project and title)</label>
+      <div class="imp-prev"><table><thead><tr><th>Task</th><th>Project › Phase</th><th>Status</th><th>Due</th><th>Est.</th><th>Deps</th></tr></thead><tbody>${prev}</tbody></table>${specs.length > 6 ? `<div class="head-sub">…and ${specs.length - 6} more</div>` : ''}</div>
+      <div class="actions"><button type="button" class="btn" data-act="cancel-modal">Cancel</button><button class="btn primary" type="submit">${ic('upload')}Import ${specs.length} task${specs.length === 1 ? '' : 's'}</button></div>
+    </form>` };
+  };
+  const show = () => { m.innerHTML = draw().html; m.classList.add('open'); bind(); };
+  const bind = () => {
+    if ($('axPh')) { $('axPh').onchange = e => { axOpts.phases = e.target.checked; show(); }; $('axDep').onchange = e => { axOpts.deps = e.target.checked; show(); }; }
+    $('impName') && $('impName').addEventListener('focus', () => { m.querySelector('input[name=impTo][value=new]').checked = true; });
+    $('impProj') && $('impProj').addEventListener('change', () => { m.querySelector('input[name=impTo][value=existing]').checked = true; });
+    $('impForm').onsubmit = e => {
+      e.preventDefault();
+      const { specs } = draw();
+      const mode = (m.querySelector('input[name=impTo]:checked') || {}).value || 'new';
+      const res = applySpecs(specs, { mode, name: $('impName') ? $('impName').value : base, projectId: $('impProj') ? $('impProj').value : null, skipDupes: $('impSkip').checked });
+      finishImport(res, name);
+    };
+  };
+  show();
+}
+
 function exportBackup() {
   db.settings.lastBackup = nowIso();
   const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
@@ -2665,7 +3052,7 @@ function storageModal() {
         : '<button class="btn primary sm" data-act="fs-create">Create a data file…</button><button class="btn sm" data-act="fs-open">Use an existing file…</button>'}</div>` : ''}
     </div></div>
     <div class="store-row"><span class="st-i">${ic('upload')}</span><div class="st-b"><b>Backups</b><div class="head-sub">One-off copies you download. Last backup: ${last ? esc(fmtStamp(last)) : 'never'}.</div>
-      <div class="store-acts"><button class="btn sm" data-act="export">${ic('download')}Download backup</button><button class="btn sm" data-act="import">${ic('upload')}Restore from backup…</button><button class="btn sm" data-act="csv">${ic('sheet')}Export tasks as CSV…</button></div></div></div>
+      <div class="store-acts"><button class="btn sm" data-act="export">${ic('download')}Download backup</button><button class="btn sm" data-act="import">${ic('upload')}Restore from backup…</button><button class="btn sm" data-act="csv">${ic('sheet')}Export tasks as CSV…</button><button class="btn sm" data-act="import-any">${ic('upload')}Import from a file…</button></div></div></div>
     <div class="actions"><button class="btn" data-act="cancel-modal">Close</button></div>
   </div>`;
   m.classList.add('open');
@@ -2807,6 +3194,7 @@ document.addEventListener('click', e => {
     case 'toggle-archived': ui.showArchived = !ui.showArchived; renderSidebar(); return;
     case 'export': exportBackup(); return;
     case 'csv': csvModal(); return;
+    case 'import-any': $('importAnyInput').click(); return;
     case 'storage': storageModal(); return;
     case 'fs-create': fileCreate(); return;
     case 'fs-open': fileOpen(); return;
@@ -2869,6 +3257,7 @@ document.addEventListener('change', e => {
   if (id === 'quickPhase') { ui.quickPhase[currentProject().id] = e.target.value; $('quickInput').focus(); return; }
   if (id === 'quickProj') { db.settings.lastProject = e.target.value; save(); renderContent(); $('quickInput').focus(); return; }
   if (id === 'importInput') { if (e.target.files[0]) importBackup(e.target.files[0]); e.target.value = ''; return; }
+  if (id === 'importAnyInput') { if (e.target.files[0]) importAnyFile(e.target.files[0]); e.target.value = ''; return; }
   const t = ui.openTask && taskById(ui.openTask);
   if (!t) return;
   if (id === 'dStatus') {
