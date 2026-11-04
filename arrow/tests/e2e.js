@@ -159,7 +159,9 @@ const addDaysNode = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); 
   await page.keyboard.press('b');
   assert(await page.locator('#tl').count() === 1, 'B cycles tree -> timeline');
   await page.keyboard.press('b');
-  assert(await page.locator('.content .row').count() > 0, 'B cycles timeline -> list');
+  assert(await page.locator('.cal-grid').count() === 1, 'B cycles timeline -> calendar');
+  await page.keyboard.press('b');
+  assert(await page.locator('.content .row').count() > 0, 'B cycles calendar -> list');
   await page.keyboard.press('b'); await page.keyboard.press('b');
   assert(await page.locator('#treeSvg').count() === 1, 'B cycles list -> board -> tree');
   await page.click('[data-layout=list]');
@@ -434,6 +436,58 @@ const addDaysNode = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); 
   await page.waitForTimeout(250);
   assert(!(await getDb()).tasks.find(t => t.id === ds.id).repeat, 'repeat can be switched off');
   await page.click('[data-act=close-drawer]');
+
+  // calendar view
+  await page.click('[data-view=all]');
+  await page.click('[data-layout=calendar]');
+  const today0 = await page.evaluate(() => todayStr());
+  assert(await page.locator('.cal-day').count() === 42 && await page.locator(`.cal-day.today[data-date="${today0}"]`).count() === 1, 'month grid of 6 weeks with today marked');
+  await page.fill('#quickInput', 'Gym *weekly');
+  await page.press('#quickInput', 'Enter');
+  await page.waitForTimeout(300);
+  const gym = (await getDb()).tasks.find(t => t.title === 'Gym');
+  assert(await page.locator(`.cal-day[data-date="${today0}"] .cal-chip[data-task="${gym.id}"]`).count() === 1, 'task shows on its due date');
+  assert(await page.locator(`.cal-day[data-date="${addDaysNode(today0, 7)}"] .cal-chip.ghost[data-task="${gym.id}"]`).count() === 1, 'future repeats show as faded previews');
+  // drag to another day
+  const target = addDaysNode(today0, 2);
+  await page.dragAndDrop(`.cal-day[data-date="${today0}"] .cal-chip[data-task="${gym.id}"]`, `.cal-day[data-date="${target}"]`);
+  await page.waitForTimeout(300);
+  assert((await getDb()).tasks.find(t => t.id === gym.id).due === target, 'dragging a task to another day changes its due date');
+  await page.click('#toast button');
+  await page.waitForTimeout(250);
+  assert((await getDb()).tasks.find(t => t.id === gym.id).due === today0, 'undo puts it back');
+  // undated strip -> day
+  await page.fill('#quickInput', 'Undated idea');
+  await page.press('#quickInput', 'Enter');
+  await page.click('[data-view=projects]'); await page.click(`.pcard[data-view="project:${pidT}"]`);
+  await page.click('[data-layout=calendar]');
+  await page.fill('#quickInput', 'Pick a date later');
+  await page.press('#quickInput', 'Enter');
+  await page.waitForTimeout(250);
+  const pl = (await getDb()).tasks.find(t => t.title === 'Pick a date later');
+  assert(await page.locator(`.cal-undated .cal-chip[data-task="${pl.id}"]`).count() === 1, 'undated tasks wait in the No date strip');
+  await page.click('[data-cal-mode=week]');          // shorter grid: strip and day both on screen
+  const dayAfter = (await page.evaluate(() => { const d = new Date(); return d.getDay(); })) === 0 ? today0 : addDaysNode(today0, 1);   // stay inside this week
+  await page.dragAndDrop(`.cal-undated .cal-chip[data-task="${pl.id}"]`, `.cal-day[data-date="${dayAfter}"]`);
+  await page.waitForTimeout(300);
+  assert((await getDb()).tasks.find(t => t.id === pl.id).due === dayAfter, 'dragging from No date schedules it');
+  await page.click('[data-cal-mode=month]');
+  await page.locator(`.cal-day[data-date="${addDaysNode(today0, 3)}"]`).hover();
+  await page.click(`.cal-day[data-date="${addDaysNode(today0, 3)}"] [data-act=cal-add]`);
+  await page.keyboard.type('Call the vendor');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  assert((await getDb()).tasks.find(t => t.title === 'Call the vendor').due === addDaysNode(today0, 3), '+ on a day adds a task due that day');
+  await page.click('[data-cal-mode=week]');
+  assert(await page.locator('.cal-day').count() === 7, 'week view');
+  await page.click('[data-act=cal-next]');
+  assert((await page.locator('.cal-day').first().getAttribute('data-date')) > today0, 'next week');
+  await page.click('[data-act=cal-today]');
+  await page.click('[data-cal-mode=month]');
+  await page.locator(`.cal-chip[data-task="${pl.id}"]`).click();
+  assert(await page.locator('#drawer.open').count() === 1 && await page.locator('#dTitle').inputValue() === 'Pick a date later', 'clicking a task opens it');
+  await page.click('[data-act=close-drawer]');
+  await page.click('[data-layout=list]');
 
   // dark + mobile
   await page.click('[data-act=theme]');

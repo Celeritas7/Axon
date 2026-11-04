@@ -350,6 +350,48 @@ textarea.mono { font-family:var(--font-mono); font-size:12.5px; line-height:1.6;
 .radios label:has(input:checked) { border-color:var(--accent); background:var(--accent-soft); }
 .radios input { margin-top:3px; }
 
+/* ---------- calendar ---------- */
+.cal-nav { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.cal-nav h2 { font-size:16px; font-weight:600; }
+.cal-nav .spacer { flex:1; }
+.cal-grid { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; background:var(--border); gap:1px; }
+.cal-hd { background:var(--surface); padding:7px 10px; font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); }
+.cal-hd.we { color:var(--ink-3); background:var(--surface-2); }
+.cal-day { background:var(--surface); min-height:112px; padding:5px 6px 7px; display:flex; flex-direction:column; gap:3px; min-width:0; }
+.cal.week .cal-day { min-height:360px; }
+.cal-day.we { background:color-mix(in srgb, var(--surface-2) 70%, var(--surface)); }
+.cal-day.other { background:var(--surface-2); } .cal-day.other .cal-dn { color:var(--ink-3); opacity:.6; }
+.cal-day.drop { background:var(--accent-soft); box-shadow:inset 0 0 0 2px var(--accent); }
+.cal-dh { display:flex; align-items:center; gap:6px; min-height:22px; }
+.cal-dn { font-family:var(--font-mono); font-size:12px; font-weight:600; color:var(--ink-2); }
+.cal-wd { font-size:11px; font-weight:600; color:var(--ink-3); text-transform:uppercase; }
+.cal-day.today .cal-dn { background:var(--accent); color:#fff; border-radius:11px; padding:1px 7px; }
+.cal-h { font-family:var(--font-mono); font-size:10.5px; color:var(--ink-3); margin-left:auto; }
+.cal-add { width:20px; height:20px; border-radius:5px; border:0; background:none; color:var(--ink-3); cursor:pointer; display:grid; place-items:center; opacity:0; }
+.cal-h + .cal-add { margin-left:0; } .cal-dh .cal-add:first-child, .cal-dn + .cal-add { margin-left:auto; }
+.cal-day:hover .cal-add { opacity:1; } .cal-add:hover { background:var(--ctl-hover); color:var(--accent); }
+.cal-items { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.cal-chip { display:flex; align-items:center; gap:5px; min-width:0; padding:2px 6px; border-radius:5px; font-size:11.5px; line-height:1.35; cursor:pointer; background:color-mix(in srgb, var(--pc, var(--accent)) 10%, var(--surface)); border-left:3px solid var(--pc, var(--border-2)); color:var(--ink); }
+.cal-chip:hover { background:color-mix(in srgb, var(--pc, var(--accent)) 18%, var(--surface)); }
+.cal-chip.sel { box-shadow:0 0 0 2px var(--accent); }
+.cal-chip.dragging { opacity:.45; }
+.cal-chip .cal-dot { width:7px; height:7px; border-radius:50%; background:var(--c, var(--st-todo)); flex:none; }
+.cal-chip.st-todo .cal-dot { --c:var(--st-todo); } .cal-chip.st-doing .cal-dot { --c:var(--st-doing); } .cal-chip.st-blocked .cal-dot { --c:var(--st-blocked); } .cal-chip.st-done .cal-dot { --c:var(--st-done); }
+.cal-t { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cal-e { font-family:var(--font-mono); font-size:10px; color:var(--ink-3); }
+.cal-chip.over { color:var(--danger); font-weight:600; }
+.cal-chip.done .cal-t { color:var(--ink-3); text-decoration:line-through; }
+.cal-chip.ghost { background:transparent; border:1px dashed var(--border-2); border-left:3px dashed var(--pc, var(--border-2)); color:var(--ink-3); cursor:pointer; }
+.cal.week .cal-t { white-space:normal; }
+.cal-more { border:0; background:none; text-align:left; font-size:11px; color:var(--accent); cursor:pointer; padding:1px 6px; }
+.cal-undated { display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin-top:12px; padding:10px; border:1px dashed var(--border-2); border-radius:var(--radius); }
+.cal-undated .lbl { font-size:10.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); margin-right:6px; }
+.cal-undated .cal-chip { max-width:240px; }
+@media (max-width: 760px) {
+  .cal-day { min-height:72px; padding:3px; } .cal-chip { font-size:10px; padding:1px 3px; } .cal-chip .cal-dot { display:none; }
+  .cal-h, .cal-add { display:none; } .cal.week .cal-day { min-height:200px; }
+}
+
 /* ---------- timeline (Gantt) ---------- */
 .tl { display:grid; grid-template-columns:260px minmax(0, 1fr); border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden; }
 .tl-left { border-right:1px solid var(--border); background:var(--surface); min-width:0; }
@@ -470,6 +512,7 @@ textarea.mono { font-family:var(--font-mono); font-size:12.5px; line-height:1.6;
   .appbar { gap:8px; padding:0 10px; }
   .brand .word, .appbar .vsep, .crumbs .hide-sm, .cluster .lbl-sm { display:none; }
   .savepill { display:none; } .cluster > button.nag::after { display:block; }
+  .seg .lbl-sm { display:none; } .seg button { padding:0 9px; }
   .cluster .n { display:none; } .cluster > button { padding:0 7px; } .cluster > button.ib { width:28px; }
   .topbar, .content { padding-left:16px; padding-right:16px; }
   .tools .search { max-width:none; flex-basis:100%; }
@@ -740,7 +783,7 @@ const ui = {
   // Arrow is project-first: on launch open the last project, else the Projects overview.
   // Today / Upcoming / Inbox / All tasks are helper views and aren't restored on launch.
   view: String(db.settings.view || '').startsWith('project:') ? db.settings.view : 'projects',  // projects | project:<id> | today | upcoming | inbox | all
-  layout: ['list', 'board', 'tree', 'timeline'].includes(db.settings.layout) ? db.settings.layout : 'list',  // list | board | tree | timeline
+  layout: ['list', 'board', 'tree', 'timeline', 'calendar'].includes(db.settings.layout) ? db.settings.layout : 'list',  // list | board | tree | timeline | calendar
   search: '',
   showDone: false,
   priority: 'any',
@@ -1281,10 +1324,11 @@ function renderTopbar() {
     <div class="tools">
       <div class="search">${ic('search')}<input class="input" id="searchInput" type="search" placeholder="Search tasks, notes, #tags…  ( / )" value="${esc(ui.search)}"></div>
       <div class="seg">
-        <button data-layout="list" class="${ui.layout === 'list' ? 'on' : ''}" title="List view">${ic('list')}List</button>
-        <button data-layout="board" class="${ui.layout === 'board' ? 'on' : ''}" title="Board view">${ic('board')}Board</button>
-        <button data-layout="tree" class="${ui.layout === 'tree' ? 'on' : ''}" title="Tree view">${ic('tree')}Tree</button>
-        <button data-layout="timeline" class="${ui.layout === 'timeline' ? 'on' : ''}" title="Timeline (Gantt) view">${ic('gantt')}Timeline</button>
+        <button data-layout="list" class="${ui.layout === 'list' ? 'on' : ''}" title="List view">${ic('list')}<span class="lbl-sm">List</span></button>
+        <button data-layout="board" class="${ui.layout === 'board' ? 'on' : ''}" title="Board view">${ic('board')}<span class="lbl-sm">Board</span></button>
+        <button data-layout="tree" class="${ui.layout === 'tree' ? 'on' : ''}" title="Tree view">${ic('tree')}<span class="lbl-sm">Tree</span></button>
+        <button data-layout="timeline" class="${ui.layout === 'timeline' ? 'on' : ''}" title="Timeline (Gantt) view">${ic('gantt')}<span class="lbl-sm">Timeline</span></button>
+        <button data-layout="calendar" class="${ui.layout === 'calendar' ? 'on' : ''}" title="Calendar (month / week)">${ic('upcoming')}<span class="lbl-sm">Calendar</span></button>
       </div>
       ${ui.layout === 'list' ? `
         <select class="input" id="groupSel" title="Group by">
@@ -1478,6 +1522,8 @@ function renderContent() {
     el.innerHTML = projectsOverviewHtml();
   } else if (ui.view === 'templates') {
     el.innerHTML = templatesHtml();
+  } else if (ui.layout === 'calendar') {
+    el.innerHTML = quickHtml() + calendarHtml(visibleTasks(false));
   } else if (ui.layout === 'timeline') {
     const tasks = visibleTasks(false);
     el.innerHTML = quickHtml() + (tasks.length ? timelineHtml(tasks) : emptyHtml());
@@ -1995,6 +2041,73 @@ function wireTimeline() {
 }
 
 // ============================================================
+// RENDER: CALENDAR (month / week) — tasks on their due date
+// ============================================================
+ui.cal = { mode: 'month', anchor: null };   // anchor: any date in the month / week shown (null = today)
+const mondayOf = d => addDays(d, -((parseYmd(d).getDay() + 6) % 7));
+
+function calRange() {
+  const a = ui.cal.anchor || todayStr();
+  if (ui.cal.mode === 'week') { const s0 = mondayOf(a); return { start: s0, days: 7, title: `${fmtShort(s0)} – ${fmtShort(addDays(s0, 6))}, ${parseYmd(addDays(s0, 6)).getFullYear()}` }; }
+  const d = parseYmd(a), first = ymd(new Date(d.getFullYear(), d.getMonth(), 1));
+  return { start: mondayOf(first), days: 42, month: d.getMonth(), title: d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) };
+}
+function calShift(dir) {
+  const a = ui.cal.anchor || todayStr();
+  if (ui.cal.mode === 'week') ui.cal.anchor = addDays(a, 7 * dir);
+  else { const d = parseYmd(a); ui.cal.anchor = ymd(new Date(d.getFullYear(), d.getMonth() + dir, 1)); }
+  renderContent();
+}
+
+function calendarHtml(tasks) {
+  const { start, days, month, title } = calRange(), end = addDays(start, days - 1), today = todayStr();
+  const byDay = new Map(), undated = [];
+  const put = (d, item) => { if (d < start || d > end) return; if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push(item); };
+  for (const t of tasks) {
+    if (!t.due) { if (t.status !== 'done') undated.push(t); continue; }
+    put(t.due, { t });
+    // preview future occurrences of repeating tasks
+    if (t.repeat && t.status !== 'done') {
+      let d = t.due;
+      for (let i = 0; i < 400; i++) { d = stepDate(d, t.repeat); if (d > end) break; put(d, { t, ghost: true }); }
+    }
+  }
+  const order = (a, b) => (a.ghost - b.ghost) || ((a.t.status === 'done') - (b.t.status === 'done')) || (b.t.priority - a.t.priority) || a.t.title.localeCompare(b.t.title);
+  const chip = ({ t, ghost }) => {
+    const p = t.projectId ? projectById(t.projectId) : null;
+    const over = !ghost && t.status !== 'done' && t.due < today;
+    const tip = `${t.title}${p ? ' — ' + p.name : ''}${ghost ? `\nRepeats (${repeatLabel(t.repeat)}) — a future one` : ''}${t.estimate ? `\nEstimate ${fmtH(t.estimate)}` : ''}`;
+    return `<div class="cal-chip st-${t.status} ${ghost ? 'ghost' : ''} ${over ? 'over' : ''} ${t.status === 'done' && !ghost ? 'done' : ''} ${ui.openTask === t.id && !ghost ? 'sel' : ''}"
+      ${ghost ? '' : 'draggable="true" data-cal="1"'} data-task="${esc(t.id)}" style="${p ? `--pc:${esc(p.color)}` : ''}" title="${esc(tip)}">
+      ${ghost ? ic('repeat', 'style="width:11px;height:11px"') : '<span class="cal-dot"></span>'}<span class="cal-t">${esc(t.title)}</span>${ui.cal.mode === 'week' && t.estimate && !ghost ? `<span class="cal-e">${fmtH(t.estimate)}</span>` : ''}</div>`;
+  };
+  const LIMIT = 4;
+  let cells = '';
+  for (let i = 0; i < days; i++) {
+    const ds = addDays(start, i), d = parseYmd(ds), items = (byDay.get(ds) || []).sort(order);
+    const hrs = effortOf(items.filter(x => !x.ghost && x.t.status !== 'done').map(x => x.t));
+    const cls = [ds === today ? 'today' : '', d.getDay() === 0 || d.getDay() === 6 ? 'we' : '', month !== undefined && d.getMonth() !== month ? 'other' : '', ds < today ? 'past' : ''].join(' ');
+    const shown = ui.cal.mode === 'month' ? items.slice(0, LIMIT) : items;
+    cells += `<div class="cal-day ${cls}" data-date="${ds}">
+      <div class="cal-dh"><span class="cal-dn">${d.getDate() === 1 && ui.cal.mode === 'month' ? d.toLocaleDateString(undefined, { month: 'short' }) + ' ' : ''}${d.getDate()}</span>
+        ${hrs.counted ? `<span class="cal-h" title="Estimated open work due this day">${fmtH(hrs.left || hrs.est)}</span>` : ''}
+        <button class="cal-add" data-act="cal-add" data-date="${ds}" title="Add a task due ${esc(fmtShort(ds))}">${ic('plus', 'style="width:12px;height:12px"')}</button></div>
+      <div class="cal-items">${shown.map(chip).join('')}${items.length > shown.length ? `<button class="cal-more" data-act="cal-week" data-date="${ds}">+${items.length - shown.length} more</button>` : ''}</div>
+    </div>`;
+  }
+  return `<div class="cal ${ui.cal.mode}">
+    <div class="cal-nav">
+      <div class="cluster"><button class="ib" data-act="cal-prev" title="Previous">${ic('chevron', 'style="transform:rotate(180deg)"')}</button><button data-act="cal-today">Today</button><button class="ib" data-act="cal-next" title="Next">${ic('chevron')}</button></div>
+      <h2>${esc(title)}</h2><span class="spacer"></span>
+      <div class="seg">${[['month', 'Month'], ['week', 'Week']].map(([v, l]) => `<button data-cal-mode="${v}" class="${ui.cal.mode === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+    </div>
+    <div class="cal-grid">${[1, 2, 3, 4, 5, 6, 0].map(i => `<div class="cal-hd ${i === 0 || i === 6 ? 'we' : ''}">${DOW_SHORT[i]}</div>`).join('')}${cells}</div>
+    ${undated.length ? `<div class="cal-undated"><span class="lbl">No date · drag onto a day</span>${undated.map(t => ({ t })).sort(order).slice(0, 40).map(chip).join('')}</div>` : ''}
+    <div class="tl-hint">Drag a task to another day to change its due date · ${ic('repeat', 'style="width:11px;height:11px"')} faded = future repeats · + adds a task on that day</div>
+  </div>`;
+}
+
+// ============================================================
 // RENDER: DRAWER (task details)
 // ============================================================
 function openDrawer(id) {
@@ -2504,6 +2617,8 @@ function render() {
 
 document.addEventListener('click', e => {
   if (Date.now() - ui.tl.dragEnd < 350 && e.target.closest('.tl')) return;   // the click that ends a bar drag
+  const calMode = e.target.closest('[data-cal-mode]');
+  if (calMode) { ui.cal.mode = calMode.dataset.calMode; renderContent(); return; }
   const scaleBtn = e.target.closest('[data-tl-scale]');
   if (scaleBtn) { ui.tl.scale = scaleBtn.dataset.tlScale; ui.tl.scrolledFor = null; renderTopbar(); renderContent(); return; }
   const viewBtn = e.target.closest('[data-view]');
@@ -2544,6 +2659,15 @@ document.addEventListener('click', e => {
       renderContent(); if (ui.openTask === t.id) renderDrawer(); return;
     }
     case 'tl-today': scrollTimelineToToday(); return;
+    case 'cal-prev': calShift(-1); return;
+    case 'cal-next': calShift(1); return;
+    case 'cal-today': ui.cal.anchor = null; renderContent(); return;
+    case 'cal-week': ui.cal.mode = 'week'; ui.cal.anchor = actEl.dataset.date; renderContent(); return;
+    case 'cal-add': {
+      const q = $('quickInput');
+      q.value = `@${actEl.dataset.date} `; q.focus(); q.setSelectionRange(q.value.length, q.value.length);
+      q.scrollIntoView({ block: 'nearest' }); return;
+    }
     case 'tl-set': {
       updateTask(taskEl.dataset.task, { start: todayStr(), due: addDays(todayStr(), 2) });
       refreshBehindDrawer(); if (ui.openTask === taskEl.dataset.task) renderDrawer();
@@ -2730,21 +2854,28 @@ document.addEventListener('keydown', e => {
   if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === 'n' || e.key === 'N') { e.preventDefault(); $('quickInput') ? $('quickInput').focus() : ui.view === 'templates' ? templateModal(null) : projectModal(null); }
   else if (e.key === '/') { if ($('searchInput')) { e.preventDefault(); $('searchInput').focus(); } }
-  else if (e.key === 'b' || e.key === 'B') { ui.layout = { list: 'board', board: 'tree', tree: 'timeline', timeline: 'list' }[ui.layout]; db.settings.layout = ui.layout; save(); renderTopbar(); renderContent(); }
+  else if (e.key === 'b' || e.key === 'B') { ui.layout = { list: 'board', board: 'tree', tree: 'timeline', timeline: 'calendar', calendar: 'list' }[ui.layout]; db.settings.layout = ui.layout; save(); renderTopbar(); renderContent(); }
 });
 
 // Board drag & drop: dropping a card on a column sets its status.
 let dragId = null;
 document.addEventListener('dragstart', e => {
-  const card = e.target.closest && e.target.closest('.card');
+  const card = e.target.closest && e.target.closest('.card, .cal-chip[data-cal]');
   if (!card) return;
   dragId = card.dataset.task;
   card.classList.add('dragging');
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', dragId);
 });
-document.addEventListener('dragend', () => { dragId = null; document.querySelectorAll('.dragging, .col.drop').forEach(x => x.classList.remove('dragging', 'drop')); });
+document.addEventListener('dragend', () => { dragId = null; document.querySelectorAll('.dragging, .col.drop, .cal-day.drop').forEach(x => x.classList.remove('dragging', 'drop')); });
 document.addEventListener('dragover', e => {
+  const day = dragId && e.target.closest('.cal-day');
+  if (day) {
+    e.preventDefault();
+    document.querySelectorAll('.cal-day.drop').forEach(x => x !== day && x.classList.remove('drop'));
+    day.classList.add('drop');
+    return;
+  }
   const col = dragId && e.target.closest('.col');
   if (!col) return;
   e.preventDefault();
@@ -2752,6 +2883,18 @@ document.addEventListener('dragover', e => {
   col.classList.add('drop');
 });
 document.addEventListener('drop', e => {
+  const day = dragId && e.target.closest('.cal-day');
+  if (day) {
+    e.preventDefault();
+    const t = taskById(dragId), to = day.dataset.date;
+    if (!t || t.due === to) return;
+    const before = { due: t.due, start: t.start };
+    const start = t.start && t.due ? addDays(t.start, daysBetween(t.due, to)) : t.start && t.start > to ? to : t.start;
+    updateTask(t.id, { due: to, start });
+    refreshBehindDrawer(); if (ui.openTask === t.id) renderDrawer();
+    toast(`"${t.title}" now due ${fmtDue(to)}`, 'Undo', () => { updateTask(t.id, before); refreshBehindDrawer(); });
+    return;
+  }
   const col = dragId && e.target.closest('.col');
   if (!col) return;
   e.preventDefault();

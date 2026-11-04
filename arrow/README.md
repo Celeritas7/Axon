@@ -112,6 +112,18 @@ line with `~3h`.
 - **Sort: Effort** puts the biggest tasks first. The tree and timeline show
   hours too.
 
+## Calendar
+Switch to **Calendar** for a month (or **Week**) view of tasks on their due
+dates, in a project or in the helper views.
+
+- Each day shows its tasks (status dot, project colour; overdue in red) and
+  the estimated hours due; a busy day shows **+N more** (opens that week).
+- **Drag a task to another day** to change its due date (Undo in the
+  message); a start date moves with it. Tasks with **no date** wait in a strip
+  under the calendar; drag them onto a day to schedule them.
+- **+** on a day starts a task due that day. **‹ Today ›** move around.
+- Repeating tasks show their **future occurrences** as faded ↻ previews.
+
 ## Timeline (Gantt)
 Switch a project (or a helper view) to **Timeline**. Each task is a bar from
 its **start date** to its **due date** (set both in the task details; a task
@@ -179,4 +191,4 @@ Type in the "Add a task" box:
 Example: `Order fasteners #purchasing !high @fri`
 
 ## Keyboard
-`N` new task · `/` search · `B` switch list → board → tree → timeline · `Esc` close panel
+`N` new task · `/` search · `B` switch list → board → tree → timeline → calendar · `Esc` close panel

@@ -126,6 +126,12 @@ new features consistent with this.
   phase tree nodes, project cards, helper-view heads and timeline groups.
   Quick add `~4h`; template lines may end in `~3h` (`splitEstimate`).
   `SORTS.effort`.
+- **CALENDAR** (layout `calendar`): `calRange` (42-day Monday-first month
+  grid or 7-day week from `ui.cal.anchor`), `calShift`, `calendarHtml` (tasks
+  by due date, repeat previews via `stepDate`, per-day effort, undated strip).
+  Chips use the board's HTML5 drag & drop (`.cal-chip[data-cal]` → `.cal-day`
+  drop changes due, shifts start, toast with undo). `cal-add` pre-fills quick
+  add with `@date`.
 - **TIMELINE** (Gantt, layout `timeline`): `tlSpan` (start..due, either may
   be missing), `timelineRows` (phase groups on a project page, project groups
   in helper views), `timelineHtml` (HTML bars on a CSS-gradient day grid,
@@ -166,7 +172,7 @@ new features consistent with this.
             repeat: { every, unit: 'day'|'week'|'month'|'year', weekdays: [0-6], monthDay, from: 'due'|'done' }|null,
             nextId /*occurrence created when this was done*/, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
             tags: [string], subtasks: [{ id, title, done }], createdAt, updatedAt, completedAt|null }],
-  settings: { theme: 'light'|'dark'|null, view /*'projects'|'project:<id>'|helper*/, layout: 'list'|'board'|'tree'|'timeline',
+  settings: { theme: 'light'|'dark'|null, view /*'projects'|'project:<id>'|helper*/, layout: 'list'|'board'|'tree'|'timeline'|'calendar',
               lastBackup /*ISO|null*/, lastProject /*id|''|null*/ } }
 ```
 
@@ -199,10 +205,9 @@ changes. Extend the test whenever you add a feature.
 ## Ideas backlog (check with the owner before building)
 Built since the first handoff: tree view, project-first layout, Axon look,
 checklist templates, phases, dependencies, timeline, effort, save to a file,
-recurring tasks.
+recurring tasks, calendar.
 Still open:
 - Manual drag ordering in the list and board.
-- Calendar or week view.
 - CSV export of tasks.
 - Optional import of projects from the online Axon app (Supabase).
 
