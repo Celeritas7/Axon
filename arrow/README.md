@@ -28,8 +28,11 @@ In this browser's local storage on this computer. It survives restarts, but
   due date, tags, subtasks and notes.
 - **Views:** Today (due today, overdue, or in progress), Upcoming, Inbox
   (tasks with no project), All tasks, and each project.
-- **List** view (group by due date / status / project / priority) or
-  **Board** view (drag cards between status columns).
+- **List** view (group by due date / status / project / priority),
+  **Board** view (drag cards between status columns), or
+  **Tree** view: a map of project → tasks → subtasks like Axon's tree.
+  Drag to pan, scroll to zoom, use −/+ on a node to collapse or expand it,
+  tick tasks and subtasks right on the map, click a task to open it.
 - Search across titles, notes, tags, projects and subtasks; filter by priority.
 - Light and dark theme.
 
@@ -45,4 +48,4 @@ Type in the "Add a task" box:
 Example: `Order fasteners #purchasing !high @fri`
 
 ## Keyboard
-`N` new task · `/` search · `B` switch list/board · `Esc` close panel
+`N` new task · `/` search · `B` switch list → board → tree · `Esc` close panel

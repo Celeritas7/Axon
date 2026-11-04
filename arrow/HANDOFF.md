@@ -52,10 +52,18 @@ Read this before continuing development in a new chat or session.
   changes), `createTask`, `deleteTask` (with undo toast), `toggleDone`,
   `parseQuick` / `quickAdd`.
 - **RENDER**: `renderSidebar`, `renderFoot`, `renderTopbar`,
-  `renderContent` (list or board), `renderDrawer` (task details).
+  `renderContent` (list, board or tree), `renderDrawer` (task details).
   Everything re-renders from state with `innerHTML`. Edits made in the drawer
   call `refreshBehindDrawer()`, which never re-renders the drawer itself, so
   typing isn't interrupted.
+- **RENDER: TREE**: a node-link diagram modelled on Axon's tree view
+  (`js/graph.js` at the repo root), but plain SVG with no D3, so it stays
+  offline. `treeModel` builds root → projects (non-project views only) →
+  tasks → subtasks; `layoutTree` places columns by depth and centres each
+  parent on its children; `nodeSvg` / `linkPath` draw it; `wireTree` adds
+  pan (pointer drag), wheel zoom and a capture-phase click guard so a pan
+  doesn't count as a click. Pan/zoom/collapsed state lives in `ui.tree`
+  (session only, not saved); it auto-fits when the view changes.
 - **MODALS / BACKUP / THEME / TOAST**: `projectModal`, `exportBackup`,
   `importBackup` (replaces all data, with undo), `applyTheme`, `toast`.
 - **EVENTS**: delegated `click` / `input` / `change` / `submit` / `keydown`
@@ -69,7 +77,7 @@ Read this before continuing development in a new chat or session.
   projects: [{ id, name, color, description, archived, createdAt }],
   tasks: [{ id, projectId|null, title, notes, status, priority /*0-4*/, due /*YYYY-MM-DD|null*/,
             tags: [string], subtasks: [{ id, title, done }], createdAt, updatedAt, completedAt|null }],
-  settings: { theme: 'light'|'dark'|null, view, layout: 'list'|'board', lastBackup /*ISO|null*/ } }
+  settings: { theme: 'light'|'dark'|null, view, layout: 'list'|'board'|'tree', lastBackup /*ISO|null*/ } }
 ```
 
 ## Testing
@@ -80,8 +88,8 @@ NODE_PATH=<scratch>/node_modules CHROME_PATH=<chromium binary> SHOT_DIR=<scratch
 In Claude Code cloud sessions, use `CHROME_PATH=/opt/pw-browsers/chromium`
 (the versioned folder names under `/opt/pw-browsers/` change between images). The test covers projects,
 quick-add parsing, drawer edits, subtasks, board drag, show-done, search,
-reload persistence, backup and restore, undo delete, dark mode, and phone
-width. It also writes screenshots to `SHOT_DIR`; look at them after UI
+reload persistence, backup and restore, undo delete, the tree view
+(collapse, subtask ticks, pan, click-to-open), dark mode, and phone width. It also writes screenshots to `SHOT_DIR`; look at them after UI
 changes. Extend the test whenever you add a feature.
 
 ## Known limitations

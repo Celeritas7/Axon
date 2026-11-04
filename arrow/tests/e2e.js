@@ -100,6 +100,44 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   await page.waitForTimeout(250);
   await page.waitForTimeout(300); assert((await page.evaluate(() => JSON.parse(localStorage.getItem('axonTasks.v1')))).tasks.length === 7, 'undo delete');
 
+  // tree view
+  const getDb = () => page.evaluate(() => JSON.parse(localStorage.getItem('axonTasks.v1')));
+  await page.click('[data-view=all]');
+  await page.click('[data-layout=tree]');
+  assert(await page.locator('#treeSvg .troot').count() === 1 && await page.locator('#treeSvg .tproj').count() >= 2, 'tree shows root and project nodes');
+  assert(await page.locator('#treeSvg .ttask').count() >= 5 && await page.locator('#treeSvg .tsub').count() >= 2, 'tree shows tasks and subtasks');
+  await page.screenshot({ path: OUT + '/shot-tree.png' });
+  await page.click('[data-act=tree-collapse]');
+  assert(await page.locator('#treeSvg .tsub').count() === 0, 'collapse hides subtasks');
+  await page.click('[data-act=tree-expand]');
+  const subCount = await page.locator('#treeSvg .tsub').count();
+  assert(subCount >= 2, 'expand all shows subtasks again');
+  await page.locator('#treeSvg .ttoggle').first().click();
+  assert(await page.locator('#treeSvg .ttoggle text', { hasText: '+' }).count() === 1, 'one node collapses with a +N badge');
+  await page.click('[data-act=tree-expand]');
+  const subEl = page.locator('#treeSvg .tsub:not(.done)').first();
+  const subTask = await subEl.getAttribute('data-task');
+  const doneBefore = (await getDb()).tasks.find(t => t.id === subTask).subtasks.filter(x => x.done).length;
+  await subEl.locator('[data-act=tree-sub]').click();
+  await page.waitForTimeout(300);
+  assert((await getDb()).tasks.find(t => t.id === subTask).subtasks.filter(x => x.done).length === doneBefore + 1, 'ticking a subtask in the tree saves it');
+  const tBefore = await page.getAttribute('#treeG', 'transform');
+  const box = await page.locator('#treeSvg').boundingBox();
+  await page.mouse.move(box.x + 30, box.y + box.height - 60); await page.mouse.down();
+  await page.mouse.move(box.x + 130, box.y + box.height - 20, { steps: 5 }); await page.mouse.up();
+  assert((await page.getAttribute('#treeG', 'transform')) !== tBefore && await page.locator('#drawer.open').count() === 0, 'dragging pans the tree without opening a task');
+  await page.click('[data-act=tree-fit]');
+  await page.locator('#treeSvg .ttask .t1').first().click();
+  assert(await page.locator('#drawer.open').count() === 1, 'clicking a task node opens its details');
+  await page.click('[data-act=close-drawer]');
+  await page.reload();
+  assert(await page.locator('#treeSvg').count() === 1, 'tree layout remembered after reload');
+  await page.keyboard.press('b');
+  assert(await page.locator('.content .row').count() > 0, 'B cycles tree -> list');
+  await page.keyboard.press('b'); await page.keyboard.press('b');
+  assert(await page.locator('#treeSvg').count() === 1, 'B cycles list -> board -> tree');
+  await page.click('[data-layout=list]');
+
   // dark + mobile
   await page.click('[data-act=theme]');
   await page.click('[data-view=today]');
