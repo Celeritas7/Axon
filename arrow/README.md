@@ -15,20 +15,20 @@ through a local server, starts out empty.
 In this browser's local storage on this computer. It survives restarts, but
 **clearing browsing data / site data for files deletes it**. So:
 
-- Click **Backup** in the sidebar now and then. It downloads
-  `arrow-backup-YYYY-MM-DD.json`. The sidebar turns red after 7 days
-  without a backup.
-- **Restore** loads a backup file (older `axon-tasks-backup-…` files from
+- Click the **download** button (top right) now and then. It saves
+  `arrow-backup-YYYY-MM-DD.json`. The green **Saved locally** pill turns
+  red (**Backup due**) after 7 days without a backup; clicking it backs up too.
+- The **upload** button (top right) restores a backup file (older `axon-tasks-backup-…` files from
   before the rename work too). It replaces the current data, and you can
   undo it from the message that appears.
 
 ## How it's organised
-Arrow is **project-first**. It opens on **Projects**, a card for each project
-showing progress, open / in-progress / blocked / overdue counts and the next
-task due. Click a card (or a project in the sidebar) to work inside it.
+Arrow is **project-first** and laid out like Axon. It opens on **Projects**,
+a card for each project with its status, progress and the next task due.
+Click a card to work inside it; the breadcrumb at the top takes you back.
 
-**Across projects** (Today, Upcoming, Inbox, All tasks) are helper views
-that pull tasks from every project, grouped by project. When you add a task
+**Today, Upcoming, Inbox and All tasks** (buttons in the top bar) are helper
+views that pull tasks from every project, grouped by project. When you add a task
 there, pick its project in the box next to it (Arrow remembers your choice).
 
 ## Features
@@ -40,10 +40,12 @@ there, pick its project in the box next to it (Arrow remembers your choice).
   project) and All tasks.
 - **List** view (group by due date / status / project / priority),
   **Board** view (drag cards between status columns), or
-  **Tree** view: a map of project → tasks → subtasks like Axon's tree.
-  The project is always the root; helper views show one tree per project.
+  **Tree** view: a map of project → tasks → subtasks in Axon's tree style
+  (level colours, numbered badges 1, 1a…, level headers). The project is
+  always the root; helper views show one tree per project. Colour nodes by
+  level, status or project.
   Drag to pan, scroll to zoom, use −/+ on a node to collapse or expand it,
-  tick tasks and subtasks right on the map, click a task to open it.
+  click a node's status dot to tick it off, click a task to open it.
 - Search across titles, notes, tags, projects and subtasks; filter by priority.
 - Light and dark theme.
 

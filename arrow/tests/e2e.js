@@ -23,7 +23,8 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   assert(await page.locator('.row').count() >= 1, 'seed tasks shown in Today');
   await page.screenshot({ path: OUT + '/shot-today.png' });
 
-  // new project
+  // new project (from the Projects page, like Axon)
+  await page.click('.brand');
   await page.click('[data-act=new-project]');
   await page.fill('#pName', 'Compressor build');
   await page.fill('#pDesc', 'Ship v2 by December');
@@ -110,6 +111,10 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   await page.click('[data-layout=tree]');
   assert(await page.locator('#treeSvg .troot').count() >= 2 && await page.locator('#treeSvg .troot', { hasText: 'Compressor build' }).count() === 1, 'helper-view tree has one project root per project');
   assert(await page.locator('#treeSvg .ttask').count() >= 5 && await page.locator('#treeSvg .tsub').count() >= 2, 'tree shows tasks and subtasks');
+  assert(await page.locator('#treeSvg .tseq', { hasText: '1a' }).count() >= 1 && await page.locator('#treeSvg .tlevel').count() === 3, 'tree has Axon-style sequence badges and level headers');
+  await page.selectOption('#treeColor', 'status');
+  assert(await page.locator('#treeSvg .tnode').count() > 0, 'colour-by-status redraws the tree');
+  await page.selectOption('#treeColor', 'level');
   await page.screenshot({ path: OUT + '/shot-tree.png' });
   await page.click('[data-act=tree-collapse]');
   assert(await page.locator('#treeSvg .tsub').count() === 0, 'collapse hides subtasks');
@@ -122,13 +127,13 @@ const OUT = process.env.SHOT_DIR || require('os').tmpdir();
   const subEl = page.locator('#treeSvg .tsub:not(.done)').first();
   const subTask = await subEl.getAttribute('data-task');
   const doneBefore = (await getDb()).tasks.find(t => t.id === subTask).subtasks.filter(x => x.done).length;
-  await subEl.locator('[data-act=tree-sub]').click();
+  await subEl.locator('[data-act=tree-sub] .d').click();
   await page.waitForTimeout(300);
   assert((await getDb()).tasks.find(t => t.id === subTask).subtasks.filter(x => x.done).length === doneBefore + 1, 'ticking a subtask in the tree saves it');
   const tBefore = await page.getAttribute('#treeG', 'transform');
   const box = await page.locator('#treeSvg').boundingBox();
-  await page.mouse.move(box.x + 30, box.y + box.height - 60); await page.mouse.down();
-  await page.mouse.move(box.x + 130, box.y + box.height - 20, { steps: 5 }); await page.mouse.up();
+  await page.mouse.move(box.x + box.width - 30, box.y + box.height - 30); await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 130, box.y + box.height - 80, { steps: 5 }); await page.mouse.up();
   assert((await page.getAttribute('#treeG', 'transform')) !== tBefore && await page.locator('#drawer.open').count() === 0, 'dragging pans the tree without opening a task');
   await page.click('[data-act=tree-fit]');
   await page.locator('#treeSvg .ttask .t1').first().click();

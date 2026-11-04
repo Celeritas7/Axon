@@ -12,9 +12,14 @@ Read this before continuing development in a new chat or session.
   doesn't replace it, and doesn't switch modes with it. It has no BOM fields.
 - The owner's requirements: works with no internet, no account, no server,
   data kept on the local machine.
-- It uses Axon's "Datum" look (IBM Plex fonts with system-font fallback,
-  electric-blue accent, light and dark themes), with the tokens copied from
-  `../css/styles.css`.
+- It follows Axon's "Datum" look closely (owner asked for "as clean as
+  Axon"): reference is `../axon-redesign/design_handoff_datum/` (README +
+  `reference/`). Tokens, top app bar (no sidebar), breadcrumbs, `.cluster`
+  button groups, project cards with a status edge, and Axon-style tree nodes
+  (level fill + left bar, mono meta, sequence badge, status dot, level header
+  pills, vertical zoom stack). IBM Plex Sans/Mono are **embedded as base64
+  woff2** in `<style id="plexFonts">` (OFL, see `FONTS-LICENSE.txt`), so no
+  network is needed. Don't edit that block by hand.
 
 ## Project-first (owner's direction)
 The app is organised around **projects**; Today / Upcoming / Inbox / All tasks
@@ -33,6 +38,7 @@ new features consistent with this.
 | `README.md` | User-facing guide (how to open, backups, quick-add syntax, shortcuts). |
 | `tests/e2e.js` | Browser end-to-end test (Playwright). |
 | `HANDOFF.md` | This file. |
+| `FONTS-LICENSE.txt` | SIL OFL 1.1 for the embedded IBM Plex fonts. |
 
 ## Hard constraints (keep these)
 1. **No network requests at all**: no CDN scripts, fonts, analytics or APIs.
@@ -61,7 +67,9 @@ new features consistent with this.
 - **MUTATIONS**: `updateTask` (sets or clears `completedAt` when the status
   changes), `createTask`, `deleteTask` (with undo toast), `toggleDone`,
   `parseQuick` / `quickAdd`.
-- **RENDER**: `renderSidebar`, `renderFoot`, `renderTopbar`,
+- **RENDER**: `renderSidebar` (now draws the top app bar: logo, breadcrumbs,
+  helper-view buttons), `renderFoot` (save pill + backup/restore/theme),
+  `renderTopbar` (page head: eyebrow, title, toolbar),
   `renderContent` (list, board or tree), `renderDrawer` (task details).
   Everything re-renders from state with `innerHTML`. Edits made in the drawer
   call `refreshBehindDrawer()`, which never re-renders the drawer itself, so
@@ -75,7 +83,8 @@ new features consistent with this.
   tasks → subtasks; `layoutTree` places columns by depth and centres each
   parent on its children; `nodeSvg` / `linkPath` draw it; `wireTree` adds
   pan (pointer drag), wheel zoom and a capture-phase click guard so a pan
-  doesn't count as a click. Pan/zoom/collapsed state lives in `ui.tree`
+  doesn't count as a click. Colour mode (`ui.tree.color`: level/status/project) and pan/zoom/collapsed
+  state live in `ui.tree`
   (session only, not saved); it auto-fits when the view changes.
 - **MODALS / BACKUP / THEME / TOAST**: `projectModal`, `exportBackup`,
   `importBackup` (replaces all data, with undo), `applyTheme`, `toast`.
