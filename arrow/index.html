@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Arrow</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%231f6feb'/%3E%3Cpath d='M7 17L17 7 M9 7h8v8' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <!-- Arrow — offline project & task manager.
      One self-contained file: no network, no build step. Data lives in this
      browser's localStorage; use Export backup for a file copy. -->
@@ -253,6 +254,7 @@ const ICON = {
   list: 'M4 6h16 M4 12h16 M4 18h16',
   board: 'M4 4h4v16H4z M10 4h4v10h-4z M16 4h4v13h-4z',
   check: 'M5 12.5l4.5 4.5L19 7.5',
+  arrow: 'M7 17L17 7 M9 7h8v8',
   close: 'M6 6l12 12 M18 6 6 18',
   trash: 'M4 7h16 M9 7V5h6v2 M6 7l1 13h10l1-13',
   copy: 'M9 9h10v10H9z M5 15V5h10',
@@ -571,7 +573,7 @@ function renderSidebar() {
   const active = db.projects.filter(p => !p.archived);
   const archived = db.projects.filter(p => p.archived);
   $('sidebar').innerHTML = `
-    <div class="brand"><span class="logo">${ic('check')}</span>Arrow</div>
+    <div class="brand"><span class="logo">${ic('arrow', 'stroke-width="2.2"')}</span>Arrow</div>
     <nav class="nav">
       ${navItem('today', ic('today'), 'Today')}
       ${navItem('upcoming', ic('upcoming'), 'Upcoming')}
